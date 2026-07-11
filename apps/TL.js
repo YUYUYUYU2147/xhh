@@ -410,7 +410,7 @@ export class TL extends plugin {
       signText: data.is_sign ? '今日已签' : '尚未签到',
       rows: [
         { icon: 'Tl/imgs/活跃度.png', label: '历练值', value: `${data.current_train_score || 0}/${data.max_train_score || 500}`, warn: (data.current_train_score || 0) < (data.max_train_score || 500) },
-        { icon: 'Tl/imgs/zzz.png', label: data.abyss_name || '超弦空间', value: data.abyss ? (data.abyss.is_open ? '进行中' : '未开启') : '暂无', warn: false },
+        { icon: 'Tl/imgs/zzz.png', label: data.abyss_name || '超弦空间', value: data.abyss_value || '暂无', warn: false },
         { icon: 'Tl/imgs/zzz.png', label: '记忆战场', value: data.battle_field ? `${data.battle_field.cur_reward || 0}/${data.battle_field.max_reward || 0}` : '暂无', warn: false },
         { icon: 'Tl/imgs/zzz.png', label: '往世乐土', value: data.god_war ? `${data.god_war.cur_reward || 0}/${data.god_war.max_reward || 0}` : '暂无', warn: false },
       ],
@@ -515,6 +515,13 @@ export class TL extends plugin {
       ? (greedy || ultra || null)
       : (ultra?.is_open ? ultra : greedy?.is_open ? greedy : ultra || greedy || null);
     const abyssName = isOldAbyss ? '量子流形' : (ultra ? '超弦空间' : greedy ? '量子流形' : '超弦空间');
+    const abyssValue = abyss
+      ? (abyss.is_open === false
+        ? '未开启'
+        : (isOldAbyss
+          ? `${abyss.cur_reward ?? abyss.challenge_score ?? 0}/${abyss.max_reward ?? '?'}`
+          : `${abyss.challenge_score ?? abyss.cur_reward ?? '?'} 分`))
+      : '暂无';
     return {
       uid: auth.uid,
       level,
@@ -526,6 +533,7 @@ export class TL extends plugin {
       max_train_score: note.max_train_score || 500,
       abyss,
       abyss_name: abyssName,
+      abyss_value: abyssValue,
       battle_field: note.battle_field || null,
       god_war: note.god_war || null,
       is_sign: signRes?.data?.is_sign === true,
