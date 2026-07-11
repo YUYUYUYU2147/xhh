@@ -121,6 +121,12 @@ body {
   padding: 3px;
   background: linear-gradient(135deg, #fff1a7, #ffb357);
 }
+.icon.weapon.four {
+  background: linear-gradient(135deg, #d79bff, #8ccfff);
+}
+.icon.weapon.five {
+  background: linear-gradient(135deg, #fff1a7, #ffb357);
+}
 .icon.weapon img {
   object-fit: contain;
   object-position: center;
