@@ -383,7 +383,7 @@
                 </svg>
               </span>
               <p>{{bh3_data.abyss_name || '超弦空间'}}</p>
-              <div class="right_">{{if bh3_data.abyss}}{{bh3_data.abyss.is_open ? '进行中' : '未开启'}}{{else}}暂无{{/if}}</div>
+              <div class="right_">{{bh3_data.abyss_value || (bh3_data.abyss ? (bh3_data.abyss.is_open ? '进行中' : '未开启') : '暂无')}}</div>
             </div>
             <div class="_box_">
               <span class="bh3-note-icon bh3-battle-icon">
