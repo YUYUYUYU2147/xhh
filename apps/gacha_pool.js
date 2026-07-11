@@ -508,9 +508,51 @@ export class xhh_gacha_pool extends plugin {
     return this.getZzzRarityFromMap(name, false) || this.getZzzRarityFromMap(name, true) || '';
   }
 
+  expandZzzPoolNames(names = []) {
+    const ret = [];
+    const pushUnique = (name = '') => {
+      const clean = String(name || '').trim();
+      if (clean && !ret.includes(clean)) ret.push(clean);
+    };
+    let known = [];
+    try {
+      const collect = (file, fields) => {
+        const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+        for (const info of Object.values(data)) {
+          for (const field of fields) {
+            const name = String(info?.[field] || '').trim();
+            if (name) known.push(name);
+          }
+        }
+      };
+      collect('./plugins/ZZZ-Plugin/resources/map/PartnerId2Data.json', ['name', 'full_name', 'Name', 'FullName']);
+      collect('./plugins/ZZZ-Plugin/resources/map/WeaponId2Data.json', ['Name', 'name']);
+      known = [...new Set(known)].sort((a, b) => b.length - a.length);
+    } catch (_) {}
+    for (const raw of names) {
+      const text = String(raw || '').trim();
+      if (!text) continue;
+      const exact = this.getZzzActualRarity(text);
+      if (exact) {
+        pushUnique(text);
+        continue;
+      }
+      let matched = false;
+      const cleanText = this.cleanZzzName(text);
+      for (const name of known) {
+        const cleanName = this.cleanZzzName(name);
+        if (!cleanName || !cleanText.includes(cleanName)) continue;
+        pushUnique(name);
+        matched = true;
+      }
+      if (!matched) pushUnique(text);
+    }
+    return ret;
+  }
+
   fixZzzOfficialRanks(s = '', a = '') {
-    const sNames = this.splitPoolNames(s);
-    const aNames = this.splitPoolNames(a);
+    const sNames = this.expandZzzPoolNames(this.splitPoolNames(s));
+    const aNames = this.expandZzzPoolNames(this.splitPoolNames(a));
     const fixedS = [];
     const fixedA = [];
     const pushUnique = (arr, name) => {
