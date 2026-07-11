@@ -1202,18 +1202,17 @@ export class xhh_gacha_pool extends plugin {
     const sprite = this.getZzzCharSprite(name);
     const officialIcon = (() => {
       if (!sprite) return '';
+      const circlePath = `./plugins/ZZZ-Plugin/resources/images/role_circle/IconRoleCircle${sprite}.png`;
+      if (fs.existsSync(circlePath)) return fs.realpathSync(circlePath);
       const localPath = `./plugins/ZZZ-Plugin/resources/images/role/IconRole${sprite}.png`;
       if (fs.existsSync(localPath)) return fs.realpathSync(localPath);
       return `https://static.nanoka.cc/assets/zzz/IconRole${sprite}.webp`;
     })();
     const panelIcon = this.getZzzPanelIcon(name);
-    if (this.useCustomGachaArt()) {
-      if (panelIcon) return panelIcon;
-      if (officialIcon) return officialIcon;
-    } else {
-      if (officialIcon) return officialIcon;
-      if (panelIcon) return panelIcon;
-    }
+    // 历史卡池的小头像优先使用 ZZZ-Plugin 的圆形头像。
+    // 面板/立绘图在 44px 小格子里容易只裁到空白区域（例如安比），会看起来像没显示。
+    if (officialIcon) return officialIcon;
+    if (panelIcon) return panelIcon;
     const dir = './plugins/Atlas/zzz-atlas/material for role';
     const path = `${dir}/${name}.webp`;
     if (fs.existsSync(path)) return fs.realpathSync(path);
