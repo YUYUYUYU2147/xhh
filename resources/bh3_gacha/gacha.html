@@ -45,9 +45,11 @@
           <div class="frame">
             {{if item.icon}}
             <img class="item-icon" src="{{item.icon}}" alt="">
+            {{else}}
+            <div class="item-placeholder">{{item.display || item.content}}</div>
             {{/if}}
-            <div class="gold-name {{if item.icon}}with-icon{{/if}}">{{item.display || item.content}}</div>
           </div>
+          <div class="gold-name">{{item.display || item.content}}</div>
           <div class="pull-tag">{{item.pulls}}抽</div>
         </div>
         {{/each}}
