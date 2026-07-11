@@ -511,16 +511,12 @@ export class TL extends plugin {
     const ultra = note.ultra_endless || null;
     const greedy = note.greedy_endless || null;
     const isOldAbyss = level > 0 && level <= 80;
-    const abyss = isOldAbyss
-      ? (greedy || ultra || null)
-      : (ultra?.is_open ? ultra : greedy?.is_open ? greedy : ultra || greedy || null);
+    const abyss = isOldAbyss ? (greedy || ultra || null) : (ultra || greedy || null);
     const abyssName = isOldAbyss ? '量子流形' : (ultra ? '超弦空间' : greedy ? '量子流形' : '超弦空间');
     const abyssValue = abyss
-      ? (abyss.is_open === false
-        ? '未开启'
-        : (isOldAbyss
-          ? `${abyss.cur_reward ?? abyss.challenge_score ?? 0}/${abyss.max_reward ?? '?'}`
-          : `${abyss.challenge_score ?? abyss.cur_reward ?? '?'} 分`))
+      ? (isOldAbyss
+        ? `${abyss.cur_reward ?? abyss.challenge_score ?? 0}/${abyss.max_reward ?? '?'}`
+        : `${abyss.challenge_score ?? abyss.cur_reward ?? '?'} 分`)
       : '暂无';
     return {
       uid: auth.uid,
