@@ -1858,6 +1858,11 @@ export class xhh_gacha_pool extends plugin {
     return arr.length > 0 && arr.every(n => !!this.getGsWeaponBase(n));
   }
 
+  isGsMixedPool(names = []) {
+    const arr = (Array.isArray(names) ? names : []).filter(Boolean);
+    return arr.some(n => !!this.getGsWeaponBase(n)) && arr.some(n => !this.getGsWeaponBase(n));
+  }
+
   buildGsHistoryItem(name = '', rarity = 'four', weapon = false, highlight = false) {
     const icon = weapon ? this.getGsWeaponIcon(name) : this.getGsCharacterIcon(name);
     return { name, icon, rarity, weapon, highlight };
@@ -1875,11 +1880,16 @@ export class xhh_gacha_pool extends plugin {
       const time = dateKey.replace(`【${version}】`, '').replace('~', ' ~ ');
       const rows = pools.map((arr, idx) => {
         const weapon = this.isGsWeaponPool(arr);
-        const title = weapon ? '武器活动祈愿' : (idx === 3 ? '集录祈愿' : '角色活动祈愿');
+        const mixed = this.isGsMixedPool(arr);
+        const title = weapon ? '武器活动祈愿' : (mixed || idx === 3 ? '集录祈愿' : '角色活动祈愿');
         return {
           title,
           weapon,
-          items: arr.map((n, i) => this.buildGsHistoryItem(n, i === 0 || (weapon && i < 2) ? 'five' : 'four', weapon, n === query))
+          items: arr.map((n, i) => {
+            const itemWeapon = weapon || (mixed && !!this.getGsWeaponBase(n));
+            const rarity = mixed ? 'five' : (i === 0 || (weapon && i < 2) ? 'five' : 'four');
+            return this.buildGsHistoryItem(n, rarity, itemWeapon, n === query);
+          })
         };
       }).filter(row => row.items.length);
       sections.push({ version, time, rows });
@@ -1904,9 +1914,10 @@ export class xhh_gacha_pool extends plugin {
         names.forEach((line, i) => {
           const arr = String(line).split(',').map(v => v.trim()).filter(Boolean);
           const weapon = this.isGsWeaponPool(arr);
+          const mixed = this.isGsMixedPool(arr);
           cards.push({
             version: ver,
-            title: weapon ? '武器活动祈愿' : (i === 3 ? '集录祈愿' : '角色活动祈愿'),
+            title: weapon ? '武器活动祈愿' : (mixed || i === 3 ? '集录祈愿' : '角色活动祈愿'),
             type: '原神',
             time,
             s: arr.slice(0, 2).join(' / '),
@@ -1922,10 +1933,11 @@ export class xhh_gacha_pool extends plugin {
         const arr = String(line).split(',').map(v => v.trim()).filter(Boolean);
         if (arr.includes(query)) {
           const weapon = this.isGsWeaponPool(arr);
+          const mixed = this.isGsMixedPool(arr);
           cards.push({
             version: ver,
             title: `${query} 卡池`,
-            type: weapon ? '武器祈愿' : '角色祈愿',
+            type: weapon ? '武器祈愿' : (mixed ? '集录祈愿' : '角色祈愿'),
             time,
             s: arr.slice(0, 2).join(' / '),
             a: arr.slice(2).join(' / '),
