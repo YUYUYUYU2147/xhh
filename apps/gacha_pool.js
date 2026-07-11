@@ -475,10 +475,67 @@ export class xhh_gacha_pool extends plugin {
     return '';
   }
 
+  splitPoolNames(text = '') {
+    return String(text || '')
+      .split(/[\/,，、]/)
+      .map(v => v.trim())
+      .filter(Boolean);
+  }
+
+  getZzzRarityFromMap(name = '', weapon = false) {
+    const target = this.cleanZzzName(this.normalizeZzzName(name));
+    if (!target) return '';
+    const file = weapon
+      ? './plugins/ZZZ-Plugin/resources/map/WeaponId2Data.json'
+      : './plugins/ZZZ-Plugin/resources/map/PartnerId2Data.json';
+    try {
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      for (const info of Object.values(data)) {
+        const names = weapon
+          ? [info?.Name, info?.name]
+          : [info?.name, info?.full_name, info?.Name, info?.FullName];
+        if (!names.some(v => this.cleanZzzName(v) === target)) continue;
+        const rarity = String(info?.Rarity || info?.rarity || '').toUpperCase();
+        if (rarity === 'S') return 'five';
+        if (rarity === 'A') return 'four';
+        return '';
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  getZzzActualRarity(name = '') {
+    return this.getZzzRarityFromMap(name, false) || this.getZzzRarityFromMap(name, true) || '';
+  }
+
+  fixZzzOfficialRanks(s = '', a = '') {
+    const sNames = this.splitPoolNames(s);
+    const aNames = this.splitPoolNames(a);
+    const fixedS = [];
+    const fixedA = [];
+    const pushUnique = (arr, name) => {
+      if (name && !arr.includes(name)) arr.push(name);
+    };
+    for (const name of [...sNames, ...aNames]) {
+      const rarity = this.getZzzActualRarity(name);
+      if (rarity === 'five') pushUnique(fixedS, name);
+      else if (rarity === 'four') pushUnique(fixedA, name);
+      else if (sNames.includes(name)) pushUnique(fixedS, name);
+      else pushUnique(fixedA, name);
+    }
+    return {
+      s: fixedS.join(' / '),
+      a: fixedA.join(' / ')
+    };
+  }
+
   officialCard(r, gameName = '') {
-    const s = Array.isArray(r.up?.s) ? r.up.s.join(' / ') : (r.up?.s || '');
-    const a = Array.isArray(r.up?.a) ? r.up.a.join(' / ') : (r.up?.a || '');
+    let s = Array.isArray(r.up?.s) ? r.up.s.join(' / ') : (r.up?.s || '');
+    let a = Array.isArray(r.up?.a) ? r.up.a.join(' / ') : (r.up?.a || '');
     const game = gameName || r.gameName;
+    if (game === '绝区零') {
+      ({ s, a } = this.fixZzzOfficialRanks(s, a));
+    }
     // 卡池立绘统一只放页面顶部右侧；单个 UP 卡片不再重复放立绘，避免画面太挤。
     return {
       version: r.version || this.currentVersionByGame(game) || '-',
@@ -1132,25 +1189,7 @@ export class xhh_gacha_pool extends plugin {
   }
 
   getZzzHistoryRarity(name = '', weapon = false, fallback = 'four') {
-    const target = this.cleanZzzName(this.normalizeZzzName(name));
-    if (!target) return fallback;
-    const file = weapon
-      ? './plugins/ZZZ-Plugin/resources/map/WeaponId2Data.json'
-      : './plugins/ZZZ-Plugin/resources/map/PartnerId2Data.json';
-    try {
-      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-      for (const info of Object.values(data)) {
-        const names = weapon
-          ? [info?.Name, info?.name]
-          : [info?.name, info?.full_name, info?.Name, info?.FullName];
-        if (!names.some(v => this.cleanZzzName(v) === target)) continue;
-        const rarity = String(info?.Rarity || info?.rarity || '').toUpperCase();
-        if (rarity === 'S') return 'five';
-        if (rarity === 'A') return 'four';
-        break;
-      }
-    } catch (_) {}
-    return fallback;
+    return this.getZzzRarityFromMap(name, weapon) || fallback;
   }
 
   buildZzzHistorySections(records = [], query = '') {
