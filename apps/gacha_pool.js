@@ -116,10 +116,24 @@ export class xhh_gacha_pool extends plugin {
         img: '', title: '「云霓孤光」独家频段', type: '角色', version: '3.0上半',
         timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '叶瞬光', a: ['妮可', '派派']
       }, {
+        img: '', title: '「琳琅鎏心」音擎频段', type: '武器', version: '3.0上半',
+        timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '琳琅鎏心', a: ['轰鸣座驾', '聚宝箱']
+      }, {
         img: '', title: '「云霓孤光」音擎频段', type: '武器', version: '3.0上半',
-        timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '云霓孤光', a: ['含羞恶面', '好斗的阿炮']
+        timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '云霓孤光', a: ['轰鸣座驾', '聚宝箱']
       });
     }
+    const ensureZzzPool = pool => {
+      if (!data.some(v => v.version === pool.version && v.type === pool.type && v.s === pool.s)) data.push(pool);
+    };
+    ensureZzzPool({
+      img: '', title: '「琳琅鎏心」音擎频段', type: '武器', version: '3.0上半',
+      timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '琳琅鎏心', a: ['轰鸣座驾', '聚宝箱']
+    });
+    ensureZzzPool({
+      img: '', title: '「云霓孤光」音擎频段', type: '武器', version: '3.0上半',
+      timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '云霓孤光', a: ['轰鸣座驾', '聚宝箱']
+    });
     if (!data.some(v => v.version === '3.0下半')) {
       data.push({
         img: '', title: '「天才不等式」独家频段', type: '角色', version: '3.0下半',
@@ -139,6 +153,9 @@ export class xhh_gacha_pool extends plugin {
       if (pool?.version === '3.0上半' && (pool.s === '光于指尖' || /光于指尖/.test(pool.title || ''))) {
         pool.title = '「云霓孤光」音擎频段';
         pool.s = '云霓孤光';
+      }
+      if (pool?.version === '3.0上半' && pool.type === '武器' && (pool.s === '云霓孤光' || pool.s === '琳琅鎏心')) {
+        pool.a = ['轰鸣座驾', '聚宝箱'];
       }
     }
     data.sort((a, b) => this.poolEndStamp(a) - this.poolEndStamp(b));
@@ -227,7 +244,23 @@ export class xhh_gacha_pool extends plugin {
         pool.title = '「云霓孤光」音擎频段';
         pool.s = '云霓孤光';
       }
+      if (pool?.version === '3.0上半' && pool.type === '武器' && (pool.s === '云霓孤光' || pool.s === '琳琅鎏心')) {
+        pool.a = ['轰鸣座驾', '聚宝箱'];
+      }
     }
+    const ensureZzzPool = pool => {
+      if (!data.some(v => v.version === pool.version && v.type === pool.type && v.s === pool.s)) data.push(pool);
+    };
+    ensureZzzPool({
+      img: '', title: '「琳琅鎏心」音擎频段', type: '武器', version: '3.0上半',
+      timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '琳琅鎏心', a: ['轰鸣座驾', '聚宝箱'],
+      startTime: '2026/06/17 10:00:00', endTime: '2026/07/08 11:59:59'
+    });
+    ensureZzzPool({
+      img: '', title: '「云霓孤光」音擎频段', type: '武器', version: '3.0上半',
+      timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '云霓孤光', a: ['轰鸣座驾', '聚宝箱'],
+      startTime: '2026/06/17 10:00:00', endTime: '2026/07/08 11:59:59'
+    });
     const local = this.loadZzzLocalPools().map(pool => {
       const item = { ...pool };
       if (item.timer) {
