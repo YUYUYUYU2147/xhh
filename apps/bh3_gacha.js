@@ -603,26 +603,89 @@ export class bh3_gacha extends plugin {
     return !!name && (maps.char[name] || 0) >= 4;
   }
 
+  getSharedPityGroup(gachaName = '', poolType = 'char') {
+    if (poolType !== 'char') return '';
+    const name = String(gachaName || '').replace(/\s+/g, '');
+    // 崩三的角色补给 A/B 共用保底/垫数；统计时去掉 A/B 标记后归为同一组。
+    if (!/补给[ABＡＢ]/i.test(name)) return '';
+    return name
+      .replace(/补给[ABＡＢ]/gi, '补给AB')
+      .replace(/[（(]?[ABＡＢ][）)]?$/i, 'AB');
+  }
+
+  getGachaRecordKey(poolName = '', record = {}) {
+    return `${poolName}\u0000${record.time || ''}\u0000${record.content || ''}`;
+  }
+
+  buildSharedPityMap(poolEntries = [], maps) {
+    const groupBuckets = new Map();
+    for (const entry of poolEntries) {
+      const group = this.getSharedPityGroup(entry.name, entry.poolType);
+      if (!group) continue;
+      if (!groupBuckets.has(group)) groupBuckets.set(group, []);
+      for (const record of entry.records || []) {
+        groupBuckets.get(group).push({
+          poolName: entry.name,
+          poolType: entry.poolType,
+          record,
+        });
+      }
+    }
+
+    const result = new Map();
+    for (const [group, list] of groupBuckets) {
+      const sorted = [...list].sort((a, b) => String(a.record.time).localeCompare(String(b.record.time)));
+      let pullSinceLast = 0;
+      const pullByRecord = new Map();
+      const pullCounts = [];
+      for (const item of sorted) {
+        pullSinceLast++;
+        if (this.isRareRecord(item.record.content, item.poolType, maps)) {
+          pullByRecord.set(this.getGachaRecordKey(item.poolName, item.record), pullSinceLast);
+          pullCounts.push(pullSinceLast);
+          pullSinceLast = 0;
+        }
+      }
+      result.set(group, {
+        currentPity: pullSinceLast,
+        pullByRecord,
+        pullCounts,
+      });
+    }
+    return result;
+  }
+
   async makeSummaryData(uid) {
     const log = this.loadGacha(uid);
     if (!log?.data || !Object.keys(log.data).length) return null;
     const maps = await this.getStarMaps();
-    const pools = await Promise.all(Object.entries(log.data).filter(([name]) => this.isValidGachaMenuName(name)).map(async ([name, records]) => {
-      const poolType = this.getPoolType(name);
+    const poolEntries = Object.entries(log.data)
+      .filter(([name]) => this.isValidGachaMenuName(name))
+      .map(([name, records]) => ({
+        name,
+        records: Array.isArray(records) ? records : [],
+        poolType: this.getPoolType(name),
+      }));
+    const sharedPityMap = this.buildSharedPityMap(poolEntries, maps);
+    const pools = await Promise.all(poolEntries.map(async ({ name, records, poolType }) => {
       const sorted = [...records].sort((a, b) => String(a.time).localeCompare(String(b.time)));
       const items = [];
       let pullSinceLast = 0;
       const pullCounts = [];
+      const sharedGroup = this.getSharedPityGroup(name, poolType);
+      const sharedPity = sharedGroup ? sharedPityMap.get(sharedGroup) : null;
       for (const r of sorted) {
         pullSinceLast++;
         if (this.isRareRecord(r.content, poolType, maps)) {
+          const sharedPulls = sharedPity?.pullByRecord?.get(this.getGachaRecordKey(name, r));
+          const pulls = sharedPulls || pullSinceLast;
           items.push({
             ...r,
-            pulls: pullSinceLast,
+            pulls,
             display: poolType === 'char' ? this.extractCharacterName(r.content) : poolType === 'weapon' ? this.extractWeaponName(r.content) : r.content,
             icon: await this.getItemIcon(r.content, poolType, maps),
           });
-          pullCounts.push(pullSinceLast);
+          pullCounts.push(pulls);
           pullSinceLast = 0;
         }
       }
@@ -634,7 +697,7 @@ export class bh3_gacha extends plugin {
         type: poolType,
         count: records.length,
         goldCount,
-        currentPity: pullSinceLast,
+        currentPity: sharedPity ? sharedPity.currentPity : pullSinceLast,
         avgPulls,
         maxPulls: pullCounts.length ? Math.max(...pullCounts) : 0,
         latest: records[0]?.time || '',
