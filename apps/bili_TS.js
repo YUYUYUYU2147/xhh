@@ -1,7 +1,7 @@
 import fs from 'fs';
 import moment from 'moment';
 import lodash from 'lodash';
-import { bili, yaml, makeForwardMsg, sleep } from '#xhh';
+import { bili, yaml, makeForwardMsg, sleep, pluginPriority } from '#xhh';
 
 let path = './plugins/xhh/config/bili_group.yaml';
 
@@ -15,7 +15,7 @@ export class bilibili_push extends plugin {
       name: '[小花火]bili推送',
       dsc: '',
       event: 'message.group',
-      priority: -119,
+      priority: pluginPriority('bilibili_push', -119),
       rule: [
         {
           reg: '^#*(小花火)?(添加|开启|取消|删除|关闭)(b站|B站|哔哩哔哩|bili|bilibili)推送(\\d+)$',

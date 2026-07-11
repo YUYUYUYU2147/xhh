@@ -2,7 +2,8 @@ import {
     sleep,
     makeForwardMsg,
     recallMsg,
-    getSource
+    getSource,
+    pluginPriority
 } from '#xhh';
 export class picture extends plugin {
     constructor(e) {
@@ -10,7 +11,7 @@ export class picture extends plugin {
             name: '[小花火]图片处理',
             dsc: '',
             event: 'message',
-            priority: 1234,
+            priority: pluginPriority('picture', 1234),
             rule: [{
                 reg: '^#?(过期|链接|大小)$',
                 fnc: 'lj',

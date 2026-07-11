@@ -45,6 +45,14 @@ const defaultBh3GuideSources = {
   ].join('\n'),
 }
 
+const priorityInput = (field, label, defaultValue) => ({
+  field,
+  label,
+  helpMessage: `默认 ${defaultValue}；Yunzai 数字越小优先级越高，修改后需重启`,
+  component: 'InputNumber',
+  componentProps: { min: -9999999999, max: 9999999999, step: 1 },
+})
+
 export const supportGuoba = () => ({
   pluginInfo: {
     name: 'xhh',
@@ -563,6 +571,25 @@ export const supportGuoba = () => ({
         component: 'InputNumber',
         componentProps: { min: -9999999999, max: 9999999999, step: 1 },
       },
+      priorityInput('bilibili_priority', 'B站解析卡片(bilibili)', -120),
+      priorityInput('bilibili_push_priority', 'B站推送(bilibili_push)', -119),
+      priorityInput('gacha_pool_priority', '全游戏当前卡池(gacha_pool)', -1000000000),
+      priorityInput('gs_logs_priority', '原神历史卡池(gs_logs)', -99),
+      priorityInput('sr_logs_priority', '星铁历史卡池(sr_logs)', -88),
+      priorityInput('sr_strategy_priority', '星铁攻略图(sr_strategy)', -99),
+      priorityInput('mhy_estimate_priority', '预估/攻略搜索(mhy_estimate)', -9999999999),
+      priorityInput('video_priority', '米哈游最新视频(video)', 1),
+      priorityInput('voice_priority', '角色语音(voice)', 15),
+      priorityInput('update_priority', '插件更新(update)', 10),
+      priorityInput('config_priority', '插件配置(config)', 15),
+      priorityInput('tlp_priority', '塔罗牌(tlp)', 15),
+      priorityInput('help_priority', '帮助菜单(help)', 100),
+      priorityInput('picture_priority', '图片处理(picture)', 1234),
+      priorityInput('npc_wt_priority', 'NPC委托成就(npc_wt)', 1234),
+      priorityInput('huobi_priority', '货币战争(huobi)', 123),
+      priorityInput('role_combat_priority', '剧诗可用角色(role_combat)', 100),
+      priorityInput('zzz_md_priority', '绝区零母带(zzz_md)', 100),
+      priorityInput('currency_balance_priority', '货币统计(currency_balance)', 100),
       {
         component: 'Divider',
         label: '其他',
@@ -651,6 +678,25 @@ export const supportGuoba = () => ({
         bh3_all_note_priority: cfg.bh3_all_note_priority ?? 100,
         bh3_gacha_priority: cfg.bh3_gacha_priority ?? 100,
         bh3_ledger_priority: cfg.bh3_ledger_priority ?? 100,
+        bilibili_priority: cfg.bilibili_priority ?? -120,
+        bilibili_push_priority: cfg.bilibili_push_priority ?? -119,
+        gacha_pool_priority: cfg.gacha_pool_priority ?? -1000000000,
+        gs_logs_priority: cfg.gs_logs_priority ?? -99,
+        sr_logs_priority: cfg.sr_logs_priority ?? -88,
+        sr_strategy_priority: cfg.sr_strategy_priority ?? -99,
+        mhy_estimate_priority: Number.isFinite(Number(cfg.mhy_estimate_priority)) ? Number(cfg.mhy_estimate_priority) : -9999999999,
+        video_priority: cfg.video_priority ?? 1,
+        voice_priority: cfg.voice_priority ?? 15,
+        update_priority: cfg.update_priority ?? 10,
+        config_priority: cfg.config_priority ?? 15,
+        tlp_priority: cfg.tlp_priority ?? 15,
+        help_priority: cfg.help_priority ?? 100,
+        picture_priority: cfg.picture_priority ?? 1234,
+        npc_wt_priority: cfg.npc_wt_priority ?? 1234,
+        huobi_priority: cfg.huobi_priority ?? 123,
+        role_combat_priority: cfg.role_combat_priority ?? 100,
+        zzz_md_priority: cfg.zzz_md_priority ?? 100,
+        currency_balance_priority: cfg.currency_balance_priority ?? 100,
         bh3_remind_enable: !!bh3Remind.enable,
         bh3_all_note_enable: !!cfg.bh3_all_note_enable,
         bh3_all_note_groups: (cfg.bh3_all_note_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean).join(','),
@@ -761,6 +807,11 @@ export const supportGuoba = () => ({
         'bh3_remind_priority', 'bh3_note_priority', 'bh3_abyss_priority',
         'bh3_battlefield_priority', 'bh3_godwar_priority', 'bh3_profile_priority',
         'bh3_all_note_priority', 'bh3_gacha_priority', 'bh3_ledger_priority', 'abyss_report_priority',
+        'bilibili_priority', 'bilibili_push_priority', 'gacha_pool_priority',
+        'gs_logs_priority', 'sr_logs_priority', 'sr_strategy_priority', 'mhy_estimate_priority',
+        'video_priority', 'voice_priority', 'update_priority', 'config_priority', 'tlp_priority',
+        'help_priority', 'picture_priority', 'npc_wt_priority', 'huobi_priority',
+        'role_combat_priority', 'zzz_md_priority', 'currency_balance_priority',
       ]
       for (const f of priorityFields) {
         if (data[f] != null) yaml.set(_path + 'config.yaml', f, Number(data[f]))

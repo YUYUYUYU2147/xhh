@@ -1,4 +1,4 @@
-import { api, mhy, render } from '#xhh';
+import { api, mhy, render, pluginPriority } from '#xhh';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
 
 export class zzz extends plugin {
@@ -7,7 +7,7 @@ export class zzz extends plugin {
             name: '[小花火]绝区零母带',
             dsc: '绝区零母带查询',
             event: 'message',
-            priority: 100,
+            priority: pluginPriority('zzz_md', 100),
             rule: [
                 {
                     reg: '^#*(绝区零)?(母带|(绝区零|zzz)(存货|存量|囤货))$',

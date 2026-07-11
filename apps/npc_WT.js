@@ -2,7 +2,8 @@ import fs from 'fs';
 import {
     yaml,
     makeForwardMsg,
-    config
+    config,
+    pluginPriority
 } from '#xhh';
 
 export class Npcwt extends plugin {
@@ -11,7 +12,7 @@ export class Npcwt extends plugin {
             name: '[小花火]原神npc委托成就',
             dsc: '',
             event: 'message',
-            priority: 1234,
+            priority: pluginPriority('npc_wt', 1234),
             rule: [{
                 reg: '',
                 fnc: 'wt',

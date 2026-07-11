@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { makeForwardMsg, config } from '#xhh';
+import { makeForwardMsg, config, pluginPriority } from '#xhh';
 import {
   getCurrentAbyssInfoByEvent,
   getCurrentBattlefieldInfoByEvent,
@@ -389,7 +389,7 @@ export class mhy_estimate extends plugin {
       name: '[小花火]米游社资源预估与攻略取图',
       dsc: '原石/星琼/菲林/水晶预估，崩三深渊战场乐土攻略取图',
       event: 'message',
-      priority: -Infinity,
+      priority: pluginPriority('mhy_estimate', -Infinity),
       rule: [
         { reg: '^#?(崩三|崩坏3|崩坏三|BH3).*(深渊|超弦|超弦空间|超炫|超炫空间).*(攻略|攻略图|速报|作业|阵容|配队|推荐配队|队伍|boss|BOSS)$', fnc: 'bh3AbyssGuide' },
         { reg: '^#?(?!.*(原神|星铁|星穹|绝区零|绝区|ZZZ|zzz)).*(深渊|超弦|超弦空间|超炫|超炫空间).*(攻略|攻略图|速报|作业|阵容|配队|推荐配队|队伍|boss|BOSS)$', fnc: 'bh3AbyssGuide' },

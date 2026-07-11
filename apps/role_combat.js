@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 import moment from 'moment';
-import { render } from '#xhh';
+import { render, pluginPriority } from '#xhh';
 import { Character } from '../../miao-plugin/models/index.js';
 
 const MANIFEST_URL = 'https://static.nanoka.cc/manifest.json';
@@ -126,7 +126,7 @@ export class role_combat extends plugin {
       name: '[小花火]幻想真境剧诗',
       dsc: '原神幻想真境剧诗当期可用角色',
       event: 'message',
-      priority: 100,
+      priority: pluginPriority('role_combat', 100),
       rule: [
         { reg: '^#*(原神)?(幻想|剧诗|幻想真境|幻想真境剧诗|幻想剧诗)(角色|可用角色|当期角色|本期角色|查询)?(20\\d{4}|20\\d{2}[-/.年]?\\d{1,2}月?)?$', fnc: 'roleCombat' },
       ],

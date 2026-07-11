@@ -1,4 +1,4 @@
-import { yaml, config } from '#xhh';
+import { yaml, config, pluginPriority } from '#xhh';
 import common from '../../../lib/common/common.js';
 import fetch from 'node-fetch';
 import _ from 'lodash';
@@ -14,7 +14,7 @@ export class sr_strategy extends plugin {
       name: '[小花火]星铁攻略图',
       dsc: '星铁攻略图',
       event: 'message',
-      priority: -99,
+      priority: pluginPriority('sr_strategy', -99),
       rule: [
         {
           reg: '^(#|\\*)?(星铁)?更新\\S+攻略(图)?$',

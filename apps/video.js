@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import common from '../../../lib/common/common.js';
 import lodash from 'lodash';
-import { yaml, makeForwardMsg, sleep, config } from '#xhh';
+import { yaml, makeForwardMsg, sleep, config, pluginPriority } from '#xhh';
 const name_list = {
   gs: '原神',
   sr: '崩铁',
@@ -17,7 +17,7 @@ export class video extends plugin {
       name: '[小花火]米哈游最新视频',
       dsc: '',
       event: 'message',
-      priority: 1,
+      priority: pluginPriority('video', 1),
       rule: [
         {
           reg: '^#最新视频$',

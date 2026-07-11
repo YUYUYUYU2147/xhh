@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 import moment from 'moment';
-import { yaml, reply_recallMsg, sleep } from '#xhh';
+import { yaml, reply_recallMsg, sleep, pluginPriority } from '#xhh';
 
 export class tpl extends plugin {
   constructor() {
@@ -8,7 +8,7 @@ export class tpl extends plugin {
       name: '[小花火]塔罗牌',
       dsc: '',
       event: 'message',
-      priority: 15,
+      priority: pluginPriority('tlp', 15),
       rule: [
         {
           reg: '^#*(塔罗牌|tlp)$',

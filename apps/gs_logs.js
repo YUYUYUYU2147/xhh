@@ -1,4 +1,4 @@
-import { yaml, makeForwardMsg, config } from '#xhh';
+import { yaml, makeForwardMsg, config, pluginPriority } from '#xhh';
 
 const path = './plugins/xhh/system/default/gslogs.yaml';
 import common from '../../../lib/common/common.js';
@@ -11,7 +11,7 @@ export class gs_logs extends plugin {
       name: '[小花火]原神卡池历史',
       dsc: '',
       event: 'message',
-      priority: -99,
+      priority: pluginPriority('gs_logs', -99),
       rule: [
         {
           reg: '^(?!#*(?:小花火)?原神(?:当前|本期|当期)?卡池$)#*(.*)卡池$',

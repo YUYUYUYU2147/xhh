@@ -2,7 +2,7 @@ import common from '../../../lib/common/common.js';
 import { Restart } from '../../other/restart.js';
 import { createRequire } from 'module';
 import lodash from 'lodash';
-import { yaml, config } from '#xhh';
+import { yaml, config, pluginPriority } from '#xhh';
 
 const require = createRequire(import.meta.url);
 const { exec, execSync } = require('child_process');
@@ -15,7 +15,7 @@ export class update extends plugin {
       name: '[小花火]插件更新',
       dsc: '[小花火]插件更新',
       event: 'message',
-      priority: 10,
+      priority: pluginPriority('update', 10),
       rule: [
         {
           reg: '^#*(小花火|xhh)(插件)?(强制)?更新$',

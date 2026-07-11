@@ -1,4 +1,4 @@
-import { makeForwardMsg, render, yaml } from '#xhh';
+import { makeForwardMsg, render, yaml, pluginPriority } from '#xhh';
 import fs from 'fs';
 import { bh3_gacha } from './bh3_gacha.js';
 import officialPool from '../system/gacha_pool_official.js';
@@ -34,7 +34,7 @@ export class xhh_gacha_pool extends plugin {
       event: 'message',
       // Yunzai 的优先级数值越小越先执行；卡池命令容易被 gs_logs/mora 等宽泛规则抢走，
       // 这里放到极前面，先让统一卡池图片接管；未命中的再交给历史卡池兜底。
-      priority: -1000000000,
+      priority: pluginPriority('gacha_pool', -1000000000),
       rule: [
         // 最常用的原神当前卡池放最前，使用最简单正则，避免被通用“xx卡池”规则误判。
         { reg: '^#?原神卡池$', fnc: 'gsCurrentPool' },

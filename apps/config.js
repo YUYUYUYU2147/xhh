@@ -1,4 +1,4 @@
-import { yaml, makeForwardMsg, config } from '#xhh';
+import { yaml, makeForwardMsg, config, pluginPriority } from '#xhh';
 
 let path = './plugins/xhh/config/config.yaml';
 
@@ -17,7 +17,7 @@ export class Config extends plugin {
       name: '[小花火]配置',
       dsc: '',
       event: 'message',
-      priority: 15,
+      priority: pluginPriority('config', 15),
       rule: [
         {
           reg: `^#*(小花火|xhh)设置$`,

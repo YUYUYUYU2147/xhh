@@ -1,4 +1,4 @@
-import { yaml, render } from '#xhh';
+import { yaml, render, pluginPriority } from '#xhh';
 
 export class help extends plugin {
   constructor(e) {
@@ -6,7 +6,7 @@ export class help extends plugin {
       name: '[小花火]帮助',
       dsc: '帮助',
       event: 'message',
-      priority: 100,
+      priority: pluginPriority('help', 100),
       rule: [
         {
           reg: '^#*(小花火|xhh)(命令|帮助|菜单|help|说明|功能|指令|使用说明)$',

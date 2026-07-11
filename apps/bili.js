@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { bili, config,getSource } from '#xhh';
+import { bili, config, getSource, pluginPriority } from '#xhh';
 import fetch from 'node-fetch';
 import moment from 'moment';
 
@@ -9,7 +9,7 @@ export class bilibili extends plugin {
       name: '[小花火]bili',
       dsc: '',
       event: 'message',
-      priority: -120,
+      priority: pluginPriority('bilibili', -120),
       rule: [
         {
           reg: '^#*(小花火)?清(空|除)(b站|B站|哔哩哔哩|bili|bilibili)缓存$',

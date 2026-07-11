@@ -2,7 +2,8 @@ import {
     api,
     mhy,
     render,
-    config
+    config,
+    pluginPriority
 } from '#xhh';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
 
@@ -12,7 +13,7 @@ export class hbzz extends plugin {
             name: '[小花火]货币战争',
             dsc: '',
             event: 'message',
-            priority: 123,
+            priority: pluginPriority('huobi', 123),
             rule: [{
                 reg: '^#*(星铁)?货币战争$',
                 fnc: 'hb',

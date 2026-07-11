@@ -5,7 +5,8 @@ import {
     render,
     mys,
     config,
-    getSource
+    getSource,
+    pluginPriority
 } from '#xhh';
 import {
     execSync
@@ -19,7 +20,7 @@ export class voice extends plugin {
             name: '[小花火]角色语音',
             dsc: '',
             event: 'message',
-            priority: 15,
+            priority: pluginPriority('voice', 15),
             rule: [{
                     reg: '^#*(小花火)?清(空|除)语音(图片(列表)?)?缓存$',
                     fnc: 'qc',

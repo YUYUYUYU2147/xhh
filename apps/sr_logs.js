@@ -1,4 +1,4 @@
-import { yaml, render, config } from '#xhh';
+import { yaml, render, config, pluginPriority } from '#xhh';
 
 const path = '../../../../..';
 const SR_CURRENT_VERSION = '4.3';
@@ -9,7 +9,7 @@ export class sr_logs extends plugin {
       name: '[小花火]星铁历史卡池',
       dsc: '',
       event: 'message',
-      priority: -88,
+      priority: pluginPriority('sr_logs', -88),
       rule: [
         {
           reg: '^#*(\\*|星铁)?(.*)(卡池|跃迁)$',
