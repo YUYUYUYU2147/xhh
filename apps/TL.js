@@ -513,10 +513,14 @@ export class TL extends plugin {
     const isOldAbyss = level > 0 && level <= 80;
     const abyss = isOldAbyss ? (greedy || ultra || null) : (ultra || greedy || null);
     const abyssName = isOldAbyss ? '量子流形' : (ultra ? '超弦空间' : greedy ? '量子流形' : '超弦空间');
+    const abyssScore = abyss
+      ? (abyss.challenge_score ?? abyss.score ?? abyss.current_score ?? abyss.cur_score ?? abyss.max_score ?? abyss.cur_reward ?? abyss.reward ?? 0)
+      : 0;
+    const abyssMaxReward = abyss?.max_reward ?? abyss?.max_score ?? abyss?.total_reward ?? '?';
     const abyssValue = abyss
       ? (isOldAbyss
-        ? `${abyss.cur_reward ?? abyss.challenge_score ?? 0}/${abyss.max_reward ?? '?'}`
-        : `${abyss.challenge_score ?? abyss.cur_reward ?? '?'} 分`)
+        ? `${abyss.cur_reward ?? abyssScore}/${abyssMaxReward}`
+        : `${abyssScore} 分`)
       : '暂无';
     return {
       uid: auth.uid,
