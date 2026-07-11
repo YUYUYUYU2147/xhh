@@ -1131,15 +1131,37 @@ export class xhh_gacha_pool extends plugin {
     };
   }
 
+  getZzzHistoryRarity(name = '', weapon = false, fallback = 'four') {
+    const target = this.cleanZzzName(this.normalizeZzzName(name));
+    if (!target) return fallback;
+    const file = weapon
+      ? './plugins/ZZZ-Plugin/resources/map/WeaponId2Data.json'
+      : './plugins/ZZZ-Plugin/resources/map/PartnerId2Data.json';
+    try {
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      for (const info of Object.values(data)) {
+        const names = weapon
+          ? [info?.Name, info?.name]
+          : [info?.name, info?.full_name, info?.Name, info?.FullName];
+        if (!names.some(v => this.cleanZzzName(v) === target)) continue;
+        const rarity = String(info?.Rarity || info?.rarity || '').toUpperCase();
+        if (rarity === 'S') return 'five';
+        if (rarity === 'A') return 'four';
+        break;
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
   buildZzzHistorySections(records = [], query = '') {
     const map = new Map();
     for (const p of records) {
       const key = `${p.version || '-'}|${this.zzzPoolTime(p)}`;
       if (!map.has(key)) map.set(key, { version: p.version || '-', time: this.zzzPoolTime(p), rows: [] });
       const weapon = p.type === '武器';
-      const items = [this.buildZzzHistoryItem(p.s || '-', 'five', weapon, query)];
+      const items = [this.buildZzzHistoryItem(p.s || '-', this.getZzzHistoryRarity(p.s, weapon, 'five'), weapon, query)];
       for (const a of (Array.isArray(p.a) ? p.a : String(p.a || '').split(/[，,/]/).filter(Boolean))) {
-        items.push(this.buildZzzHistoryItem(a, 'four', weapon, query));
+        items.push(this.buildZzzHistoryItem(a, this.getZzzHistoryRarity(a, weapon, 'four'), weapon, query));
       }
       map.get(key).rows.push({ title: weapon ? '音擎频段' : '代理人频段', weapon, items, showNames: weapon });
     }
