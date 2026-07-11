@@ -604,13 +604,14 @@ export class bh3_gacha extends plugin {
   }
 
   getSharedPityGroup(gachaName = '', poolType = 'char') {
-    if (poolType !== 'char') return '';
+    if (poolType === 'partner') return '';
     const name = String(gachaName || '').replace(/\s+/g, '');
-    // 崩三的角色补给 A/B 共用保底/垫数；统计时去掉 A/B 标记后归为同一组。
+    // 崩三的角色/装备补给 A/B 共用保底/垫数；统计时去掉 A/B 标记后归为同一组。
     if (!/补给[ABＡＢ]/i.test(name)) return '';
-    return name
+    const normalizedName = name
       .replace(/补给[ABＡＢ]/gi, '补给AB')
       .replace(/[（(]?[ABＡＢ][）)]?$/i, 'AB');
+    return `${poolType}:${normalizedName}`;
   }
 
   getGachaRecordKey(poolName = '', record = {}) {
