@@ -264,6 +264,11 @@ async function api(e, data = {}) {
         logger.error(error);
     }
     const sign = data.type.includes('sign');
+    const isCaptcha = [1034, 10035].includes(Number(res?.retcode));
+    if (isCaptcha) {
+        const proxyRes = await jiapiProxy(url, obj, game, data.type);
+        if (proxyRes && ![1034, 10035].includes(Number(proxyRes?.retcode))) res = proxyRes;
+    }
     if (sign && data.manual_captcha && [1034, 10035].includes(Number(res?.retcode))) return res;
     const _err = sign ?
         api_err(e, res, false, data.type, data.silent) :
@@ -282,6 +287,57 @@ async function api(e, data = {}) {
         return false;
     }
     return res;
+}
+
+
+function getJiapiToken() {
+    return config().Verification_API_KEY || 'xhh-free';
+}
+
+function getJiapiGame(game) {
+    return { gs: 'hk4e', sr: 'hkrpg', zzz: 'nap' }[game] || game || undefined;
+}
+
+function parseBody(body) {
+    if (!body) return undefined;
+    if (typeof body !== 'string') return body;
+    try {
+        return JSON.parse(body);
+    } catch {
+        return body;
+    }
+}
+
+async function jiapiProxy(url, obj = {}, game, type = '') {
+    const token = getJiapiToken();
+    if (!token) return false;
+    try {
+        const payload = {
+            url,
+            headers: obj.headers || {},
+            body: parseBody(obj.body),
+            method: obj.method || (obj.body ? 'POST' : 'GET'),
+            game: getJiapiGame(game)
+        };
+        const res = await fetch('https://mhy.989894366.xyz/mihoyo_api/get', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-mihoyo-api-token': token
+            },
+            body: JSON.stringify(payload)
+        }).then(res => res.json());
+        const data = res?.data && typeof res.data === 'object' ? res.data : res;
+        if (Number(res?.retcode) === 404 || /token is not found/i.test(String(res?.message || ''))) {
+            logger.warn(`[xhh][jiapi] token不可用，跳过代理重试：${type}`);
+            return false;
+        }
+        logger.mark(`[xhh][jiapi] ${type} 验证码请求已走代理重试`);
+        return data;
+    } catch (err) {
+        logger.warn(`[xhh][jiapi] 代理重试失败：${err.message}`);
+        return false;
+    }
 }
 
 function api_err(e, res, uid, type, silent) {
