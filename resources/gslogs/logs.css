@@ -62,7 +62,10 @@ body {
   background-size: 100% 100%;
   padding: 6px 10px 5px 23px;
   padding-left: 23px;
-  width: 280px;
+  display: inline-block;
+  width: fit-content;
+  max-width: 280px;
+  box-sizing: border-box;
   min-height: 30px;
   height: auto;
   line-height: 18px;
