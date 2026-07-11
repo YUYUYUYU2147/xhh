@@ -25,6 +25,7 @@ let headers = {
 };
 
 let Download = false;
+const BILI_DIRECT_VIDEO_LIMIT = 99 * 1024 * 1024;
 
 const qn_list = {
     0: 16,
@@ -441,6 +442,15 @@ class bili {
         } else {
             if (video) e.reply(video);
         }
+    }
+
+    async uploadVideoFile(e, filePath) {
+        if (e.isGroup && e.group) {
+            if (e.group.fs?.upload) return e.group.fs.upload(filePath);
+            if (e.group.sendFile) return e.group.sendFile(filePath);
+        }
+        if (e.friend?.sendFile) return e.friend.sendFile(filePath);
+        return e.reply(segment.video(filePath));
     }
 
     //获取视频基础信息
@@ -1366,18 +1376,17 @@ class bili {
         //总大小（实际有误差，但忽略不计）
         const size = sp_size + yp_size
 
-        if (size > 103809024) {
-            if (send) e.reply('视频大于99MB,下不了一点！！！');
-            return false;
-        }
-
         Download = true;
         let re;
-        if (send)
+        if (send) {
+            const tip = size > BILI_DIRECT_VIDEO_LIMIT
+                ? `视频大于99MB，将下载后作为群文件发送，大小约为${Math.ceil(size / 1048576)}MB，请稍等！`
+                : `开始下载bilibili视频，视频大小约为${Math.ceil(size / 1048576)}MB，请稍等！`;
             re = await e.reply(
-                `开始下载bilibili视频，视频大小约为${Math.ceil(size / 1048576)}MB，请稍等！`,
+                tip,
                 true
             );
+        }
         if (re?.data?.message_id) re.message_id = re.data.message_id
 
         //下载ing
@@ -1396,11 +1405,16 @@ class bili {
         logger.mark('[小花火bili]:视频和音频合并完成');
         let v_re,
             video = segment.video(sp_path);
-        if (!vo) v_re = await e.reply(video);
+        if (size > BILI_DIRECT_VIDEO_LIMIT) {
+            await this.uploadVideoFile(e, sp_path);
+        } else if (!vo) {
+            v_re = await e.reply(video);
+        }
         if (v_re?.data?.message_id) v_re.message_id = v_re.data.message_id
 
         // icqq0.6.10：视频太大，发出去容易失效，故撤回重发一次
         if (
+            v_re &&
             size > 31457280 &&
             (
                 (Bot.version?.name + Bot.version?.version) == 'ICQQv0.6.10' ||
@@ -1418,7 +1432,7 @@ class bili {
             else await e.friend.recallMsg(re.message_id);
         }
         Download = false;
-        if (vo) return video;
+        if (vo) return size > BILI_DIRECT_VIDEO_LIMIT ? false : video;
         return true;
     }
 

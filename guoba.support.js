@@ -307,9 +307,9 @@ export const supportGuoba = () => ({
       {
         field: 'dow_size',
         label: '自动下载大小阈值',
-        helpMessage: '小于此MB数自动下载，0代表不自动下载，最大99',
+        helpMessage: '小于此MB数自动下载，0代表不自动下载；超过99MB会作为群文件发送',
         component: 'InputNumber',
-        componentProps: { min: 0, max: 99, step: 1 },
+        componentProps: { min: 0, max: 2048, step: 1 },
       },
       {
         field: 'b_lj',
