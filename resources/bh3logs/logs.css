@@ -60,9 +60,12 @@ body {
   background: url('../srlogs/imgs/h.png');
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  padding: 6px 10px 5px 23px;
-  padding-left: 23px;
-  width: 332px;
+  padding: 0 10px 0 23px;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 280px;
+  box-sizing: border-box;
   min-height: 30px;
   height: auto;
   line-height: 18px;
