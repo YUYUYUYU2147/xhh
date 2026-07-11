@@ -1087,6 +1087,59 @@ export class xhh_gacha_pool extends plugin {
     return `https://static.nanoka.cc/assets/zzz/IconRoleGeneral${sprite}.webp`;
   }
 
+  getLocalImageSize(path = '') {
+    try {
+      const buf = fs.readFileSync(path);
+      if (buf.length < 16) return null;
+      // PNG
+      if (buf.toString('ascii', 1, 4) === 'PNG') {
+        return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+      }
+      // JPEG
+      if (buf[0] === 0xff && buf[1] === 0xd8) {
+        let pos = 2;
+        while (pos < buf.length) {
+          if (buf[pos] !== 0xff) break;
+          const marker = buf[pos + 1];
+          const len = buf.readUInt16BE(pos + 2);
+          if (marker >= 0xc0 && marker <= 0xc3) {
+            return { height: buf.readUInt16BE(pos + 5), width: buf.readUInt16BE(pos + 7) };
+          }
+          pos += 2 + len;
+        }
+      }
+      // WebP: VP8X / VP8L / VP8
+      if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') {
+        const type = buf.toString('ascii', 12, 16);
+        if (type === 'VP8X' && buf.length >= 30) {
+          return {
+            width: 1 + buf.readUIntLE(24, 3),
+            height: 1 + buf.readUIntLE(27, 3)
+          };
+        }
+        if (type === 'VP8L' && buf.length >= 25) {
+          const b0 = buf[21], b1 = buf[22], b2 = buf[23], b3 = buf[24];
+          return {
+            width: 1 + (((b1 & 0x3f) << 8) | b0),
+            height: 1 + (((b3 & 0x0f) << 10) | (b2 << 2) | ((b1 & 0xc0) >> 6))
+          };
+        }
+        if (type === 'VP8 ' && buf.length >= 30) {
+          return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  isSafeZzzSplashFile(path = '') {
+    const size = this.getLocalImageSize(path);
+    if (!size?.width || !size?.height) return true;
+    const ratio = size.height / size.width;
+    // 过窄的全身长图放进卡池装饰位时头像容易被挤到边缘或看不清；优先保留半身/横图。
+    return ratio <= 2.15;
+  }
+
   getZzzPanelSplash(name = '') {
     const root = './plugins/ZZZ-Plugin/resources/images/panel';
     if (!fs.existsSync(root)) return '';
@@ -1106,6 +1159,8 @@ export class xhh_gacha_pool extends plugin {
         .filter(f => !/avatar|icon|face|头像/i.test(f))
         // Gu/咕咕牛图下方经常自带文字，不适合放在右上角装饰位。
         .filter(f => !/Gu[1-9]/i.test(f))
+        // 过滤过窄长图，避免随机到头像被裁没/看不清的立绘。
+        .filter(f => this.isSafeZzzSplashFile(`${dir}/${f}`))
         .map(f => ({ f, size: fs.statSync(`${dir}/${f}`).size }))
         .map(v => ({
           ...v,
