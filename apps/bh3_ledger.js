@@ -48,11 +48,11 @@ export class bh3_ledger extends plugin {
             priority: pluginPriority('bh3_ledger', 100),
             rule: [
                 {
-                    reg: '^#*水晶$',
+                    reg: '^#*(?:(?:崩三|崩坏3|崩坏三))?水晶$',
                     fnc: 'ledger',
                 },
                 {
-                    reg: '^#*上月水晶$',
+                    reg: '^#*(?:(?:崩三|崩坏3|崩坏三))?上月水晶$',
                     fnc: 'ledgerLastMonth',
                 },
                 {
