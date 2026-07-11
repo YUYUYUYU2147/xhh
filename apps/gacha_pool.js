@@ -1832,18 +1832,30 @@ export class xhh_gacha_pool extends plugin {
   }
 
   getGsWeaponIcon(name = '') {
+    const base = this.getGsWeaponBase(name);
+    if (!base) return '';
+    for (const file of ['icon.webp', 'gacha.webp', 'awaken.webp']) {
+      const path = `${base}/${file}`;
+      if (fs.existsSync(path)) return fs.realpathSync(path);
+    }
+    return '';
+  }
+
+  getGsWeaponBase(name = '') {
     const root = './plugins/miao-plugin/resources/meta-gs/weapon';
     if (!fs.existsSync(root)) return '';
     try {
       for (const type of fs.readdirSync(root)) {
         const base = `${root}/${type}/${name}`;
-        for (const file of ['icon.webp', 'gacha.webp', 'awaken.webp']) {
-          const path = `${base}/${file}`;
-          if (fs.existsSync(path)) return fs.realpathSync(path);
-        }
+        if (fs.existsSync(base) && fs.statSync(base).isDirectory()) return base;
       }
     } catch (_) {}
     return '';
+  }
+
+  isGsWeaponPool(names = []) {
+    const arr = (Array.isArray(names) ? names : []).filter(Boolean);
+    return arr.length > 0 && arr.every(n => !!this.getGsWeaponBase(n));
   }
 
   buildGsHistoryItem(name = '', rarity = 'four', weapon = false, highlight = false) {
@@ -1862,8 +1874,8 @@ export class xhh_gacha_pool extends plugin {
       const version = dateKey.match('【(.*)】')?.[1] || '';
       const time = dateKey.replace(`【${version}】`, '').replace('~', ' ~ ');
       const rows = pools.map((arr, idx) => {
-        const weapon = idx === 2;
-        const title = idx === 2 ? '武器活动祈愿' : (idx === 3 ? '集录祈愿' : '角色活动祈愿');
+        const weapon = this.isGsWeaponPool(arr);
+        const title = weapon ? '武器活动祈愿' : (idx === 3 ? '集录祈愿' : '角色活动祈愿');
         return {
           title,
           weapon,
@@ -1891,32 +1903,34 @@ export class xhh_gacha_pool extends plugin {
       if (isCurrent || versionHit) {
         names.forEach((line, i) => {
           const arr = String(line).split(',').map(v => v.trim()).filter(Boolean);
+          const weapon = this.isGsWeaponPool(arr);
           cards.push({
             version: ver,
-            title: i === 2 ? '武器活动祈愿' : (i === 3 ? '集录祈愿' : '角色活动祈愿'),
+            title: weapon ? '武器活动祈愿' : (i === 3 ? '集录祈愿' : '角色活动祈愿'),
             type: '原神',
             time,
             s: arr.slice(0, 2).join(' / '),
             a: arr.slice(2).join(' / '),
             img: imgs[i] || '',
-            weapon: i === 2
+            weapon
           });
         });
         if (isCurrent) break;
         continue;
       }
       names.forEach((line, i) => {
-        const arr = String(line).split(',');
+        const arr = String(line).split(',').map(v => v.trim()).filter(Boolean);
         if (arr.includes(query)) {
+          const weapon = this.isGsWeaponPool(arr);
           cards.push({
             version: ver,
             title: `${query} 卡池`,
-            type: i === 2 ? '武器祈愿' : '角色祈愿',
+            type: weapon ? '武器祈愿' : '角色祈愿',
             time,
             s: arr.slice(0, 2).join(' / '),
             a: arr.slice(2).join(' / '),
             img: imgs[i] || '',
-            weapon: i === 2
+            weapon
           });
         }
       });
