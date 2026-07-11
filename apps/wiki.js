@@ -447,6 +447,22 @@ export class Wiki extends plugin {
     return Object.values(obj || {})[0] || '';
   }
 
+  zzzFormatProperty(prop = {}) {
+    const value = Number(prop.value);
+    if (!Number.isFinite(value)) return prop.value || '';
+    const format = String(prop.format || '');
+    if (format.includes('%')) {
+      const percent = value / 100;
+      return `${Number.isInteger(percent) ? percent : percent.toFixed(1)}%`;
+    }
+    return String(value);
+  }
+
+  getZzzWeaponTalent(c = {}) {
+    const talents = Object.values(c.talents || {});
+    return talents[talents.length - 1] || talents[0] || null;
+  }
+
   // 绝区零代理人专属音擎/推荐驱动盘快捷查询
   async zzzExclusiveEquip(e, rawName = '') {
     const wantDrive = /(专属驱动盘|推荐驱动盘|驱动盘套|驱动套)/.test(rawName);
@@ -629,6 +645,7 @@ export class Wiki extends plugin {
   async zzz_wq_pictures(e, data) {
     const c = data.content || {};
     const obcIcon = await this.getZzzObcIcon(c.name, 45);
+    const talent = this.getZzzWeaponTalent(c);
     const view = {
       name: c.name || '未知音擎',
       avatar_img: obcIcon,
@@ -643,11 +660,18 @@ export class Wiki extends plugin {
       profile: this.zzzCleanText(c.desc || c.desc3 || '', 260),
       info: [
         { key: '类型', value: this.zzzFirstValue(c.weapon_type) || '-' },
-        { key: '基础属性', value: `${c.base_property?.name || '-'} ${c.base_property?.value || ''}` },
-        { key: '副属性', value: `${c.rand_property?.name || '-'} ${c.rand_property?.value || ''}` },
+        { key: '基础属性', value: `${c.base_property?.name || '-'} ${this.zzzFormatProperty(c.base_property)}` },
+        { key: '副属性', value: `${c.rand_property?.name || '-'} ${this.zzzFormatProperty(c.rand_property)}` },
         { key: '适用说明', value: c.desc2 || '-' }
       ],
-      stats: [], strategy: [], skills: [], talents: [], recommend: []
+      stats: [],
+      strategy: [],
+      skills: talent ? [{
+        name: talent.name || '音擎效果',
+        desc: this.zzzCleanText(talent.desc || '', 360)
+      }] : [],
+      talents: [],
+      recommend: []
     };
     return render('wiki/zzz_role', view, { e, ret: true });
   }
