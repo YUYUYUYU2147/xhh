@@ -1098,10 +1098,11 @@ export class xhh_gacha_pool extends plugin {
   }
 
   getZzzCharacterSplash(name = '') {
-    // 自定义：优先 panel/额外图；官方：优先官方/nanoka角色图。
-    return this.useCustomGachaArt()
-      ? (this.getZzzPanelSplash(name) || this.getZzzNanokaRoleImage(name) || this.getZzzRoleGeneralImage(name))
-      : (this.getZzzNanokaRoleImage(name) || this.getZzzRoleGeneralImage(name) || this.getZzzPanelSplash(name));
+    // 卡池右上角装饰位优先用 Nanoka 的角色立体图；不要用 role_general 横版大头照。
+    // 本地自定义立绘只作为补充，且 getZzzPanelSplash 会过滤横版/过长图。
+    const nanoka = this.getZzzNanokaRoleImage(name);
+    const panel = this.getZzzPanelSplash(name);
+    return this.randomPick([nanoka, nanoka, panel].filter(Boolean));
   }
 
   getZzzNanokaRoleImage(name = '') {
@@ -1169,8 +1170,8 @@ export class xhh_gacha_pool extends plugin {
     const size = this.getLocalImageSize(path);
     if (!size?.width || !size?.height) return true;
     const ratio = size.height / size.width;
-    // 过窄的全身长图放进卡池装饰位时头像容易被挤到边缘或看不清；优先保留半身/横图。
-    return ratio <= 2.15;
+    // 过滤横版大头/海报和过窄长图；优先保留竖版或接近方形的立绘。
+    return ratio >= 0.75 && ratio <= 2.15;
   }
 
   getZzzPanelSplash(name = '') {
