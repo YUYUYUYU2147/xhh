@@ -630,8 +630,8 @@ export class xhh_gacha_pool extends plugin {
       .flatMap(v => String(v || '').split(/[\/,，、]/))
       .map(v => v.trim())
       .filter(Boolean);
-    // 多 UP 时随机挑一个角色，再在该角色可用立绘里随机挑一张。
-    for (const name of this.shuffleList(list)) {
+    // 多 UP 时按卡片顺序优先取最新/最靠前的 UP 角色；角色内部仍可随机挑图。
+    for (const name of list) {
       let img = '';
       if (gameName === '原神') img = this.getGsCharacterSplash(name);
       else if (gameName === '星穹铁道') img = this.getSrCharacterSplash(name);
@@ -656,7 +656,7 @@ export class xhh_gacha_pool extends plugin {
       }
     }
     if (gameName === '崩坏3') {
-      for (const name of this.shuffleList(names)) {
+      for (const name of names) {
         const splash = await this.getBh3CharacterSplash(name);
         if (splash) return splash;
       }
