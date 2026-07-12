@@ -1570,14 +1570,15 @@ export class xhh_gacha_pool extends plugin {
     const names = [name, String(name).replace(/Pro$/i, ''), String(name).replace('•', '·')].filter(Boolean);
     const primary = [];
     const fallback = [];
+    const profileFallback = [];
     for (const n of [...new Set(names)]) {
       const profile = this.getMiaoProfileImage(n, true);
       const base = `./plugins/miao-plugin/resources/meta-sr/character/${n}/imgs`;
-      if (this.useCustomGachaArt() && profile) primary.push(profile);
       for (const file of ['splash.webp', 'preview.webp']) {
         const path = `${base}/${file}`;
         if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) primary.push(fs.realpathSync(path));
       }
+      if (this.useCustomGachaArt() && profile) profileFallback.push(profile);
       for (const file of ['card.webp']) {
         const path = `${base}/${file}`;
         if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) fallback.push(fs.realpathSync(path));
@@ -1586,10 +1587,10 @@ export class xhh_gacha_pool extends plugin {
     if (!this.useCustomGachaArt()) {
       for (const n of [...new Set(names)]) {
         const profile = this.getMiaoProfileImage(n, true);
-        if (profile) fallback.push(profile);
+        if (profile) profileFallback.push(profile);
       }
     }
-    return this.randomPick(primary) || this.randomPick(fallback);
+    return this.randomPick(primary) || this.randomPick(profileFallback) || this.randomPick(fallback);
   }
 
   getSrWeaponIcon(name = '') {
@@ -1883,19 +1884,20 @@ export class xhh_gacha_pool extends plugin {
     const afterHdot = noElem.split('•').pop().trim();
     if (afterHdot && afterHdot !== noElem && afterHdot !== afterDot) candidates.push(afterHdot);
     const primary = [];
+    const custom = [];
     const fallback = [];
     for (const n of candidates) {
       for (const ext of ['.webp', '.png', '.jpg']) {
         const p = `./plugins/xhh/resources/gslogs/imgs/${n}${ext}`;
-        if (fs.existsSync(p) && this.isSafeCornerSplashFile(p)) primary.push(fs.realpathSync(p));
+        if (fs.existsSync(p) && this.isSafeCornerSplashFile(p)) custom.push(fs.realpathSync(p));
       }
       const profile = this.getMiaoProfileImage(n, true);
       const metaBase = `./plugins/miao-plugin/resources/meta-gs/character/${n}/imgs`;
-      if (this.useCustomGachaArt() && profile) primary.push(profile);
       for (const file of ['splash.webp', 'side.webp', 'gacha.webp']) {
         const path = `${metaBase}/${file}`;
         if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) primary.push(fs.realpathSync(path));
       }
+      if (this.useCustomGachaArt() && profile) custom.push(profile);
       for (const file of ['card.webp', 'face.webp', 'face-q.webp', 'face0.webp']) {
         const path = `${metaBase}/${file}`;
         if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) fallback.push(fs.realpathSync(path));
@@ -1904,10 +1906,10 @@ export class xhh_gacha_pool extends plugin {
     if (!this.useCustomGachaArt()) {
       for (const n of candidates) {
         const profile = this.getMiaoProfileImage(n, true);
-        if (profile) fallback.push(profile);
+        if (profile) custom.push(profile);
       }
     }
-    return this.randomPick(primary) || this.randomPick(fallback);
+    return this.randomPick(primary) || this.randomPick(custom) || this.randomPick(fallback);
   }
 
   getGsCharacterIcon(name = '') {
