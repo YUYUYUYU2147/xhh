@@ -45,6 +45,7 @@ body {
     inset 3px 3px 10px 0 rgba(255,255,255,.86);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  overflow: hidden;
 }
 .header > div:first-child {
   min-width: 0;
@@ -80,7 +81,7 @@ h1 {
 .mark {
   width: 70px;
   height: 70px;
-  flex: 0 0 auto;
+  flex: none;
   border-radius: 18px;
   display: flex;
   align-items: center;
@@ -92,6 +93,7 @@ h1 {
   background: linear-gradient(135deg, #ff9dc6, #8fd4ff);
   box-shadow: 0 8px 18px rgba(115, 189, 235, .35);
   transform: rotate(5deg);
+  overflow: hidden;
 }
 .mark-img {
   object-fit: cover;
@@ -104,6 +106,7 @@ h1 {
   object-fit: contain;
   object-position: right bottom;
   border-radius: 12px;
+  overflow: hidden;
   filter: drop-shadow(-2px 2px 4px rgba(80,120,150,.22));
 }
 .cards {
@@ -504,16 +507,20 @@ h1 {
   object-fit: contain;
   filter: drop-shadow(0 5px 9px rgba(0,0,0,.32));
 }
-.bh3 .pool-content { max-width: 310px; }
-.bh3 .pool-title, .bh3 .pool-time { max-width: 290px; }
-.bh3 .up-name { max-width: 250px; }
+.bh3 .pool-content { max-width: 340px; }
+.bh3 .pool-title, .bh3 .pool-time { max-width: 320px; }
+.bh3 .up-name { max-width: 300px; }
 
-.official .up-item { align-items: flex-start; }
+.official .up-item { align-items: center; }
 .official .rank-badge { width: 25px; height: 25px; border-radius: 7px; font-size: 13px; margin-top: 1px; }
 .sr .up-name, .gs .up-name, .zzz .up-name, .bh3 .up-name { white-space: normal; text-overflow: clip; }
 .sr .up-name { -webkit-line-clamp: 3; }
+.gs .pool-title { font-size: 17px; max-width: 280px; }
+.gs .up-name { font-size: 12px; max-width: 268px; }
+.gs .up-name.sub { font-size: 11.2px; }
 /* 崩三补给卡片不在单卡右侧放角色/装备立绘，顶部保留角色立绘即可 */
 .bh3 .pool-icon-wrap,
-.bh3 .pool-placeholder {
+.bh3 .pool-placeholder,
+.bh3 .pool-tag.type {
   display: none;
 }

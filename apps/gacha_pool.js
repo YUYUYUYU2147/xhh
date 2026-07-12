@@ -364,6 +364,34 @@ export class xhh_gacha_pool extends plugin {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  getFixedCornerImage(game = '') {
+    const gameName = String(game || '').trim();
+    const dirs = [
+      `./plugins/xhh/resources/gacha_pool/fixed_splash/${gameName}`,
+      `./plugins/xhh/resources/gacha_pool/fixed_splash/${this.detectOfficialGame(gameName) || gameName}`
+    ];
+    if (gameName === '星穹铁道') dirs.push('./plugins/xhh/resources/srlogs/imgs/sr');
+    if (gameName === '绝区零') dirs.push('./plugins/xhh/resources/zzz_md/imgs/custom', './plugins/xhh/resources/zzzlogs/imgs');
+    const files = [];
+    for (const dir of [...new Set(dirs)]) {
+      if (!dir || !fs.existsSync(dir)) continue;
+      try {
+        for (const f of fs.readdirSync(dir)) {
+          if (!/\.(png|webp|jpg|jpeg)$/i.test(f)) continue;
+          const p = `${dir}/${f}`;
+          if (fs.statSync(p).isFile() && this.isSafeCornerSplashFile(p)) files.push(fs.realpathSync(p));
+        }
+      } catch (_) {}
+    }
+    return this.randomPick(files);
+  }
+
+  fixedCornerFallback(game = '') {
+    const fixed = this.getFixedCornerImage(game);
+    if (fixed) return fixed;
+    return this.getMarkIcon(game) || this.gameMarkIcon(game);
+  }
+
   shuffleList(list = []) {
     const arr = [...(Array.isArray(list) ? list : [])];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -383,6 +411,11 @@ export class xhh_gacha_pool extends plugin {
   }
 
   async renderPoolImage(e, data) {
+    const fixed = this.fixedCornerFallback(data?.game);
+    if (fixed) {
+      data.markIcon = fixed;
+      data.markWide = true;
+    }
     if (Array.isArray(data?.cards) && data.mode !== 'gs-history') {
       data.cards.forEach((card, i) => {
         if (!card.index) card.index = i + 1;
@@ -401,59 +434,22 @@ export class xhh_gacha_pool extends plugin {
   async renderSrLogs(e, data, query = '') {
     // 星铁也统一走新的“版本 + 时间 + UP头像行”样式，避免特定角色卡池还显示原版大卡片。
     const sections = this.buildSrHistorySections(data, query);
-    let splash = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
-    const hitName = query ? this.normalizeSrName(query) : '';
-    if (hitName) {
-      const roleSplash = this.getCustomCornerSplash('星穹铁道', hitName) || this.getSrCharacterSplash(hitName) || this.getMiaoProfileImage(hitName, true);
-      if (roleSplash) splash = roleSplash;
-    }
+    const splash = this.fixedCornerFallback('星穹铁道');
     return render('gslogs/logs', { data: sections, splash }, { e, ret: true });
   }
 
   async renderGsLogs(e, sections) {
-    let charName = '';
-    for (const s of sections) {
-      for (const row of s.rows || []) {
-        for (const item of row.items || []) {
-          if (item.highlight) { charName = item.name; break; }
-        }
-        if (charName) break;
-      }
-      if (charName) break;
-    }
-    let splash = '';
-    if (charName) {
-      splash = this.getCustomCornerSplash('原神', charName);
-    }
-    if (charName && !splash) {
-      for (const ext of ['.webp', '.png', '.jpg']) {
-        const p = `./plugins/xhh/resources/gslogs/imgs/${charName}${ext}`;
-        if (fs.existsSync(p) && this.isSafeCornerSplashFile(p)) { splash = `gslogs/imgs/${charName}${ext}`; break; }
-      }
-      if (!splash) {
-        splash = this.getGsCharacterSplash(charName) || this.getMiaoProfileImage(charName, true);
-      }
-    }
+    const splash = this.fixedCornerFallback('原神');
     return render('gslogs/logs', { data: sections, splash }, { e, ret: true });
   }
 
   async renderZzzLogs(e, sections, query = '') {
-    // 优先使用 ZZZ-Plugin/Nanoka 的角色立绘做右上角角色图，缺失时回退小花火内置艾莲。
-    const splash = this.getCustomCornerSplash('绝区零', query) || this.getZzzCharacterSplash(query) || 'zzzlogs/imgs/ellen.png';
+    const splash = this.fixedCornerFallback('绝区零');
     return render('zzzlogs/logs', { data: sections, splash }, { e, ret: true });
   }
 
   async renderBh3Logs(e, sections) {
-    let charName = '';
-    for (const sec of sections || []) {
-      for (const row of sec.rows || []) {
-        if (row.weapon) continue;
-        const hit = (row.items || []).find(item => item.highlight && !item.weapon) || (row.items || []).find(item => item.rarity === 'five' && !item.weapon);
-        if (hit?.name) { charName = hit.name; break; }
-      }
-      if (charName) break;
-    }
-    const splash = this.getCustomCornerSplash('崩坏3', charName) || await this.getBh3CharacterSplash(charName) || 'bh3logs/imgs/kiana.png';
+    const splash = this.fixedCornerFallback('崩坏3') || BH3_MARK_ICON;
     return render('bh3logs/logs', { data: sections, splash }, { e, ret: true });
   }
 
@@ -786,7 +782,7 @@ export class xhh_gacha_pool extends plugin {
       const results = await officialPool.fetchAll();
       const cards = results.flatMap(r => {
         const meta = officialPool.games[r.game];
-        return (r.records || []).slice(0, 2).map(v => this.officialCard(v, meta?.name));
+        return (r.records || []).slice(0, 4).map(v => this.officialCard(v, meta?.name));
       });
       if (!cards.length) return e.reply('暂未从米游社官方公告匹配到卡池/补给信息。');
       return this.renderPoolImage(e, {
@@ -1218,7 +1214,7 @@ export class xhh_gacha_pool extends plugin {
     if (!size?.width || !size?.height) return true;
     const ratio = size.height / size.width;
     // 右上角装饰位不要横版海报；允许祈愿竖版/角色立绘这类较高的图。
-    return ratio >= 0.9 && ratio <= 4.2;
+    return ratio >= 0.5 && ratio <= 4.2;
   }
 
   isSafeZzzSplashFile(path = '') {
@@ -2112,10 +2108,11 @@ export class xhh_gacha_pool extends plugin {
 
   async attachBh3OfficialCovers(cards = []) {
     try {
-      const { records } = await officialPool.fetch('bh3');
+    const { records } = await officialPool.fetch('bh3');
       if (!records?.length) return cards;
       const coverOf = r => r.cover || r.images?.[0] || '';
       for (const card of cards) {
+        if (card.img) continue;
         const names = [card.s, card.title].map(v => this.cleanBh3Name(v)).filter(Boolean);
         const hit = records.find(r => {
           const text = this.cleanBh3Name(`${r.title || ''} ${r.summary || ''} ${r.contentText || ''}`);
@@ -2132,7 +2129,6 @@ export class xhh_gacha_pool extends plugin {
 
   async bh3CurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中崩三补给菜单:', e.msg);
-    // 崩三米游社公告接口近期不稳定，这里优先用本地补给记录，避免因为官方接口异常导致整条命令失败。
     const local = await this.loadBh3CurrentPools();
     if (local.length) {
       local.forEach((c, i) => { c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; });
@@ -2149,26 +2145,19 @@ export class xhh_gacha_pool extends plugin {
         cards: local
       });
     }
-    // 兜底：显示补给菜单
-    const tool = new bh3_gacha(e);
-    const auth = await tool.getAuth(e);
-    if (auth.error) return e.reply(auth.error);
-    const authkey = await tool.getAuthKey(auth.uid, auth.region, auth.stokenCookie);
-    if (!authkey) return e.reply(`UID${auth.uid} 获取崩三 authkey 失败，请检查 stoken 是否有效。`);
-    const menus = await tool.getMenus(auth.uid, authkey);
-    if (!menus.length) return e.reply(`UID${auth.uid} 暂未获取到可用补给菜单。`);
-    const menuCards = menus.map((m, i) => ({
-      version: String(i + 1), title: m.label, type: '', time: '', s: m.label, a: '', weapon: false, index: i + 1, versionTag: `#${i + 1} ${String(i + 1)}`
-    }));
+    // 本地无当前数据，走米游社公告接口
+    const { records } = await officialPool.fetch('bh3');
+    if (!records?.length) return e.reply('崩坏3当前卡池数据暂不可用。');
+    const cards = records.map(r => this.officialCard(r, '崩坏3'));
+    const markIcon = BH3_MARK_ICON;
     return this.renderPoolImage(e, {
       game: '崩坏3',
-      title: '当前可查询补给',
-      subtitle: `v${CURRENT_VERSION.bh3} · UID ${auth.uid} · 官方自助查询返回菜单`,
+      title: '崩坏3当前卡池',
+      subtitle: `v${CURRENT_VERSION.bh3} · 米游社公告`,
       mode: 'bh3',
-      markIcon: BH3_MARK_ICON,
+      markIcon,
       markWide: true,
-      cards: menuCards,
-      note: '提示：这是官方自助查询返回的补给菜单，不是完整历史卡池。'
+      cards
     });
   }
 
@@ -2218,7 +2207,7 @@ export class xhh_gacha_pool extends plugin {
       const e = new Date(v.end).getTime();
       return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now <= e;
     });
-    if (!hit) hit = data.pools.find(v => v.version === CURRENT_VERSION.bh3) || data.pools[0];
+    if (!hit) return [];
     const maps = await this.getBh3WikiMaps();
     return Promise.all(hit.pools.map(p => this.bh3PoolToCard({ ...p, version: hit.version, start: hit.start, end: hit.end }, maps)));
   }
@@ -2564,8 +2553,8 @@ export class xhh_gacha_pool extends plugin {
     const highlights = Array.isArray(queryNames) ? queryNames : [query];
     for (const p of records) {
       const time = p.start && p.end ? `${p.start.slice(0, 10)} ~ ${p.end.slice(0, 10)}` : '';
-      const key = `${p.version || '-'}${p.phase || ''}|${time}`;
-      if (!map.has(key)) map.set(key, { version: `${p.version || '-'}${p.phase || ''}`, time, rows: [] });
+      const key = `${p.version || '-'}|${time}`;
+      if (!map.has(key)) map.set(key, { version: `${p.version || '-'}`, time, rows: [] });
       const weapon = p.type === 'weapon';
       const items = [await this.buildBh3HistoryItem(p.s || '-', 'five', weapon, highlights, maps)];
       for (const a of (Array.isArray(p.a) ? p.a : String(p.a || '').split(/[，,/]/).filter(Boolean))) {

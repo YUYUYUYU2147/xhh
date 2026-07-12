@@ -26,7 +26,7 @@ const GAME_META = {
     name: '崩坏3',
     gid: 1,
     aliases: ['崩三', '崩坏3', '崩坏三', 'bh3'],
-    keywords: /(补给|扩充|精准|角色补给|装备补给|服装补给)/,
+    keywords: /(补给|扩充|精准|角色补给|装备补给|服装补给|协同)/,
     exclude: /(封禁|外挂|账号|问题|修复|更新说明)/
   }
 };
@@ -273,7 +273,7 @@ class OfficialGachaPool {
         records = this.filterRecords(game, more, ver);
       }
       // 详情接口需要逐条请求；当前卡池只展示靠前公告，限制数量避免首次查询卡太久。
-      records = await this.enrichRecords(game, records.slice(0, ver ? 16 : 8));
+      records = await this.enrichRecords(game, records.slice(0, 16));
       await redis.set(key, JSON.stringify(records), { EX: CACHE_TTL });
       return { game, records, cache: false };
     } catch (err) {

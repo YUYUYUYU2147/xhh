@@ -17,7 +17,6 @@
         <div class="body">
           {{each v.rows row}}
           <div class="seg {{row.weapon ? 'w' : ''}}">
-            <div class="seg-title">{{row.title}}</div>
             <div class="seg-items">
               {{each row.items item}}
               <div class="icon {{item.rarity}} {{item.highlight ? 'hl' : ''}}">
