@@ -1240,6 +1240,7 @@ export class xhh_gacha_pool extends plugin {
       const files = fs.readdirSync(dir)
         .filter(f => /\.(png|webp|jpg|jpeg)$/i.test(f))
         .filter(f => !/avatar|icon|face|头像/i.test(f))
+        .filter(f => this.isSafeCornerSplashFile(`${dir}/${f}`))
         .map(f => ({ f, size: fs.statSync(`${dir}/${f}`).size }))
         .sort((a, b) => {
           const score = f => {
@@ -1302,10 +1303,9 @@ export class xhh_gacha_pool extends plugin {
       return `https://static.nanoka.cc/assets/zzz/IconRole${sprite}.webp`;
     })();
     const panelIcon = this.getZzzPanelIcon(name);
-    // 历史卡池的小头像优先使用 ZZZ-Plugin 的圆形头像。
-    // 面板/立绘图在 44px 小格子里容易只裁到空白区域（例如安比），会看起来像没显示。
-    if (officialIcon) return officialIcon;
+    // 角色 UP 小图优先使用本地随机立绘，观感更接近原神/星铁；过滤不安全比例后再兜底圆形头像。
     if (panelIcon) return panelIcon;
+    if (officialIcon) return officialIcon;
     const dir = './plugins/Atlas/zzz-atlas/material for role';
     const path = `${dir}/${name}.webp`;
     if (fs.existsSync(path)) return fs.realpathSync(path);
