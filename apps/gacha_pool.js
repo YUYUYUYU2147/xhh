@@ -404,7 +404,7 @@ export class xhh_gacha_pool extends plugin {
     let splash = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
     const hitName = query ? this.normalizeSrName(query) : '';
     if (hitName) {
-      const roleSplash = this.getSrCharacterSplash(hitName) || this.getMiaoProfileImage(hitName, true);
+      const roleSplash = this.getCustomCornerSplash('星穹铁道', hitName) || this.getSrCharacterSplash(hitName) || this.getMiaoProfileImage(hitName, true);
       if (roleSplash) splash = roleSplash;
     }
     return render('gslogs/logs', { data: sections, splash }, { e, ret: true });
@@ -423,6 +423,9 @@ export class xhh_gacha_pool extends plugin {
     }
     let splash = '';
     if (charName) {
+      splash = this.getCustomCornerSplash('原神', charName);
+    }
+    if (charName && !splash) {
       for (const ext of ['.webp', '.png', '.jpg']) {
         const p = `./plugins/xhh/resources/gslogs/imgs/${charName}${ext}`;
         if (fs.existsSync(p) && this.isSafeCornerSplashFile(p)) { splash = `gslogs/imgs/${charName}${ext}`; break; }
@@ -436,7 +439,7 @@ export class xhh_gacha_pool extends plugin {
 
   async renderZzzLogs(e, sections, query = '') {
     // 优先使用 ZZZ-Plugin/Nanoka 的角色立绘做右上角角色图，缺失时回退小花火内置艾莲。
-    const splash = this.getZzzCharacterSplash(query) || 'zzzlogs/imgs/ellen.png';
+    const splash = this.getCustomCornerSplash('绝区零', query) || this.getZzzCharacterSplash(query) || 'zzzlogs/imgs/ellen.png';
     return render('zzzlogs/logs', { data: sections, splash }, { e, ret: true });
   }
 
@@ -450,7 +453,7 @@ export class xhh_gacha_pool extends plugin {
       }
       if (charName) break;
     }
-    const splash = await this.getBh3CharacterSplash(charName) || 'bh3logs/imgs/kiana.png';
+    const splash = this.getCustomCornerSplash('崩坏3', charName) || await this.getBh3CharacterSplash(charName) || 'bh3logs/imgs/kiana.png';
     return render('bh3logs/logs', { data: sections, splash }, { e, ret: true });
   }
 
@@ -499,6 +502,39 @@ export class xhh_gacha_pool extends plugin {
 
   getMarkWide(game) {
     return game === '崩坏3' || game === '原神';
+  }
+
+  getCustomCornerSplash(gameName = '', name = '') {
+    const game = String(gameName || '').trim();
+    const raw = String(name || '').trim();
+    if (!game || !raw) return '';
+    const base = './plugins/xhh/resources/gacha_pool/custom_splash';
+    const names = [...new Set([
+      raw,
+      raw.replace(/[「」『』【】［］]/g, ''),
+      raw.split(/[·•]/).pop(),
+      raw.replace(/Pro$/i, '')
+    ].map(v => String(v || '').trim()).filter(Boolean))];
+    const exts = ['.webp', '.png', '.jpg', '.jpeg'];
+    const files = [];
+    for (const n of names) {
+      const dir = `${base}/${game}/${n}`;
+      if (fs.existsSync(dir)) {
+        try {
+          for (const f of fs.readdirSync(dir)) {
+            if (exts.some(ext => f.toLowerCase().endsWith(ext))) files.push(`${dir}/${f}`);
+          }
+        } catch (_) {}
+      }
+      for (const ext of exts) {
+        const file = `${base}/${game}/${n}${ext}`;
+        if (fs.existsSync(file)) files.push(file);
+      }
+    }
+    const unique = [...new Set(files)];
+    return this.randomPick(unique.map(p => {
+      try { return fs.realpathSync(p); } catch (_) { return ''; }
+    }).filter(Boolean));
   }
 
   currentVersionByGame(game = '') {
@@ -633,6 +669,8 @@ export class xhh_gacha_pool extends plugin {
       .filter(Boolean);
     // 多 UP 时按卡片顺序优先取最新/最靠前的 UP 角色；角色内部仍可随机挑图。
     for (const name of list) {
+      const custom = this.getCustomCornerSplash(gameName, name);
+      if (custom) return custom;
       let img = '';
       if (gameName === '原神') img = this.getGsCharacterSplash(name);
       else if (gameName === '星穹铁道') img = this.getSrCharacterSplash(name);
@@ -658,6 +696,8 @@ export class xhh_gacha_pool extends plugin {
     }
     if (gameName === '崩坏3') {
       for (const name of names) {
+        const custom = this.getCustomCornerSplash('崩坏3', name);
+        if (custom) return custom;
         const splash = await this.getBh3CharacterSplash(name);
         if (splash) return splash;
       }
