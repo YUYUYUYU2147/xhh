@@ -1177,12 +1177,16 @@ export class xhh_gacha_pool extends plugin {
     const size = this.getLocalImageSize(path);
     if (!size?.width || !size?.height) return true;
     const ratio = size.height / size.width;
-    // 过滤横版大头/海报和过窄长图；优先保留竖版或接近方形的立绘。
-    return ratio >= 0.75 && ratio <= 2.15;
+    // 右上角装饰位不要横版海报；允许祈愿竖版/角色立绘这类较高的图。
+    return ratio >= 0.9 && ratio <= 4.2;
   }
 
   isSafeZzzSplashFile(path = '') {
-    return this.isSafeCornerSplashFile(path);
+    const size = this.getLocalImageSize(path);
+    if (!size?.width || !size?.height) return true;
+    const ratio = size.height / size.width;
+    // 绝区零本地 panel 过长时头像容易被挤到边缘，单独收紧一点。
+    return ratio >= 0.75 && ratio <= 2.15;
   }
 
   getZzzPanelSplash(name = '') {
@@ -1247,7 +1251,7 @@ export class xhh_gacha_pool extends plugin {
       const files = fs.readdirSync(dir)
         .filter(f => /\.(png|webp|jpg|jpeg)$/i.test(f))
         .filter(f => !/avatar|icon|face|头像/i.test(f))
-        .filter(f => this.isSafeCornerSplashFile(`${dir}/${f}`))
+        .filter(f => this.isSafeZzzSplashFile(`${dir}/${f}`))
         .map(f => ({ f, size: fs.statSync(`${dir}/${f}`).size }))
         .sort((a, b) => {
           const score = f => {
@@ -1900,7 +1904,7 @@ export class xhh_gacha_pool extends plugin {
       }
       const profile = this.getMiaoProfileImage(n, true);
       const metaBase = `./plugins/miao-plugin/resources/meta-gs/character/${n}/imgs`;
-      for (const file of ['splash.webp', 'side.webp', 'gacha.webp']) {
+      for (const file of ['gacha.webp', 'splash.webp', 'side.webp']) {
         const path = `${metaBase}/${file}`;
         if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) primary.push(fs.realpathSync(path));
       }
