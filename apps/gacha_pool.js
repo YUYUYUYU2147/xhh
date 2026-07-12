@@ -366,24 +366,35 @@ export class xhh_gacha_pool extends plugin {
 
   getFixedCornerImage(game = '') {
     const gameName = String(game || '').trim();
-    const dirs = [
+    const primaryDirs = [
       `./plugins/xhh/resources/gacha_pool/fixed_splash/${gameName}`,
       `./plugins/xhh/resources/gacha_pool/fixed_splash/${this.detectOfficialGame(gameName) || gameName}`
     ];
-    if (gameName === '星穹铁道') dirs.push('./plugins/xhh/resources/srlogs/imgs/sr');
-    if (gameName === '绝区零') dirs.push('./plugins/xhh/resources/zzz_md/imgs/custom', './plugins/xhh/resources/zzzlogs/imgs');
-    const files = [];
-    for (const dir of [...new Set(dirs)]) {
-      if (!dir || !fs.existsSync(dir)) continue;
+    const fallbackDirs = [];
+    if (gameName === '星穹铁道') fallbackDirs.push('./plugins/xhh/resources/srlogs/imgs/sr');
+    if (gameName === '绝区零') fallbackDirs.push('./plugins/xhh/resources/zzz_md/imgs/custom', './plugins/xhh/resources/zzzlogs/imgs');
+    const readDirImages = (dir, safeCheck = true) => {
+      if (!dir || !fs.existsSync(dir)) return [];
+      const files = [];
       try {
         for (const f of fs.readdirSync(dir)) {
           if (!/\.(png|webp|jpg|jpeg)$/i.test(f)) continue;
           const p = `${dir}/${f}`;
-          if (fs.statSync(p).isFile() && this.isSafeCornerSplashFile(p)) files.push(fs.realpathSync(p));
+          if (fs.statSync(p).isFile() && (!safeCheck || this.isSafeCornerSplashFile(p))) files.push(fs.realpathSync(p));
         }
       } catch (_) {}
+      return files;
+    };
+    // fixed_splash 是用户指定目录：只要该游戏目录里有图，就直接从这里随机选，不再混入其它兜底目录。
+    for (const dir of [...new Set(primaryDirs)]) {
+      const files = readDirImages(dir, false);
+      if (files.length) return this.randomPick(files);
     }
-    return this.randomPick(files);
+    for (const dir of [...new Set(fallbackDirs)]) {
+      const files = readDirImages(dir, true);
+      if (files.length) return this.randomPick(files);
+    }
+    return '';
   }
 
   fixedCornerFallback(game = '') {
