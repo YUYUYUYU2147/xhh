@@ -53,6 +53,7 @@ export class xhh_gacha_pool extends plugin {
         { reg: '^#*(小花火)?(星铁|崩铁|星穹铁道)(?!v?\\d+\\.\\d+)(?!官方|米游社)(.+)(卡池|跃迁)$', fnc: 'srNameHistory' },
         // 官方/米游社卡池必须在 bh3NameHistory 之前，否则"崩三官方卡池"会被误判为角色名
         { reg: '^#*(小花火)?((原神|星铁|崩铁|星穹铁道|绝区零|ZZZ|崩三|崩坏3|崩坏三|BH3))?(米游社|官方)?(更新|刷新)卡池(数据)?$', fnc: 'refreshOfficialPools' },
+        { reg: '^#*(小花火)?(全游戏|全部|所有)?(当前|本期|当期)卡池$', fnc: 'allCurrentPool' },
         { reg: '^#*(小花火)?(原神|星铁|崩铁|星穹铁道|绝区零|ZZZ|崩三|崩坏3|崩坏三|BH3)?(米游社|官方)(当前|本期|当期)?卡池$', fnc: 'officialCurrentPool' },
         { reg: '^#*(小花火)?(原神|星铁|崩铁|星穹铁道|绝区零|ZZZ|崩三|崩坏3|崩坏三|BH3)(\\d+\\.\\d+)(米游社|官方)卡池$', fnc: 'officialVersionPool' },
         { reg: '^#*(小花火)?(崩三|崩坏3|崩坏三|BH3)(?!v?\\d+\\.\\d+)(?!官方|米游社)(.+)(卡池|补给)$', fnc: 'bh3NameHistory' },
@@ -775,6 +776,12 @@ export class xhh_gacha_pool extends plugin {
       markWide: !!markIcon,
       cards
     });
+  }
+
+  async allCurrentPool(e) {
+    // “#当前卡池 / #全游戏当前卡池”默认走米游社官方公告汇总。
+    e.msg = '#官方当前卡池';
+    return this.officialCurrentPool(e);
   }
 
   async officialVersionPool(e) {
