@@ -403,7 +403,7 @@ export class xhh_gacha_pool extends plugin {
     let splash = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
     const hitName = query ? this.normalizeSrName(query) : '';
     if (hitName) {
-      const roleSplash = this.getMiaoProfileImage(hitName) || this.getSrCharacterSplash(hitName);
+      const roleSplash = this.getSrCharacterSplash(hitName) || this.getMiaoProfileImage(hitName, true);
       if (roleSplash) splash = roleSplash;
     }
     return render('gslogs/logs', { data: sections, splash }, { e, ret: true });
@@ -424,10 +424,10 @@ export class xhh_gacha_pool extends plugin {
     if (charName) {
       for (const ext of ['.webp', '.png', '.jpg']) {
         const p = `./plugins/xhh/resources/gslogs/imgs/${charName}${ext}`;
-        if (fs.existsSync(p)) { splash = `gslogs/imgs/${charName}${ext}`; break; }
+        if (fs.existsSync(p) && this.isSafeCornerSplashFile(p)) { splash = `gslogs/imgs/${charName}${ext}`; break; }
       }
       if (!splash) {
-        splash = this.getMiaoProfileImage(charName);
+        splash = this.getGsCharacterSplash(charName) || this.getMiaoProfileImage(charName, true);
       }
     }
     return render('gslogs/logs', { data: sections, splash }, { e, ret: true });
@@ -1166,12 +1166,16 @@ export class xhh_gacha_pool extends plugin {
     return null;
   }
 
-  isSafeZzzSplashFile(path = '') {
+  isSafeCornerSplashFile(path = '') {
     const size = this.getLocalImageSize(path);
     if (!size?.width || !size?.height) return true;
     const ratio = size.height / size.width;
     // 过滤横版大头/海报和过窄长图；优先保留竖版或接近方形的立绘。
     return ratio >= 0.75 && ratio <= 2.15;
+  }
+
+  isSafeZzzSplashFile(path = '') {
+    return this.isSafeCornerSplashFile(path);
   }
 
   getZzzPanelSplash(name = '') {
@@ -1374,9 +1378,8 @@ export class xhh_gacha_pool extends plugin {
         if (Array.isArray(srData) && srData.length) ver = srData[0]?.ver || '';
       }
       if (ver) cards.forEach(c => { if (!c.version || c.version === '-') { c.version = ver; c.versionTag = `#${c.index} ${ver}`; } });
-      const firstCover = records[0]?.cover || records[0]?.images?.[0] || '';
-      let markIcon = firstCover || SR_MARK_ICON;
-      let markWide = !!firstCover;
+      let markIcon = SR_MARK_ICON;
+      let markWide = false;
       for (const r of records) {
         const names = [];
         if (Array.isArray(r.up?.s)) names.push(...r.up.s);
@@ -1387,7 +1390,7 @@ export class xhh_gacha_pool extends plugin {
           const splash = this.getSrCharacterSplash(name);
           if (splash) { markIcon = splash; markWide = true; break; }
         }
-        if (markIcon !== firstCover && markIcon !== SR_MARK_ICON) break;
+        if (markIcon !== SR_MARK_ICON) break;
       }
       return this.renderPoolImage(e, {
         game: '星穹铁道',
@@ -1425,9 +1428,8 @@ export class xhh_gacha_pool extends plugin {
         card.versionTag = `#${card.index}${ver}`;
         return card;
       });
-      const firstCover = records[0]?.cover || records[0]?.images?.[0] || '';
-      let markIcon = firstCover || SR_MARK_ICON;
-      let markWide = !!firstCover;
+      let markIcon = SR_MARK_ICON;
+      let markWide = false;
       for (const r of records) {
         const names = [];
         if (Array.isArray(r.up?.s)) names.push(...r.up.s);
@@ -1438,7 +1440,7 @@ export class xhh_gacha_pool extends plugin {
           const splash = this.getSrCharacterSplash(name);
           if (splash) { markIcon = splash; markWide = true; break; }
         }
-        if (markIcon !== firstCover && markIcon !== SR_MARK_ICON) break;
+        if (markIcon !== SR_MARK_ICON) break;
       }
       return this.renderPoolImage(e, {
         game: '星穹铁道',
@@ -1512,7 +1514,7 @@ export class xhh_gacha_pool extends plugin {
     return query;
   }
 
-  getMiaoProfileImage(name = '') {
+  getMiaoProfileImage(name = '', safeCorner = false) {
     const target = String(name || '').replace(/Pro$/i, '').replace('•', '·');
     if (!target) return '';
     const roots = [
@@ -1525,6 +1527,7 @@ export class xhh_gacha_pool extends plugin {
       try {
         const files = fs.readdirSync(dir)
           .filter(f => /\.(webp|png|jpg|jpeg)$/i.test(f))
+          .filter(f => !safeCorner || this.isSafeCornerSplashFile(`${dir}/${f}`))
           .map(f => ({ f, size: fs.statSync(`${dir}/${f}`).size }))
           .map(v => ({
             ...v,
@@ -1568,21 +1571,21 @@ export class xhh_gacha_pool extends plugin {
     const primary = [];
     const fallback = [];
     for (const n of [...new Set(names)]) {
-      const profile = this.getMiaoProfileImage(n);
+      const profile = this.getMiaoProfileImage(n, true);
       const base = `./plugins/miao-plugin/resources/meta-sr/character/${n}/imgs`;
       if (this.useCustomGachaArt() && profile) primary.push(profile);
       for (const file of ['splash.webp', 'preview.webp']) {
         const path = `${base}/${file}`;
-        if (fs.existsSync(path)) primary.push(fs.realpathSync(path));
+        if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) primary.push(fs.realpathSync(path));
       }
       for (const file of ['card.webp']) {
         const path = `${base}/${file}`;
-        if (fs.existsSync(path)) fallback.push(fs.realpathSync(path));
+        if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) fallback.push(fs.realpathSync(path));
       }
     }
     if (!this.useCustomGachaArt()) {
       for (const n of [...new Set(names)]) {
-        const profile = this.getMiaoProfileImage(n);
+        const profile = this.getMiaoProfileImage(n, true);
         if (profile) fallback.push(profile);
       }
     }
@@ -1726,9 +1729,8 @@ export class xhh_gacha_pool extends plugin {
         if (!c.version || c.version === '-') { c.version = verFromApi; c.versionTag = `#${c.index} ${verFromApi}`; }
       });
     }
-    const firstCover = records[0]?.cover || records[0]?.images?.[0] || '';
-    let markIcon = firstCover || GS_MARK_ICON;
-    let markWide = !!firstCover;
+    let markIcon = GS_MARK_ICON;
+    let markWide = false;
     for (const r of records) {
       const names = [];
       if (Array.isArray(r.up?.s)) names.push(...r.up.s);
@@ -1743,7 +1745,7 @@ export class xhh_gacha_pool extends plugin {
         const splash = this.getGsCharacterSplash(name);
         if (splash) { markIcon = splash; markWide = true; break; }
       }
-      if (markIcon !== firstCover && markIcon !== GS_MARK_ICON) break;
+      if (markIcon !== GS_MARK_ICON) break;
     }
     return this.renderPoolImage(e, {
       game: '原神',
@@ -1789,9 +1791,8 @@ export class xhh_gacha_pool extends plugin {
       card.versionTag = `#${card.index}${ver}`;
       return card;
     });
-    const firstCover = records[0]?.cover || records[0]?.images?.[0] || '';
-    let markIcon = firstCover || GS_MARK_ICON;
-    let markWide = !!firstCover;
+    let markIcon = GS_MARK_ICON;
+    let markWide = false;
     for (const r of records) {
       const names = [];
       if (Array.isArray(r.up?.s)) names.push(...r.up.s);
@@ -1806,7 +1807,7 @@ export class xhh_gacha_pool extends plugin {
         const splash = this.getGsCharacterSplash(name);
         if (splash) { markIcon = splash; markWide = true; break; }
       }
-      if (markIcon !== firstCover && markIcon !== GS_MARK_ICON) break;
+      if (markIcon !== GS_MARK_ICON) break;
     }
     return this.renderPoolImage(e, {
       game: '原神',
@@ -1842,14 +1843,14 @@ export class xhh_gacha_pool extends plugin {
     });
     if (!hit.length) return silent ? false : e.reply(`未找到【${query}】的原神卡池记录。`);
     const cards = hit.map(r => this.officialCard(r, '原神'));
-    const firstCover = hit[0]?.cover || hit[0]?.images?.[0] || '';
+    const markIcon = this.getHeaderSplashFromCards('原神', cards, GS_MARK_ICON);
     return this.renderPoolImage(e, {
       game: '原神',
       title: `${query} 卡池记录`,
       subtitle: `共 ${hit.length} 条记录 · 数据来源：米游社公告${cache ? '（缓存）' : ''}`,
       mode: 'gs',
-      markIcon: firstCover || GS_MARK_ICON,
-      markWide: !!firstCover,
+      markIcon,
+      markWide: markIcon !== GS_MARK_ICON,
       cards
     });
   }
@@ -1886,23 +1887,23 @@ export class xhh_gacha_pool extends plugin {
     for (const n of candidates) {
       for (const ext of ['.webp', '.png', '.jpg']) {
         const p = `./plugins/xhh/resources/gslogs/imgs/${n}${ext}`;
-        if (fs.existsSync(p)) primary.push(fs.realpathSync(p));
+        if (fs.existsSync(p) && this.isSafeCornerSplashFile(p)) primary.push(fs.realpathSync(p));
       }
-      const profile = this.getMiaoProfileImage(n);
+      const profile = this.getMiaoProfileImage(n, true);
       const metaBase = `./plugins/miao-plugin/resources/meta-gs/character/${n}/imgs`;
       if (this.useCustomGachaArt() && profile) primary.push(profile);
       for (const file of ['splash.webp', 'side.webp', 'gacha.webp']) {
         const path = `${metaBase}/${file}`;
-        if (fs.existsSync(path)) primary.push(fs.realpathSync(path));
+        if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) primary.push(fs.realpathSync(path));
       }
       for (const file of ['card.webp', 'face.webp', 'face-q.webp', 'face0.webp']) {
         const path = `${metaBase}/${file}`;
-        if (fs.existsSync(path)) fallback.push(fs.realpathSync(path));
+        if (fs.existsSync(path) && this.isSafeCornerSplashFile(path)) fallback.push(fs.realpathSync(path));
       }
     }
     if (!this.useCustomGachaArt()) {
       for (const n of candidates) {
-        const profile = this.getMiaoProfileImage(n);
+        const profile = this.getMiaoProfileImage(n, true);
         if (profile) fallback.push(profile);
       }
     }
@@ -2044,14 +2045,14 @@ export class xhh_gacha_pool extends plugin {
     const { records, error, cache } = await officialPool.fetch('gs');
     if (!records.length) return e.reply(`原神米游社公告卡池数据获取失败${error ? '：' + error : ''}`);
     const cards = records.map(r => this.officialCard(r, '原神'));
-    const firstCover = records[0]?.cover || records[0]?.images?.[0] || '';
+    const markIcon = this.getHeaderSplashFromCards('原神', cards, GS_MARK_ICON);
     return this.renderPoolImage(e, {
       game: '原神',
       title: '原神全版本卡池记录',
       subtitle: `共 ${records.length} 条记录 · 数据来源：米游社公告${cache ? '（缓存）' : ''}`,
       mode: 'gs',
-      markIcon: firstCover || GS_MARK_ICON,
-      markWide: !!firstCover,
+      markIcon,
+      markWide: markIcon !== GS_MARK_ICON,
       cards
     });
   }
