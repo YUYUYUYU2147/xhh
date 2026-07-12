@@ -793,7 +793,7 @@ export class xhh_gacha_pool extends plugin {
       const results = await officialPool.fetchAll();
       const cards = results.flatMap(r => {
         const meta = officialPool.games[r.game];
-        return (r.records || []).slice(0, 4).map(v => this.officialCard(v, meta?.name));
+        return (r.records || []).slice(0, 5).map(v => this.officialCard(v, meta?.name));
       });
       if (!cards.length) return e.reply('暂未从米游社官方公告匹配到卡池/补给信息。');
       return this.renderPoolImage(e, {
