@@ -1,17 +1,18 @@
 import fetch from 'node-fetch';
 import { makeForwardMsg, config, pluginPriority } from '#xhh';
-import {
-  getCurrentAbyssInfoByEvent,
-  getCurrentBattlefieldInfoByEvent,
-  formatCurrentAbyssInfo,
-  formatCurrentBattlefieldInfo,
-} from '../system/bh3_abyss_boss.js';
+import fs from 'fs';
 import {
   getCurrentZzzDefenseInfoByEvent,
   getCurrentZzzDeadlyInfoByEvent,
   formatCurrentZzzDefenseInfo,
   formatCurrentZzzDeadlyInfo,
 } from '../system/zzz_challenge_info.js';
+
+async function loadBh3BossModule() {
+  const modulePath = './plugins/xhh/system/bh3_abyss_boss.js';
+  const version = fs.existsSync(modulePath) ? fs.statSync(modulePath).mtimeMs : Date.now();
+  return await import(`../system/bh3_abyss_boss.js?v=${version}`);
+}
 
 const SEARCH_API = 'https://bbs-api.miyoushe.com/painter/api/user_instant/search/list';
 const GLOBAL_SEARCH_API = 'https://bbs-api.miyoushe.com/post/wapi/searchPosts';
@@ -61,7 +62,7 @@ const presets = {
   },
   abyss: {
     name: '超弦空间', tip: '深渊攻略/速报获取中，请稍后...', none: '深渊攻略',
-    args: [['寂灭', 11956740, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '残月'], ['红莲', 11956740, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '残月'], ['红莲', 15491760, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '墨之羽'], ['红莲', 30269990, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '朔守']],
+    args: [['红莲', 30269990, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '朔守'], ['寂灭', 30269990, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '朔守'], ['寂灭', 11956740, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '残月'], ['红莲', 11956740, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '残月'], ['红莲', 15491760, [0,1,3,4,5,6,7,8,9,10,11,12,13,14,15], '墨之羽']],
   },
   battlefield: {
     name: '记忆战场', tip: '战场攻略/阵容速报获取中，请稍后...', none: '记忆战场攻略',
@@ -106,7 +107,15 @@ function getPresetArgs(key, cfg) {
   if (['zzz_defense', 'zzz_deadly'].includes(key)) {
     return parseGuideSources(userCfg[`zzz_guide_${key === 'zzz_defense' ? 'defense' : 'deadly'}_sources`], base);
   }
-  return parseGuideSources(userCfg[`bh3_guide_${key}_sources`], base);
+  const parsed = parseGuideSources(userCfg[`bh3_guide_${key}_sources`], base);
+  if (key === 'abyss') {
+    return [...parsed].sort((a, b) => {
+      const aw = a[3] === '朔守' ? 0 : 1;
+      const bw = b[3] === '朔守' ? 0 : 1;
+      return aw - bw;
+    });
+  }
+  return parsed;
 }
 
 async function searchPosts(keyword, uid, size = 20) {
@@ -285,6 +294,25 @@ function cycleStartByWeekday(weekday = 2) {
   return start.getTime();
 }
 
+function currentAbyssStartMs(now = new Date()) {
+  for (let i = 0; i < 8; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const day = d.getDay();
+    if (day === 1 || day === 5) {
+      d.setHours(15, 0, 0, 0);
+      if (d.getTime() <= now.getTime()) return d.getTime();
+    }
+  }
+  return Date.now() - 4 * 24 * 3600 * 1000;
+}
+
+function isCurrentAbyssPost(post = {}) {
+  const ts = postCreatedAt(post);
+  if (!ts) return true;
+  return ts * 1000 >= currentAbyssStartMs() - 30 * 60 * 1000;
+}
+
 function isCurrentBattlefieldPost(post = {}) {
   const ts = postCreatedAt(post);
   if (!ts) return true;
@@ -334,13 +362,13 @@ function isGuidePostUsable(post = {}, type, queryList = []) {
   // 当期深渊/战场/危局已经识别出 Boss 时，必须命中 Boss 名，避免历史深渊混进来。
   if (queries.length && ['abyss', 'battlefield', 'zzz_deadly'].includes(type)) {
     if (type === 'battlefield' && !isCurrentBattlefieldPost(post)) return false;
-    if (type === 'abyss' && !isRecentPost(post, 5)) return false;
+    if (type === 'abyss' && !isCurrentAbyssPost(post)) return false;
     return postContainsAny(post, queries);
   }
   // 没有当期 Boss 时只放最近攻略，避免全站搜索返回很久以前的历史深渊。
   if (type === 'battlefield') return isCurrentBattlefieldPost(post);
   if (['abyss', 'battlefield', 'zzz_defense', 'zzz_deadly'].includes(type)) {
-    return isRecentPost(post, 5);
+    return type === 'abyss' ? isCurrentAbyssPost(post) : isRecentPost(post, 5);
   }
   return true;
 }
@@ -443,6 +471,7 @@ export class mhy_estimate extends plugin {
     let currentZzzDeadlyInfo = null;
     if (key === 'abyss' && !query) {
       try {
+        const { getCurrentAbyssInfoByEvent } = await loadBh3BossModule();
         currentAbyssInfo = await getCurrentAbyssInfoByEvent(e);
         if (currentAbyssInfo?.boss && currentAbyssInfo.boss !== '未知') {
           query = currentAbyssInfo.boss;
@@ -483,8 +512,8 @@ export class mhy_estimate extends plugin {
     const seenPosts = new Set();
     const seenImages = new Set();
     if (cfg.custom?.[0]) msg.push([`作者：${cfg.custom[1] || '自定义图片源'}`, segment.image(cfg.custom[0])]);
-    if (currentAbyssInfo) msg.push(`已识别当期深渊：\n${formatCurrentAbyssInfo(currentAbyssInfo, true)}`);
-    if (currentBattlefieldInfo) msg.push(`已识别当期战场：\n${formatCurrentBattlefieldInfo(currentBattlefieldInfo, true)}`);
+    if (currentAbyssInfo) { const { formatCurrentAbyssInfo } = await loadBh3BossModule(); msg.push(`已识别当期深渊：\n${formatCurrentAbyssInfo(currentAbyssInfo, true)}`); }
+    if (currentBattlefieldInfo) { const { formatCurrentBattlefieldInfo } = await loadBh3BossModule(); msg.push(`已识别当期战场：\n${formatCurrentBattlefieldInfo(currentBattlefieldInfo, true)}`); }
     if (currentZzzDefenseInfo) msg.push(`已识别当前防卫战：\n${formatCurrentZzzDefenseInfo(currentZzzDefenseInfo, true)}`);
     if (currentZzzDeadlyInfo) msg.push(`已识别当前危局：\n${formatCurrentZzzDeadlyInfo(currentZzzDeadlyInfo, true)}`);
 

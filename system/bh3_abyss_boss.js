@@ -36,7 +36,16 @@ function fmtTs(ts) {
 }
 
 function getSettleTs(r = {}) {
-  return r.schedule_end || r.time_second || r.settled_time_second || r.settle_time_second || r.settle_time || r.end_time || r.finish_time || r.updated_time_second;
+  return r.schedule_end || r.settled_time_second || r.settle_time_second || r.settle_time || r.end_time || r.finish_time || r.time_second || r.updated_time_second;
+}
+
+function getReportEndTs(r = {}) {
+  // 注意：time_second/updated_time_second 通常是战报生成/更新时间，不是本期深渊结束时间，不能拿来判断是否过期。
+  return r.schedule_end || r.settled_time_second || r.settle_time_second || r.settle_time || r.end_time || r.finish_time || 0;
+}
+
+function getReportSortTs(r = {}) {
+  return getReportEndTs(r) || r.time_second || r.updated_time_second || 0;
 }
 
 function tsMs(ts) {
@@ -46,9 +55,12 @@ function tsMs(ts) {
 }
 
 function isCurrentReport(r = {}, now = Date.now()) {
-  const end = tsMs(getSettleTs(r));
-  // 没有结算时间时保守认为可用；有结算时间则必须还没过期，避免把上期深渊当本期。
-  return !end || end > now;
+  const end = tsMs(getReportEndTs(r));
+  if (end) return end > now;
+  // 没有明确结束时间时，用战报/更新时间做兜底新鲜度判断，避免把上期深渊当本期。
+  const reportTime = tsMs(r.time_second || r.updated_time_second || r.created_at || 0);
+  if (!reportTime) return true;
+  return now - reportTime <= 30 * 60 * 60 * 1000;
 }
 
 
@@ -155,10 +167,11 @@ async function findAnyBh3Auth() {
 
 function parseGuideSources(value = '') {
   const fallback = [
+    ['红莲', 30269990, '朔守'],
+    ['寂灭', 30269990, '朔守'],
     ['红莲', 11956740, '残月'],
     ['寂灭', 11956740, '残月'],
     ['红莲', 15491760, '墨之羽'],
-    ['红莲', 30269990, '朔守'],
   ];
   const rows = String(value || '').split(/\n+/).map(v => v.trim()).filter(Boolean);
   const result = [];
@@ -178,10 +191,20 @@ function cleanBossName(text = '') {
     .replace(/\s+/g, ' ')
     .trim();
   boss = boss.replace(/^(本期|这期|此次|本次|天|量子|机械|生物|异能|虚数|量子)/, '').trim();
+  if (/怎么|咋|求|没有|没带|无武器|武器|圣痕|阵容|配队|推荐|可以|能不能|吗|？|\?/.test(boss)) return '';
   return boss.slice(0, 32);
 }
 
 function extractBossFromPost(post = {}) {
+  const subject = String(post.subject || '');
+  const titleBossRules = [
+    [/量子泥鳅|泥鳅/, '量子泥鳅'],
+    [/神骸[-—·\s]*虚无主义|虚无主义/, '神骸-虚无主义'],
+    [/摩录多/, '摩录多'],
+  ];
+  for (const [reg, name] of titleBossRules) {
+    if (reg.test(subject)) return name;
+  }
   const text = [post.subject, post.content, post.structured_content]
     .filter(Boolean)
     .join('\n')
@@ -200,10 +223,38 @@ function extractBossFromPost(post = {}) {
   return '';
 }
 
+
+function isBattlefieldGuidePost(post = {}) {
+  const text = [post.subject, post.content, post.structured_content].filter(Boolean).join('\n');
+  // 防止用战场作业误推断当前深渊 Boss。战场帖常包含“战场/记忆战场/lzx/分数”。
+  return /记忆战场|战场|lzx|ss\d*.*分|\d{5,6}分/i.test(text);
+}
+
 function isRecentPost(post = {}, maxDays = 4) {
   const publish = Number(post.created_at || post.publish_at || 0);
   if (!publish) return true;
   return Math.floor(Date.now() / 1000) - publish <= maxDays * 24 * 3600;
+}
+
+function getCurrentAbyssStartSec(now = moment()) {
+  // 崩三国服超弦空间通常周一/周五 15:00 开启。用于过滤旧作业帖。
+  const candidates = [];
+  for (let back = 0; back < 8; back++) {
+    const d = now.clone().subtract(back, 'days');
+    const day = d.day(); // 1=周一, 5=周五
+    if (day === 1 || day === 5) {
+      const start = d.clone().hour(15).minute(0).second(0).millisecond(0);
+      if (start.isSameOrBefore(now)) candidates.push(start);
+    }
+  }
+  return (candidates[0] || now.clone().subtract(4, 'days')).unix();
+}
+
+function isCurrentAbyssGuidePost(post = {}) {
+  const publish = Number(post.created_at || post.publish_at || 0);
+  if (!publish) return true;
+  // 允许少量提前预发，但不接受上一期/上周旧作业。
+  return publish >= getCurrentAbyssStartSec() - 30 * 60;
 }
 
 async function searchMysPosts(keyword, uid, size = 8) {
@@ -249,12 +300,14 @@ async function inferCurrentAbyssInfoFromMys(role = {}, region = '') {
   const sources = parseGuideSources(config().bh3_guide_abyss_sources);
   const nowSec = Math.floor(Date.now() / 1000);
   for (const [keyword, uid, author] of sources) {
-    const searchWords = [`${keyword} 超弦`, `${keyword} 深渊`, keyword];
+    const searchWords = [`${keyword} 超弦`, `${keyword} 深渊`, `${keyword} 共鸣`, `${keyword} 量子`, `${keyword} 泥鳅`, '希鸭花', keyword];
     for (const word of searchWords) {
       try {
         const posts = await searchMysPosts(word, uid, 8);
         for (const post of posts) {
           if (!isRecentPost(post, 4)) continue;
+          if (!isCurrentAbyssGuidePost(post)) continue;
+          if (isBattlefieldGuidePost(post)) continue;
           const boss = extractBossFromPost(post);
           if (!boss) continue;
           const info = buildInferredAbyssInfo(post, keyword, role, region, author);
@@ -266,21 +319,23 @@ async function inferCurrentAbyssInfoFromMys(role = {}, region = '') {
       }
     }
   }
-  if (config()?.mys_global_guide_search !== false) {
-    for (const word of ['红莲 超弦', '寂灭 超弦', '深渊 BOSS', '超弦空间']) {
-      try {
-        const posts = await searchMysGlobalPosts(word, 10);
-        for (const post of posts) {
-          if (!isRecentPost(post, 3)) continue;
-          const info = buildInferredAbyssInfo(post, word, role, region, '米游社全站搜索');
-          if (!info) continue;
-          await redis.set(CACHE_KEY, JSON.stringify(info), { EX: 30 * 60 });
-          return info;
-        }
-      } catch (err) {
-        if (config().debug) logger.mark(`[xhh][bh3_abyss_boss] 米游社全站搜索 ${word} 失败: ${err.message}`);
+  // 全站搜索噪声太高，容易把提问帖/战场帖误判为深渊 Boss，这里不再用于“当前深渊”自动推断。
+  // 兜底：朔守本期红莲作业常用短标题，不一定含“Boss:”字段，单独按当前期开期过滤一次。
+  try {
+    for (const q of ['红莲', '希鸭花', '共鸣量子泥鳅', '量子泥鳅']) {
+      const posts = await searchMysPosts(q, 30269990, 8);
+      for (const post of posts) {
+        if (!isCurrentAbyssGuidePost(post)) continue;
+        if (isBattlefieldGuidePost(post)) continue;
+        if (!/(泥鳅|共鸣|超弦|深渊)/.test(String(post.subject || ''))) continue;
+        const info = buildInferredAbyssInfo(post, '红莲', role, region, '朔守');
+        if (!info) continue;
+        await redis.set(CACHE_KEY, JSON.stringify(info), { EX: 30 * 60 });
+        return info;
       }
     }
+  } catch (err) {
+    logger.warn(`[xhh][bh3_abyss_boss] 朔守本期深渊兜底失败: ${err.message}`);
   }
   return null;
 }
@@ -335,12 +390,28 @@ export function formatCurrentBattlefieldInfo(info, compact = false) {
   ].filter(Boolean).join('\n');
 }
 
+
+async function getManualAbyssInfo() {
+  try {
+    const raw = await redis.get('xhh:bh3:current_abyss_manual');
+    if (!raw) return null;
+    const info = JSON.parse(raw);
+    if (info.expiresAt && Date.now() > Number(info.expiresAt)) {
+      await redis.del('xhh:bh3:current_abyss_manual');
+      return null;
+    }
+    return info;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchCurrentAbyssInfo(auth) {
-  if (!auth?.uid || !auth?.ck) return null;
+  if (!auth?.uid || !auth?.ck) return inferCurrentAbyssInfoFromMys({}, auth?.region || 'cn_gf01');
   const e = { user_id: auth.qq || 0 };
   const headers = mhy.getHeaders(e, auth.ck);
   const indexRes = await api(e, { type: 'bh3_index', uid: auth.uid, headers, game: 'bh3', server: auth.region, silent: true });
-  if (indexRes?.retcode !== 0) return null;
+  if (indexRes?.retcode !== 0) return inferCurrentAbyssInfoFromMys({}, auth.region || 'cn_gf01');
   const role = indexRes.data?.role || {};
   const level = Number(role.level || 0);
   const queryList = level > 0 && level <= 80
@@ -354,7 +425,7 @@ export async function fetchCurrentAbyssInfo(auth) {
         const res = await api(e, { type: item.type, uid: auth.uid, headers, game: 'bh3', server, silent: true });
         const reports = (res?.data?.reports || [])
           .filter(r => isCurrentReport(r))
-          .sort((a, b) => Number(getSettleTs(b) || 0) - Number(getSettleTs(a) || 0));
+          .sort((a, b) => Number(getReportSortTs(b) || 0) - Number(getReportSortTs(a) || 0));
         if (res?.retcode === 0 && reports.length) {
           const info = buildInfo(item.label, reports[0], role, server);
           await redis.set(CACHE_KEY, JSON.stringify(info), { EX: 2 * 3600 });

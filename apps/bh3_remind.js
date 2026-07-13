@@ -1,9 +1,15 @@
 import { yaml, pluginPriority } from '#xhh';
 import { segment } from 'oicq';
-import { getAnyCurrentAbyssText } from '../system/bh3_abyss_boss.js';
+import fs from 'fs';
 
 const _path = './plugins/xhh/config/';
 const cfgFile = _path + 'bh3_remind.yaml';
+
+async function loadBh3BossModule() {
+  const modulePath = './plugins/xhh/system/bh3_abyss_boss.js';
+  const version = fs.existsSync(modulePath) ? fs.statSync(modulePath).mtimeMs : Date.now();
+  return await import(`../system/bh3_abyss_boss.js?v=${version}`);
+}
 
 function getRemindConfig() {
   return yaml.get(cfgFile) || { enable: false, groups: [], items: [] };
@@ -240,7 +246,7 @@ export class bh3_remind extends plugin {
       if (item.key === 'abyss_start') {
         let abyssText = '';
         try {
-          abyssText = await getAnyCurrentAbyssText(true);
+          { const { getAnyCurrentAbyssText } = await loadBh3BossModule(); abyssText = await getAnyCurrentAbyssText(true); }
         } catch (err) {
           logger.warn(`[bh3_remind] 获取当前深渊速查失败，仍发送基础提醒: ${err.message}`);
         }

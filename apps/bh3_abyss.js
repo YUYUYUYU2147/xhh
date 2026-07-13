@@ -5,6 +5,12 @@ import puppeteer from '../../../lib/puppeteer/puppeteer.js';
 import moment from 'moment';
 import { getCurrentAbyssInfoByEvent, formatCurrentAbyssInfo } from '../system/bh3_abyss_boss.js';
 
+async function loadAbyssBossModule() {
+  const modulePath = './plugins/xhh/system/bh3_abyss_boss.js';
+  const version = fs.existsSync(modulePath) ? fs.statSync(modulePath).mtimeMs : Date.now();
+  return await import(`../system/bh3_abyss_boss.js?v=${version}`);
+}
+
 function sendMsg(e, msg) {
   if (typeof msg === 'object' && msg.constructor?.name === 'Buffer') {
     const seg = segment.image(msg);
@@ -163,6 +169,7 @@ async abyss(e) {
   }
 
   async abyssBoss(e) {
+    const { getCurrentAbyssInfoByEvent, formatCurrentAbyssInfo } = await loadAbyssBossModule();
     const info = await getCurrentAbyssInfoByEvent(e);
     if (!info) {
       return sendMsg(e, [
