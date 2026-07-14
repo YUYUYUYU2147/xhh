@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="{{ppath}}bh3_calendar/calendar.css">
+</head>
+<body {{sys.scale}}>
+<div class="wrap">
+  <div class="header">
+    {{if splash}}<img class="corner-splash" src="{{(splash.startsWith('http') || splash.startsWith('/')) ? splash : ppath + splash}}" />{{/if}}
+    <div class="title">{{title}}</div>
+    <div class="meta"><span>{{subtitle}}</span><span>刷新：{{nowTime}}</span></div>
+  </div>
+  <div class="dates">
+    {{each dateList d}}
+    <div class="date {{d.isToday ? 'today' : ''}}"><b>{{d.day}}</b><span>{{d.month}}月 周{{d.week}}</span></div>
+    {{/each}}
+  </div>
+  <div class="body">
+    <div class="now" style="left:{{nowLeft}}%"><span>当前</span></div>
+    {{each list item}}
+    <div class="bar row-{{item.row}} {{item.type}} {{item.active ? 'active' : ''}} {{item.banner ? 'has-bg' : ''}}" style="left:{{item.left}}%;width:{{item.width}}%">
+      {{if item.banner}}<img class="bar-bg-img" src="{{item.banner}}" />{{/if}}
+      <div class="tag">{{item.typeName}}</div>
+      <div class="name">{{item.title}}</div>
+      <div class="time">{{item.start}} ~ {{item.end}} · {{item.leftTime}}</div>
+    </div>
+    {{/each}}
+  </div>
+  <div class="list">
+    {{each list item}}
+    <div class="li {{item.type}}">
+      <span class="dot"></span>
+      <span class="li-title">{{item.title}}</span>
+      <span class="li-time">{{item.start}} ~ {{item.end}}</span>
+      <span class="li-left">{{item.leftTime}}</span>
+    </div>
+    {{/each}}
+  </div>
+  <div class="footer">from 小花火</div>
+</div>
+</body>
+</html>
