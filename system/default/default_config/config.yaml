@@ -147,6 +147,7 @@ sign_priority: -26
 user_priority: -9999999999
 wiki_priority: 100
 bh3_remind_priority: -1000001
+activity_remind_priority: -1000002
 bh3_note_priority: 100
 bh3_abyss_priority: 100
 bh3_battlefield_priority: 100

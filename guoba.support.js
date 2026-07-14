@@ -18,6 +18,10 @@ function getBh3Remind() {
   return yaml.get(_path + 'bh3_remind.yaml') || {}
 }
 
+function getActivityRemind() {
+  return yaml.get(_path + 'activity_remind.yaml') || {}
+}
+
 const defaultBh3GuideSources = {
   abyss: [
     '寂灭|11956740|0,1,3,4,5,6,7,8,9,10,11,12,13,14,15|残月',
@@ -405,6 +409,76 @@ export const supportGuoba = () => ({
       },
       {
         component: 'Divider',
+        label: '活动到期提醒',
+      },
+      {
+        field: 'activity_remind_enable',
+        label: '活动到期提醒总开关',
+        helpMessage: '原神/星铁/绝区零/崩三活动到期推送',
+        component: 'Switch',
+      },
+      {
+        field: 'activity_remind_hours_before',
+        label: '提前提醒小时数',
+        helpMessage: '默认24；活动结束前多少小时内推送一次',
+        component: 'InputNumber',
+        componentProps: { min: 1, max: 168, step: 1 },
+      },
+      {
+        field: 'activity_remind_push_image',
+        label: '推送公告图片',
+        component: 'Switch',
+      },
+      {
+        field: 'activity_remind_at_mode',
+        label: '活动提醒艾特',
+        component: 'Select',
+        componentProps: {
+          options: [
+            { label: '不艾特', value: 'none' },
+            { label: '艾特全体', value: 'all' },
+            { label: '艾特指定QQ', value: 'users' },
+          ],
+        },
+      },
+      {
+        field: 'activity_remind_at_users',
+        label: '活动提醒指定QQ',
+        helpMessage: '艾特指定QQ时生效，多个QQ用英文逗号/换行分隔',
+        component: 'InputTextArea',
+      },
+      {
+        field: 'activity_remind_ban_words',
+        label: '活动提醒屏蔽关键词',
+        helpMessage: '正则写法，使用 | 分隔；标题包含则不推送',
+        component: 'InputTextArea',
+      },
+      {
+        field: 'activity_remind_gs_groups',
+        label: '原神活动到期提醒群',
+        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #原神开启活动到期推送',
+        component: 'InputTextArea',
+      },
+      {
+        field: 'activity_remind_sr_groups',
+        label: '星铁活动到期提醒群',
+        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #星铁开启活动到期推送',
+        component: 'InputTextArea',
+      },
+      {
+        field: 'activity_remind_zzz_groups',
+        label: '绝区零活动到期提醒群',
+        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #绝区零开启活动到期推送',
+        component: 'InputTextArea',
+      },
+      {
+        field: 'activity_remind_bh3_groups',
+        label: '崩三活动到期提醒群',
+        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #崩三开启活动到期推送',
+        component: 'InputTextArea',
+      },
+      {
+        component: 'Divider',
         label: '崩坏3攻略源',
       },
       {
@@ -505,6 +579,13 @@ export const supportGuoba = () => ({
         field: 'bh3_remind_priority',
         label: '崩三提醒(bh3_remind)',
         helpMessage: '默认 -1000001（提醒拦截）',
+        component: 'InputNumber',
+        componentProps: { min: -9999999999, max: 9999999999, step: 1 },
+      },
+      {
+        field: 'activity_remind_priority',
+        label: '活动到期提醒(activity_remind)',
+        helpMessage: '默认 -1000002，建议低于genshin以优先抢到活动到期指令',
         component: 'InputNumber',
         componentProps: { min: -9999999999, max: 9999999999, step: 1 },
       },
@@ -622,6 +703,8 @@ export const supportGuoba = () => ({
       const other = getOther()
       const sign = getSign()
       const bh3Remind = getBh3Remind()
+      const activityRemind = getActivityRemind()
+      const activityGroups = activityRemind.groups || {}
       return {
         update: !!cfg.update,
         img_quality: cfg.img_quality ?? 80,
@@ -670,6 +753,7 @@ export const supportGuoba = () => ({
         user_priority: cfg.user_priority ?? -9999999999,
         wiki_priority: other.wiki ?? 100,
         bh3_remind_priority: cfg.bh3_remind_priority ?? -1000001,
+        activity_remind_priority: cfg.activity_remind_priority ?? -1000002,
         bh3_note_priority: cfg.bh3_note_priority ?? 100,
         bh3_abyss_priority: cfg.bh3_abyss_priority ?? 100,
         bh3_battlefield_priority: cfg.bh3_battlefield_priority ?? 100,
@@ -704,6 +788,16 @@ export const supportGuoba = () => ({
         bh3_remind_at_mode: bh3Remind.at_mode || 'none',
         bh3_remind_at_users: (bh3Remind.at_users || []).join(','),
         bh3_remind_image: bh3Remind.image || '',
+        activity_remind_enable: !!activityRemind.enable,
+        activity_remind_hours_before: activityRemind.hours_before ?? 24,
+        activity_remind_push_image: activityRemind.push_image !== false,
+        activity_remind_at_mode: activityRemind.at_mode || 'none',
+        activity_remind_at_users: (activityRemind.at_users || []).join(','),
+        activity_remind_ban_words: activityRemind.ban_words || '',
+        activity_remind_gs_groups: (activityGroups.gs || []).join(','),
+        activity_remind_sr_groups: (activityGroups.sr || []).join(','),
+        activity_remind_zzz_groups: (activityGroups.zzz || []).join(','),
+        activity_remind_bh3_groups: (activityGroups.bh3 || []).join(','),
         mys_global_guide_search: cfg.mys_global_guide_search !== false,
         bh3_guide_abyss_sources: cfg.bh3_guide_abyss_sources || defaultBh3GuideSources.abyss,
         bh3_guide_battlefield_sources: cfg.bh3_guide_battlefield_sources || defaultBh3GuideSources.battlefield,
@@ -789,6 +883,20 @@ export const supportGuoba = () => ({
       const remindAtUsers = String(data.bh3_remind_at_users || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
       yaml.set(_path + 'bh3_remind.yaml', 'at_users', remindAtUsers)
       yaml.set(_path + 'bh3_remind.yaml', 'image', String(data.bh3_remind_image || '').trim())
+
+      yaml.set(_path + 'activity_remind.yaml', 'enable', !!data.activity_remind_enable)
+      yaml.set(_path + 'activity_remind.yaml', 'hours_before', Number(data.activity_remind_hours_before || 24))
+      yaml.set(_path + 'activity_remind.yaml', 'push_image', data.activity_remind_push_image !== false)
+      yaml.set(_path + 'activity_remind.yaml', 'at_mode', ['all', 'users', 'none'].includes(data.activity_remind_at_mode) ? data.activity_remind_at_mode : 'none')
+      const activityAtUsers = String(data.activity_remind_at_users || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
+      yaml.set(_path + 'activity_remind.yaml', 'at_users', activityAtUsers)
+      yaml.set(_path + 'activity_remind.yaml', 'ban_words', String(data.activity_remind_ban_words || '').trim())
+      yaml.set(_path + 'activity_remind.yaml', 'groups', {
+        gs: String(data.activity_remind_gs_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
+        sr: String(data.activity_remind_sr_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
+        zzz: String(data.activity_remind_zzz_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
+        bh3: String(data.activity_remind_bh3_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
+      })
       const allNoteGroups = String(data.bh3_all_note_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
       yaml.set(_path + 'bh3_remind.yaml', 'all_note_groups', allNoteGroups)
 
@@ -804,7 +912,7 @@ export const supportGuoba = () => ({
 
       const priorityFields = [
         'tl_priority', 'sign_priority', 'user_priority', 'wiki_priority',
-        'bh3_remind_priority', 'bh3_note_priority', 'bh3_abyss_priority',
+        'bh3_remind_priority', 'activity_remind_priority', 'bh3_note_priority', 'bh3_abyss_priority',
         'bh3_battlefield_priority', 'bh3_godwar_priority', 'bh3_profile_priority',
         'bh3_all_note_priority', 'bh3_gacha_priority', 'bh3_ledger_priority', 'abyss_report_priority',
         'bilibili_priority', 'bilibili_push_priority', 'gacha_pool_priority',
