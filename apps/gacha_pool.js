@@ -852,7 +852,7 @@ export class xhh_gacha_pool extends plugin {
         return this.renderPoolImage(e, {
           game: meta.name,
           title: `${meta.name}米游社官方卡池`,
-          subtitle: `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`,
+          subtitle: this.formatCurrentPoolSubtitle(cards[0]?.version, cards[0]?.time, `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`),
           mode: 'official official-game',
           markIcon: this.fixedCornerFallback(meta.name),
           markWide: true,
@@ -934,6 +934,30 @@ export class xhh_gacha_pool extends plugin {
       if (files.length) return `zzz_md/imgs/custom/${files[0].f}`;
     } catch (_) {}
     return '';
+  }
+
+  formatCurrentPoolSubtitle(version = '', time = '', fallback = '') {
+    const ver = String(version || '').trim();
+    const raw = String(time || '').trim();
+    const dateMatches = [...raw.matchAll(/(20\d{2})[\/.-](\d{1,2})[\/.-](\d{1,2})(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?/g)];
+    const fmt = m => `${m[1]}/${String(m[2]).padStart(2, '0')}/${String(m[3]).padStart(2, '0')}`;
+    const parse = m => {
+      const hhmm = m[4] || '23:59:59';
+      const t = new Date(`${m[1]}/${String(m[2]).padStart(2, '0')}/${String(m[3]).padStart(2, '0')} ${hhmm}`).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+    let range = raw;
+    let days = '';
+    if (dateMatches.length >= 2) {
+      range = `${fmt(dateMatches[0])} ~ ${fmt(dateMatches[dateMatches.length - 1])}`;
+      const end = parse(dateMatches[dateMatches.length - 1]);
+      if (end) days = ` · 剩余约${Math.max(Math.ceil((end - Date.now()) / 86400000), 0)}天`;
+    }
+    const parts = [];
+    if (ver) parts.push(`v${ver}`);
+    if (range) parts.push(range);
+    const text = parts.join(' · ') + days;
+    return text || fallback;
   }
 
   applyCardVersion(cards = [], version = '') {
@@ -1583,7 +1607,7 @@ ${r.summary || ''}`;
       return this.renderPoolImage(e, {
         game: '星穹铁道',
         title: '星铁当前卡池',
-        subtitle: `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`,
+        subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`),
         mode: 'sr',
         markIcon: this.fixedCornerFallback('星穹铁道'),
         markWide: true,
@@ -1958,7 +1982,7 @@ ${r.summary || ''}`;
         return this.renderPoolImage(e, {
           game: '原神',
           title: '原神当前卡池',
-          subtitle: '本地卡池库兜底',
+          subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, '本地卡池库兜底'),
           mode: 'gs',
           markIcon,
           markWide: !!markIcon,
@@ -1973,7 +1997,8 @@ ${r.summary || ''}`;
       card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
       return card;
     });
-    const localCurrentVersion = (await this.loadGsLocalCards('current')).find(c => c.version && c.version !== '-')?.version || '';
+    const gsLocalCurrent = await this.loadGsLocalCards('current');
+    const localCurrentVersion = gsLocalCurrent.find(c => c.version && c.version !== '-')?.version || '';
     const verFromApi = localCurrentVersion || records.find(r => r.version && r.version !== '-')?.version || '';
     this.applyCardVersion(cards, verFromApi);
     let markIcon = GS_MARK_ICON;
@@ -1997,7 +2022,7 @@ ${r.summary || ''}`;
     return this.renderPoolImage(e, {
       game: '原神',
       title: '原神当前卡池',
-      subtitle: `数据来源：米游社公告${cache ? '（缓存）' : ''}`,
+      subtitle: this.formatCurrentPoolSubtitle(verFromApi, gsLocalCurrent[0]?.time, `数据来源：米游社公告${cache ? '（缓存）' : ''}`),
       mode: 'gs',
       markIcon,
       markWide,
@@ -2337,7 +2362,7 @@ ${r.summary || ''}`;
       return this.renderPoolImage(e, {
         game: '崩坏3',
         title: '崩坏3当前卡池',
-        subtitle: `v${CURRENT_VERSION.bh3} · 本地补给记录`,
+        subtitle: this.formatCurrentPoolSubtitle(local[0]?.version, local[0]?.time, `v${CURRENT_VERSION.bh3} · 本地补给记录`),
         mode: 'bh3',
         markIcon,
         markWide,
