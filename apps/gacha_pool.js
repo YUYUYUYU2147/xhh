@@ -814,7 +814,7 @@ export class xhh_gacha_pool extends plugin {
           const { start, end } = this.parseTime(p);
           return start && end && now >= start && now <= end;
         });
-        if (zzzCurrent.length) cards.push(...this.applyZzzCardBackgrounds(zzzCurrent.map(p => this.poolToCard(p))));
+        if (zzzCurrent.length) cards.push(...this.applyZzzCardBackgrounds(zzzCurrent.map(p => this.poolToCard(p)), resultOf('zzz').records || []));
       }
       if (!cards.some(c => c.type === '代理人频段' || c.type === '音擎频段')) {
         cards.push(...(resultOf('zzz').records || [])
@@ -945,10 +945,46 @@ export class xhh_gacha_pool extends plugin {
     return cards;
   }
 
-  applyZzzCardBackgrounds(cards = []) {
+  getZzzOfficialCardImage(card = {}, records = []) {
+    const list = Array.isArray(records) ? records : [];
+    if (!list.length) return '';
+    const clean = v => String(v || '').replace(/[「」『』\s/，,•·\-]/g, '').toLowerCase();
+    const names = [card.s, card.title]
+      .flatMap(v => String(v || '').split(/[\/，,、]/))
+      .map(v => v.trim())
+      .filter(Boolean);
+    const cardVer = String(card.version || '').replace(/上半|下半/g, '');
+    let best = null;
+    let bestScore = -1;
+    for (const r of list) {
+      const imgs = [r.cover, ...(r.images || [])].filter(Boolean);
+      if (!imgs.length) continue;
+      const text = `${r.title || ''}
+${r.contentText || ''}
+${r.summary || ''}`;
+      const ct = clean(text);
+      let score = 0;
+      if (cardVer && String(r.version || '').startsWith(cardVer)) score += 8;
+      if (card.weapon && /(音擎|武器|频段)/.test(text)) score += 3;
+      if (!card.weapon && /(代理人|独家频段|角色|调频)/.test(text)) score += 3;
+      for (const name of names) {
+        const cn = clean(name);
+        if (cn && ct.includes(cn)) score += 8;
+      }
+      if (score > bestScore) {
+        best = { imgs, score };
+        bestScore = score;
+      }
+    }
+    if (!best || bestScore <= 0) return '';
+    return best.imgs[0];
+  }
+
+  applyZzzCardBackgrounds(cards = [], officialRecords = []) {
     if (!Array.isArray(cards)) return cards;
     let roleBg = '';
     for (const card of cards) {
+      if (!card.img) card.img = this.getZzzOfficialCardImage(card, officialRecords) || '';
       if (card?.weapon) continue;
       if (!card.img && card.s) {
         const firstName = String(card.s).split(/[\/，,、]/)[0]?.trim();
@@ -956,7 +992,7 @@ export class xhh_gacha_pool extends plugin {
       }
       if (!roleBg && card.img) roleBg = card.img;
     }
-    // 音擎卡本地数据通常没有官方背景，沿用同期开幕代理人立绘，避免纯色空卡。
+    // 音擎卡本地数据没有官方图时，沿用同期开幕代理人立绘/公告图，避免纯色空卡。
     if (roleBg) {
       for (const card of cards) {
         if (card?.weapon && !card.img) card.img = roleBg;
@@ -979,6 +1015,7 @@ export class xhh_gacha_pool extends plugin {
   async zzzCurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中绝区零当前卡池:', e.msg);
     // 优先使用本地当前时间段数据，避免米游社公告按版本筛选时把 3.0上半/下半混在一起。
+    const zzzOfficial = await officialPool.fetch('zzz');
     const data = await this.fetchZzzPools();
     if (data) {
       const now = new Date();
@@ -990,7 +1027,7 @@ export class xhh_gacha_pool extends plugin {
         const sample = pools[0];
         const { end } = this.parseTime(sample);
         const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
-        const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
+        const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
         const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
         return this.renderPoolImage(e, {
           game: '绝区零',
@@ -1004,7 +1041,7 @@ export class xhh_gacha_pool extends plugin {
       }
     }
     // 本地没有当前期时，再尝试从米游社公告获取。
-    const { records } = await officialPool.fetch('zzz');
+    const { records } = zzzOfficial;
     if (records.length) {
       // 只使用公告标题能明确解析到当前版本的记录；避免旧公告解析不到版本时被 officialCard 兜底成 3.0，导致右上角抽到旧角色（如比利）。
       const useRecords = records.filter(r => String(r.version || '').startsWith(CURRENT_VERSION.zzz));
@@ -1049,7 +1086,7 @@ export class xhh_gacha_pool extends plugin {
       const latest = data.filter(p => this.poolEndStamp(p) === latestEnd);
       if (!latest.length) return e.reply('当前没有匹配到正在开放的绝区零活动卡池。');
       const latestStage = latest[0]?.version ? `；数据源最新收录：${latest[0].version}` : '';
-      const cards = this.applyZzzCardBackgrounds(latest.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
+      const cards = this.applyZzzCardBackgrounds(latest.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
       const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
       return this.renderPoolImage(e, {
         game: '绝区零',
