@@ -219,6 +219,38 @@ pools:
     a:
     - 寰宇取映
     target: 天光驰彻
+- version: '8.2'
+  phase: 炽愿复刻
+  start: '2025-04-11 12:00:00'
+  end: '2025-04-25 12:00:00'
+  pools:
+  - name: 「咚！炽愿吉星」角色补给
+    type: char
+    s: 咚！炽愿吉星
+    a:
+    - 女武神·誓约
+  - name: 「吉运绛天&来日亦然」装备补给
+    type: weapon
+    s: 吉运绛天
+    a:
+    - 来日亦然
+    target: 咚！炽愿吉星
+- version: '8.1'
+  phase: 叙愿今宵
+  start: '2025-01-23 10:00:00'
+  end: '2025-03-07 12:00:00'
+  pools:
+  - name: 「叙愿今宵」角色补给
+    type: char
+    s: 咚！炽愿吉星
+    a:
+    - 女武神·重机
+  - name: 「吉运绛天&来日亦然」装备补给
+    type: weapon
+    s: 吉运绛天
+    a:
+    - 来日亦然
+    target: 咚！炽愿吉星
 - version: '8.1'
   phase: 天光复刻
   start: '2025-03-07 12:00:00'
@@ -339,6 +371,16 @@ pools:
     a:
     - 独行于星
     target: 孑遗千星
+  - name: 「咚！炽愿吉星」庆典角色补给
+    type: char
+    s: 咚！炽愿吉星
+    a: []
+  - name: 「吉运绛天&来日亦然」庆典装备补给
+    type: weapon
+    s: 吉运绛天
+    a:
+    - 来日亦然
+    target: 咚！炽愿吉星
 - version: '8.5'
   phase: 下半
   start: '2025-12-28 10:00:00'
