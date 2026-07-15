@@ -2327,10 +2327,11 @@ ${r.summary || ''}`;
       if (!pools.some(arr => arr.includes(query))) continue;
       const version = dateKey.match('【(.*)】')?.[1] || '';
       const time = dateKey.replace(`【${version}】`, '').replace('~', ' ~ ');
+      const hasCharMatch = pools.some(arr => arr.includes(query) && !this.isGsWeaponPool(arr) && !this.isGsMixedPool(arr));
       const rows = pools.map((arr, idx) => {
-        if (!arr.includes(query)) return null;
         const weapon = this.isGsWeaponPool(arr);
         const mixed = this.isGsMixedPool(arr);
+        if (!arr.includes(query) && !(hasCharMatch && weapon)) return null;
         const title = weapon ? '武器活动祈愿' : (mixed || idx === 3 ? '集录祈愿' : '角色活动祈愿');
         return {
           title,
