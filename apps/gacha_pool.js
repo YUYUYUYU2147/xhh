@@ -457,7 +457,8 @@ export class xhh_gacha_pool extends plugin {
   getHistorySplash(game = '', sections = []) {
     if (this.useCustomGachaArt()) return this.fixedCornerFallback(game);
     const splash = this.getCardSplashByGame(game, this.getSectionUpNames(sections));
-    return splash || this.gameMarkIcon(game);
+    // 官方立绘模式下，取不到角色立绘就不显示右上角图，避免回退到 gs_mark/paimon.png 这类公告截图。
+    return splash || '';
   }
 
   async renderSrLogs(e, data, query = '') {
