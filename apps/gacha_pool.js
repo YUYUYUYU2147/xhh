@@ -2765,7 +2765,7 @@ ${r.summary || ''}`;
     return [...set];
   }
 
-  findBh3IconFromDir(dir = '', name = '', prefixes = []) {
+  findBh3IconFromDir(dir = '', name = '', prefixes = [], fuzzy = true) {
     if (!fs.existsSync(dir)) return '';
     const target = this.cleanBh3Name(name);
     try {
@@ -2778,6 +2778,7 @@ ${r.summary || ''}`;
         const path = `${dir}/${file}`;
         if (fs.existsSync(path)) return fs.realpathSync(path);
       }
+      if (!fuzzy) return '';
       for (const file of files) {
         const base = file.replace(/\.(png|webp|jpg|jpeg)$/i, '').replace(/^(char_|weapon_|stigmata_|圣痕_|角色_|武器_)/, '');
         const clean = this.cleanBh3Name(base);
@@ -2833,8 +2834,13 @@ ${r.summary || ''}`;
       './plugins/xhh/data/bh3_gacha/icons',
       './plugins/xhh/resources/bh3logs/icons'
     ];
+    // 先跨目录精确匹配，避免 data 缓存里的角色头像通过模糊匹配抢在 resources 的圣痕套装图前面。
     for (const dir of dirs) {
-      const icon = this.findBh3IconFromDir(dir, name, prefixes);
+      const icon = this.findBh3IconFromDir(dir, name, prefixes, false);
+      if (icon) return icon;
+    }
+    for (const dir of dirs) {
+      const icon = this.findBh3IconFromDir(dir, name, prefixes, true);
       if (icon) return icon;
     }
 
