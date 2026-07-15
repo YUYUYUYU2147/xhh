@@ -2588,7 +2588,8 @@ ${r.summary || ''}`;
       return queryNames.some(q => raw === q || raw.includes(q) || q.includes(raw))
         || cleanQueries.some(q => clean === q || clean.includes(q) || q.includes(clean));
     };
-    const records = [];
+    const mainRecords = [];
+    const subRecords = [];
     for (const vp of data.pools) {
       const mainMatchedPools = [];
       const subMatchedPools = [];
@@ -2608,16 +2609,16 @@ ${r.summary || ''}`;
           subMatchedPools.push({ pool, attachWeapon: false });
         }
       }
-      const matchedPools = mainMatchedPools.length ? mainMatchedPools : subMatchedPools;
-      if (matchedPools.length) {
-        // 优先展示主UP/专属装备命中；没有主命中时，才展示A/SP副UP命中，避免“死生之律者卡池”串出别人的主UP。
-        const shouldAttachWeapon = matchedPools.some(v => v.attachWeapon);
-        const related = vp.pools.filter(pool => matchedPools.some(v => v.pool === pool) || (shouldAttachWeapon && pool.type === 'weapon'));
-        for (const pool of related) {
-          records.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
-        }
+      if (mainMatchedPools.length) {
+        // 只要全局能命中主UP/专属装备，就不要再混入其它版本的A/SP陪跑记录。
+        const shouldAttachWeapon = mainMatchedPools.some(v => v.attachWeapon);
+        const related = vp.pools.filter(pool => mainMatchedPools.some(v => v.pool === pool) || (shouldAttachWeapon && pool.type === 'weapon'));
+        for (const pool of related) mainRecords.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
+      } else if (subMatchedPools.length) {
+        for (const { pool } of subMatchedPools) subRecords.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
       }
     }
+    const records = mainRecords.length ? mainRecords : subRecords;
     if (!records.length) return silent ? false : e.reply(`未找到【${name}】的崩坏3补给记录。`);
     const sections = await this.buildBh3HistorySections(records, name, queryNames);
     if (sections.length) {
