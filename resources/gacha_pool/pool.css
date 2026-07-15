@@ -159,6 +159,12 @@ h1 {
   object-fit: cover;
   z-index: 0;
 }
+.pool-bg.contain {
+  object-fit: contain;
+  object-position: center;
+  padding: 8px;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.18));
+}
 
 /* 渐变遮罩 - 让文字更清晰 */
 .pool-overlay {

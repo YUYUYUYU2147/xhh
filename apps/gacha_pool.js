@@ -1803,6 +1803,7 @@ ${r.summary || ''}`;
         s: this.clSrNames(item.gz_five || []).join(' / '),
         a: this.clSrNames(item.gz_four || []).join(' / '),
         img: officialWeaponBg || roleBg,
+        bgContain: !!officialWeaponBg,
         weapon: true
       });
       if (isCurrent || versionHit) continue;

@@ -52,7 +52,7 @@
       {{each cards card}}
       <div class="pool-card {{card.weapon ? 'weapon' : ''}}">
         {{if card.img}}
-        <img class="pool-bg" src="{{card.img}}" />
+        <img class="pool-bg {{card.bgContain ? 'contain' : ''}}" src="{{card.img}}" />
         {{/if}}
         {{if card.icon}}
         <div class="pool-icon-wrap"><img class="pool-icon" src="{{(card.icon.startsWith('http') || card.icon.startsWith('/')) ? card.icon : ppath + card.icon}}" /></div>
