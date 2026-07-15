@@ -791,18 +791,45 @@ export class xhh_gacha_pool extends plugin {
     logger.mark('[xhh][gacha_pool] 官方卡池识别:', msg, '=>', game || 'all');
     if (!game) {
       const results = await officialPool.fetchAll();
+      const resultOf = key => results.find(r => r.game === key) || { records: [] };
       const cards = [];
-      for (const r of results) {
-        const meta = officialPool.games[r.game];
-        if (r.game === 'sr') {
-          const srCards = await this.loadSrLocalCards('current', r.records || []);
-          if (srCards.length) {
-            cards.push(...srCards);
-            continue;
-          }
-        }
-        cards.push(...(r.records || []).slice(0, 5).map(v => this.officialCard(v, meta?.name)));
+
+      // 汇总页也优先使用各游戏“当前期”的本地结构化数据，避免米游社公告列表混入旧版本公告。
+      const gsCards = await this.loadGsLocalCards('current');
+      if (gsCards.length) cards.push(...gsCards);
+      else cards.push(...(resultOf('gs').records || [])
+        .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.gs))
+        .slice(0, 5).map(v => this.officialCard(v, '原神')));
+
+      const srCards = await this.loadSrLocalCards('current', resultOf('sr').records || []);
+      if (srCards.length) cards.push(...srCards);
+      else cards.push(...(resultOf('sr').records || [])
+        .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.sr))
+        .slice(0, 5).map(v => this.officialCard(v, '星穹铁道')));
+
+      const zzzData = await this.fetchZzzPools();
+      if (Array.isArray(zzzData)) {
+        const now = new Date();
+        const zzzCurrent = zzzData.filter(p => {
+          const { start, end } = this.parseTime(p);
+          return start && end && now >= start && now <= end;
+        });
+        if (zzzCurrent.length) cards.push(...zzzCurrent.map(p => this.poolToCard(p)));
       }
+      if (!cards.some(c => c.type === '代理人频段' || c.type === '音擎频段')) {
+        cards.push(...(resultOf('zzz').records || [])
+          .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.zzz))
+          .slice(0, 5).map(v => this.officialCard(v, '绝区零')));
+      }
+
+      const bh3Cards = await this.loadBh3CurrentPools();
+      if (bh3Cards.length) {
+        await this.attachBh3OfficialCovers(bh3Cards);
+        cards.push(...bh3Cards);
+      } else {
+        cards.push(...(resultOf('bh3').records || []).slice(0, 5).map(v => this.officialCard(v, '崩坏3')));
+      }
+
       if (!cards.length) return e.reply('暂未从米游社官方公告匹配到卡池/补给信息。');
       return this.renderPoolImage(e, {
         game: '米游社',
@@ -1815,7 +1842,6 @@ ${r.summary || ''}`;
         s: (item.js_five || []).join(' / '),
         a: (item.js_four || []).join(' / '),
         img: roleBg,
-        bgBlur: !!officialRoleBg,
         weapon: false
       });
       cards.push({
@@ -1826,7 +1852,6 @@ ${r.summary || ''}`;
         s: this.clSrNames(item.gz_five || []).join(' / '),
         a: this.clSrNames(item.gz_four || []).join(' / '),
         img: officialWeaponBg || roleBg,
-        bgBlur: !!officialWeaponBg,
         weapon: true
       });
       if (isCurrent || versionHit) continue;
