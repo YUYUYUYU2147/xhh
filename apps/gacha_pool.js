@@ -485,7 +485,20 @@ export class xhh_gacha_pool extends plugin {
   }
 
   async renderBh3Logs(e, sections) {
-    const splash = this.fixedCornerFallback('崩坏3') || BH3_MARK_ICON;
+    let splash = '';
+    if (this.useCustomGachaArt()) {
+      splash = this.fixedCornerFallback('崩坏3') || BH3_MARK_ICON;
+    } else {
+      // 官方模式下使用本期 UP 小图/头像，避免回退到 bh3_pool_banner.png 这种补给截图。
+      for (const sec of sections || []) {
+        for (const row of sec.rows || []) {
+          if (row.weapon) continue;
+          const icon = (row.items || []).find(v => v?.icon)?.icon;
+          if (icon) { splash = icon; break; }
+        }
+        if (splash) break;
+      }
+    }
     return render('bh3logs/logs', { data: sections, splash }, { e, ret: true });
   }
 
