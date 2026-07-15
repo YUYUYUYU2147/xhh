@@ -1446,11 +1446,18 @@ export class xhh_gacha_pool extends plugin {
 
   async srCurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中星铁当前卡池:', e.msg);
-    // 优先走本地结构化卡池表，避免米游社单条公告解析时把角色/光锥混排或漏项。
-    const srData = this.loadSrPoolHistory();
-    if (Array.isArray(srData) && srData.length) {
-      const current = srData.filter(v => String(v.ver || '').startsWith(CURRENT_VERSION.sr));
-      if (current.length) return this.renderSrLogs(e, current);
+    // 优先走本地结构化卡池表，但仍使用“当前卡池”统一卡片样式，和原神/绝区零/崩三保持一致。
+    const localCards = await this.loadSrLocalCards('current');
+    if (localCards.length) {
+      return this.renderPoolImage(e, {
+        game: '星穹铁道',
+        title: '星铁当前卡池',
+        subtitle: `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`,
+        mode: 'sr',
+        markIcon: this.fixedCornerFallback('星穹铁道'),
+        markWide: true,
+        cards: localCards
+      });
     }
     const { records, error, cache } = await officialPool.fetch('sr');
     if (records.length) {
