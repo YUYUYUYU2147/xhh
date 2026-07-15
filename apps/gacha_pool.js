@@ -111,10 +111,10 @@ export class xhh_gacha_pool extends plugin {
     }
     if (!data.some(v => v.version === '3.0上半')) {
       data.push({
-        img: '', title: '「凛风仪」独家频段', type: '角色', version: '3.0上半',
+        img: '', title: '「凛风吟仪」独家频段', type: '角色', version: '3.0上半',
         timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '维琳娜', a: ['妮可', '派派']
       }, {
-        img: '', title: '「云霓孤光」独家频段', type: '角色', version: '3.0上半',
+        img: '', title: '「光落于指尖」独家频段', type: '角色', version: '3.0上半',
         timer: '2026/06/17 10:00:00 ~ 2026/07/08 11:59:59', s: '叶瞬光', a: ['妮可', '派派']
       }, {
         img: '', title: '「琳琅鎏心」音擎频段', type: '武器', version: '3.0上半',
