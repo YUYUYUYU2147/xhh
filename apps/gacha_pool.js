@@ -158,6 +158,16 @@ export class xhh_gacha_pool extends plugin {
       if (pool?.version === '3.0上半' && pool.type === '武器' && (pool.s === '云霓孤光' || pool.s === '琳琅鎏心')) {
         pool.a = ['轰鸣座驾', '聚宝箱'];
       }
+      if (pool?.version === '3.0下半' && pool.s === '千夏') {
+        pool.title = '「四三拍谬想」独家频段';
+        pool.a = ['可琳', '波可娜'];
+      }
+      if (pool?.version === '3.0下半' && pool.s === '诺姆') {
+        pool.a = ['可琳', '波可娜'];
+      }
+      if (pool?.version === '3.0下半' && (pool.s === '首席跟班' || pool.s === '思络成歌')) {
+        pool.a = ['家政员', '裁纸刀'];
+      }
     }
     data.sort((a, b) => this.poolEndStamp(a) - this.poolEndStamp(b));
     for (let i = 0; i < data.length; i++) {
@@ -247,6 +257,16 @@ export class xhh_gacha_pool extends plugin {
       }
       if (pool?.version === '3.0上半' && pool.type === '武器' && (pool.s === '云霓孤光' || pool.s === '琳琅鎏心')) {
         pool.a = ['轰鸣座驾', '聚宝箱'];
+      }
+      if (pool?.version === '3.0下半' && pool.s === '千夏') {
+        pool.title = '「四三拍谬想」独家频段';
+        pool.a = ['可琳', '波可娜'];
+      }
+      if (pool?.version === '3.0下半' && pool.s === '诺姆') {
+        pool.a = ['可琳', '波可娜'];
+      }
+      if (pool?.version === '3.0下半' && (pool.s === '首席跟班' || pool.s === '思络成歌')) {
+        pool.a = ['家政员', '裁纸刀'];
       }
     }
     const ensureZzzPool = pool => {
