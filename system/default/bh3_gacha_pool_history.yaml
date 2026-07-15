@@ -406,6 +406,52 @@ pools:
     a:
     - 独行于星
     target: 孑遗千星
+
+- version: '8.0'
+  phase: 浮生进阶
+  start: '2025-01-10 12:00:00'
+  end: '2025-01-23 04:00:00'
+  pools:
+  - name: 「浮生·渡尘之羽」进阶补给
+    type: char
+    s: 浮生·渡尘之羽
+    a: []
+  - name: 「万古一炬&岁华至味」演武精备
+    type: weapon
+    s: 万古一炬
+    a:
+    - 岁华至味
+    target: 浮生·渡尘之羽
+- version: '7.7'
+  phase: 死生进阶
+  start: '2024-08-23 12:00:00'
+  end: '2024-09-06 12:00:00'
+  pools:
+  - name: 「死生之律者」进阶补给
+    type: char
+    s: 死生之律者
+    a: []
+  - name: 「撷生之谣&希儿·死生之律者」演武精备
+    type: weapon
+    s: 撷生之谣
+    a:
+    - 希儿·死生之律者
+    target: 死生之律者
+- version: '7.7'
+  phase: 真我进阶
+  start: '2024-08-02 12:00:00'
+  end: '2024-08-08 04:00:00'
+  pools:
+  - name: 「真我·人之律者」进阶补给
+    type: char
+    s: 真我·人之律者
+    a: []
+  - name: 「真我之钥&爱莉希雅·无瑕之人」演武精备
+    type: weapon
+    s: 真我之钥
+    a:
+    - 爱莉希雅·无瑕之人
+    target: 真我·人之律者
 - version: '7.5'
   phase: 终焉复刻
   start: '2024-06-21 12:00:00'
