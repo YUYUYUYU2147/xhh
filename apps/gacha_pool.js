@@ -795,7 +795,7 @@ export class xhh_gacha_pool extends plugin {
       for (const r of results) {
         const meta = officialPool.games[r.game];
         if (r.game === 'sr') {
-          const srCards = await this.loadSrLocalCards('current');
+          const srCards = await this.loadSrLocalCards('current', r.records || []);
           if (srCards.length) {
             cards.push(...srCards);
             continue;
@@ -819,7 +819,8 @@ export class xhh_gacha_pool extends plugin {
     // 星铁 4.4 起一条公告里同时包含多角色、多光锥，通用公告解析容易混排或漏项。
     // 指定“星铁米游社/官方卡池”时优先用按官方公告整理后的本地结构化表。
     if (game === 'sr') {
-      const cards = await this.loadSrLocalCards('current');
+      const srOfficial = await officialPool.fetch(game);
+      const cards = await this.loadSrLocalCards('current', srOfficial.records || []);
       if (cards.length) {
         return this.renderPoolImage(e, {
           game: meta.name,
@@ -1447,7 +1448,8 @@ export class xhh_gacha_pool extends plugin {
   async srCurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中星铁当前卡池:', e.msg);
     // 优先走本地结构化卡池表，但仍使用“当前卡池”统一卡片样式，和原神/绝区零/崩三保持一致。
-    const localCards = await this.loadSrLocalCards('current');
+    const srOfficial = await officialPool.fetch('sr');
+    const localCards = await this.loadSrLocalCards('current', srOfficial.records || []);
     if (localCards.length) {
       return this.renderPoolImage(e, {
         game: '星穹铁道',
@@ -1459,7 +1461,7 @@ export class xhh_gacha_pool extends plugin {
         cards: localCards
       });
     }
-    const { records, error, cache } = await officialPool.fetch('sr');
+    const { records = [], error, cache } = srOfficial || {};
     if (records.length) {
       const cards = records.slice(0, 6).map((r, i) => {
         const card = this.officialCard(r, '星穹铁道');
@@ -1731,7 +1733,38 @@ export class xhh_gacha_pool extends plugin {
     }).filter(v => v.rows.length);
   }
 
-  async loadSrLocalCards(type = '') {
+  getSrOfficialPoolImage(item = {}, weapon = false, records = []) {
+    const list = Array.isArray(records) ? records : [];
+    if (!list.length) return '';
+    const version = String(item.ver || '').replace(/上半|下半/g, '');
+    const names = weapon ? this.clSrNames(item.gz_five || []) : (item.js_five || []);
+    const clean = v => String(v || '').replace(/[「」『』\s/，,•·]/g, '');
+    let best = null;
+    let bestScore = -1;
+    for (const r of list) {
+      const imgs = [r.cover, ...(r.images || [])].filter(Boolean);
+      if (!imgs.length) continue;
+      const text = `${r.title || ''}
+${r.contentText || ''}
+${r.summary || ''}`;
+      const cleanText = clean(text);
+      let score = 0;
+      if (version && String(r.version || '').startsWith(version)) score += 8;
+      if (/活动跃迁|跃迁/.test(text)) score += 5;
+      if (weapon && /光锥|流光定影|真意之汇/.test(text)) score += 3;
+      if (!weapon && /角色|拓星启明|铭心之萃/.test(text)) score += 3;
+      for (const name of names) if (clean(name) && cleanText.includes(clean(name))) score += 6;
+      if (score > bestScore) {
+        best = { imgs, score };
+        bestScore = score;
+      }
+    }
+    if (!best || bestScore <= 0) return '';
+    // 取官方公告图片作为卡片背景；有多张时角色卡优先前段，光锥卡优先后段。
+    return weapon ? (best.imgs[1] || best.imgs[0]) : best.imgs[0];
+  }
+
+  async loadSrLocalCards(type = '', officialRecords = []) {
     const data = this.loadSrPoolHistory();
     if (!Array.isArray(data)) return [];
     const query = this.normalizeSrName(type);
@@ -1749,7 +1782,9 @@ export class xhh_gacha_pool extends plugin {
       );
       if (isCurrent && !ver.startsWith(currentVersion)) continue;
       if (!isCurrent && !versionHit && !nameHit) continue;
-      const roleBg = this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
+      const officialRoleBg = this.getSrOfficialPoolImage(item, false, officialRecords);
+      const officialWeaponBg = this.getSrOfficialPoolImage(item, true, officialRecords) || officialRoleBg;
+      const roleBg = officialRoleBg || this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
       cards.push({
         version: ver,
         title: `${ver} 角色活动跃迁`,
@@ -1767,8 +1802,7 @@ export class xhh_gacha_pool extends plugin {
         time: item.time || '',
         s: this.clSrNames(item.gz_five || []).join(' / '),
         a: this.clSrNames(item.gz_four || []).join(' / '),
-        // 光锥本身多为透明图标，不适合作卡片背景；沿用同期开幕角色立绘，避免纯色空背景。
-        img: roleBg,
+        img: officialWeaponBg || roleBg,
         weapon: true
       });
       if (isCurrent || versionHit) continue;
