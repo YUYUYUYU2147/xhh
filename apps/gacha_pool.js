@@ -2590,24 +2590,27 @@ ${r.summary || ''}`;
     };
     const records = [];
     for (const vp of data.pools) {
-      const matchedPools = [];
+      const mainMatchedPools = [];
+      const subMatchedPools = [];
       for (const pool of vp.pools) {
         const aList = Array.isArray(pool.a) ? pool.a : String(pool.a || '').split(/[，,/]/).filter(Boolean);
-        const relatedNames = [
-          pool.s,
-          ...aList,
-          pool.target,
-          ...(Array.isArray(pool.related) ? pool.related : [])
-        ];
-        if (relatedNames.some(hitName)) {
-          const hitMain = hitName(pool.s) || hitName(pool.target) || (Array.isArray(pool.related) && pool.related.some(hitName));
-          // 只有命中主UP/装备target时才自动带同期开的装备补给；
-          // 如果只是“某角色作为A/SP副UP出现”，不要把同一期别人的专属装备也带出来。
-          matchedPools.push({ pool, attachWeapon: pool.type !== 'weapon' && hitMain });
+        const relatedList = Array.isArray(pool.related) ? pool.related : [];
+        // 崩三历史数据里 weapon.s 是武器名，不应当作角色主UP匹配；
+        // 角色补给才用 s 作为主UP，装备补给用 target/related 关联角色。
+        const mainNames = pool.type === 'weapon'
+          ? [pool.target, ...relatedList]
+          : [pool.s, pool.target, ...relatedList];
+        const hitMain = mainNames.some(hitName);
+        const hitSub = aList.some(hitName);
+        if (hitMain) {
+          mainMatchedPools.push({ pool, attachWeapon: pool.type !== 'weapon' });
+        } else if (hitSub) {
+          subMatchedPools.push({ pool, attachWeapon: false });
         }
       }
+      const matchedPools = mainMatchedPools.length ? mainMatchedPools : subMatchedPools;
       if (matchedPools.length) {
-        // 查询主UP角色时，把同一期装备补给展示出来；查询A/SP副UP时只展示命中的角色补给。
+        // 优先展示主UP/专属装备命中；没有主命中时，才展示A/SP副UP命中，避免“死生之律者卡池”串出别人的主UP。
         const shouldAttachWeapon = matchedPools.some(v => v.attachWeapon);
         const related = vp.pools.filter(pool => matchedPools.some(v => v.pool === pool) || (shouldAttachWeapon && pool.type === 'weapon'));
         for (const pool of related) {
