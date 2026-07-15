@@ -1541,9 +1541,10 @@ ${r.summary || ''}`;
       return `https://static.nanoka.cc/assets/zzz/IconRole${sprite}.webp`;
     })();
     const panelIcon = this.getZzzPanelIcon(name);
-    // 角色 UP 小图优先使用本地随机立绘，观感更接近原神/星铁；过滤不安全比例后再兜底圆形头像。
-    if (panelIcon) return panelIcon;
+    // UP 小图跟随锅巴“卡池立绘来源”：自定义优先本地立绘，官方优先游戏官方头像。
+    if (this.useCustomGachaArt() && panelIcon) return panelIcon;
     if (officialIcon) return officialIcon;
+    if (panelIcon) return panelIcon;
     const dir = './plugins/Atlas/zzz-atlas/material for role';
     const path = `${dir}/${name}.webp`;
     if (fs.existsSync(path)) return fs.realpathSync(path);
@@ -1798,14 +1799,16 @@ ${r.summary || ''}`;
 
   getSrCharacterIcon(name = '') {
     const names = [name, String(name).replace(/Pro$/i, ''), String(name).replace('•', '·')].filter(Boolean);
+    const customFirst = this.useCustomGachaArt();
     for (const n of [...new Set(names)]) {
       const profile = this.getMiaoProfileImage(n);
-      if (profile) return profile;
+      if (customFirst && profile) return profile;
       const base = `./plugins/miao-plugin/resources/meta-sr/character/${n}/imgs`;
       for (const file of ['face.webp', 'face-q.webp', 'preview.webp', 'card.webp']) {
         const path = `${base}/${file}`;
         if (fs.existsSync(path)) return fs.realpathSync(path);
       }
+      if (profile) return profile;
     }
     return '';
   }
@@ -2187,12 +2190,13 @@ ${r.summary || ''}`;
 
   getGsCharacterIcon(name = '') {
     const profile = this.getMiaoProfileImage(name);
-    if (profile) return profile;
+    if (this.useCustomGachaArt() && profile) return profile;
     const base = `./plugins/miao-plugin/resources/meta-gs/character/${name}/imgs`;
     for (const file of ['face.webp', 'face-q.webp', 'face0.webp', 'card.webp']) {
       const path = `${base}/${file}`;
       if (fs.existsSync(path)) return fs.realpathSync(path);
     }
+    if (profile) return profile;
     return '';
   }
 
