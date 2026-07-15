@@ -1786,9 +1786,8 @@ ${r.summary || ''}`;
       // 光锥公告图经常自带大标题文字，和卡片标题重叠；当前卡池统一使用同一期角色公告图做弱化背景。
       const officialWeaponBg = officialRoleBg || this.getSrOfficialPoolImage(item, true, officialRecords);
       const roleBg = officialRoleBg || this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
-      const displayVer = isCurrent ? ver.replace(/上半|下半/g, '') : ver;
       cards.push({
-        version: displayVer,
+        version: ver,
         title: isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`,
         type: '星穹铁道',
         time: item.time || '',
@@ -1799,7 +1798,7 @@ ${r.summary || ''}`;
         weapon: false
       });
       cards.push({
-        version: displayVer,
+        version: ver,
         title: isCurrent ? '光锥活动跃迁' : `${ver} 光锥活动跃迁`,
         type: '星穹铁道',
         time: item.time || '',
