@@ -2537,7 +2537,9 @@ ${r.summary || ''}`;
       a: Array.isArray(pool.a) ? pool.a.join(' / ') : (pool.a || '-'),
       img: '',
       icon: '',
-      weapon
+      weapon,
+      mainLabel: weapon ? '武器' : 'S',
+      subLabel: weapon ? '圣痕' : 'A'
     };
   }
 
@@ -2610,7 +2612,7 @@ ${r.summary || ''}`;
         }
       }
       if (mainMatchedPools.length) {
-        // 只要全局能命中主UP/专属装备，就不要再混入其它版本的副UP/陪跑记录。
+        // 只要全局能命中主UP/专属装备，就不要再混入其它版本的A级陪跑记录。
         const shouldAttachWeapon = mainMatchedPools.some(v => v.attachWeapon);
         const related = vp.pools.filter(pool => mainMatchedPools.some(v => v.pool === pool) || (shouldAttachWeapon && pool.type === 'weapon'));
         for (const pool of related) mainRecords.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
@@ -2622,7 +2624,7 @@ ${r.summary || ''}`;
     if (!records.length) {
       const msg = subRecords.length
         ? `未找到【${name}】的崩坏3主UP/专属装备补给记录。
-本地数据只命中了副UP/陪跑记录，已过滤避免串池；需要的话可以补充更早版本主UP数据。`
+本地数据只命中了A级陪跑记录，已过滤避免串池；需要的话可以补充更早版本主UP数据。`
         : `未找到【${name}】的崩坏3补给记录。`;
       return silent && !subRecords.length ? false : e.reply(msg);
     }
@@ -2902,7 +2904,9 @@ ${r.summary || ''}`;
       const lines = [`【v${v}】`];
       if (vp) {
         for (const p of vp.pools) {
-          lines.push(`${vp.version}${vp.phase} ${p.type === 'weapon' ? '装备' : '角色'}：主UP-${p.s} | 副UP-${Array.isArray(p.a) ? p.a.join('，') : p.a}`);
+          const mainLabel = p.type === 'weapon' ? '武器' : 'S';
+          const subLabel = p.type === 'weapon' ? '圣痕' : 'A';
+          lines.push(`${vp.version}${vp.phase} ${p.type === 'weapon' ? '装备' : '角色'}：${mainLabel}-${p.s} | ${subLabel}-${Array.isArray(p.a) ? p.a.join('，') : p.a}`);
         }
       }
       return lines.join('\n');

@@ -74,13 +74,13 @@
           <div class="pool-bottom">
             {{if card.s}}
             <div class="up-item">
-              <div class="rank-badge s">{{game === '崩坏3' ? '主' : 'S'}}</div>
+              <div class="rank-badge s">{{card.mainLabel || 'S'}}</div>
               <div class="up-name">{{card.s}}</div>
             </div>
             {{/if}}
             {{if card.a}}
             <div class="up-item">
-              <div class="rank-badge a">{{game === '崩坏3' ? '副' : 'A'}}</div>
+              <div class="rank-badge a">{{card.subLabel || 'A'}}</div>
               <div class="up-name sub">{{card.a}}</div>
             </div>
             {{/if}}
