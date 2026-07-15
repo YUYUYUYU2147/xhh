@@ -1785,9 +1785,10 @@ ${r.summary || ''}`;
       const officialRoleBg = this.getSrOfficialPoolImage(item, false, officialRecords);
       const officialWeaponBg = this.getSrOfficialPoolImage(item, true, officialRecords) || officialRoleBg;
       const roleBg = officialRoleBg || this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
+      const displayVer = isCurrent ? ver.replace(/上半|下半/g, '') : ver;
       cards.push({
-        version: ver,
-        title: `${ver} 角色活动跃迁`,
+        version: displayVer,
+        title: isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`,
         type: '星穹铁道',
         time: item.time || '',
         s: (item.js_five || []).join(' / '),
@@ -1797,8 +1798,8 @@ ${r.summary || ''}`;
         weapon: false
       });
       cards.push({
-        version: ver,
-        title: `${ver} 光锥活动跃迁`,
+        version: displayVer,
+        title: isCurrent ? '光锥活动跃迁' : `${ver} 光锥活动跃迁`,
         type: '星穹铁道',
         time: item.time || '',
         s: this.clSrNames(item.gz_five || []).join(' / '),
