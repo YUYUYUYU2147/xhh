@@ -814,7 +814,7 @@ export class xhh_gacha_pool extends plugin {
           const { start, end } = this.parseTime(p);
           return start && end && now >= start && now <= end;
         });
-        if (zzzCurrent.length) cards.push(...zzzCurrent.map(p => this.poolToCard(p)));
+        if (zzzCurrent.length) cards.push(...this.applyZzzCardBackgrounds(zzzCurrent.map(p => this.poolToCard(p))));
       }
       if (!cards.some(c => c.type === '代理人频段' || c.type === '音擎频段')) {
         cards.push(...(resultOf('zzz').records || [])
@@ -945,6 +945,26 @@ export class xhh_gacha_pool extends plugin {
     return cards;
   }
 
+  applyZzzCardBackgrounds(cards = []) {
+    if (!Array.isArray(cards)) return cards;
+    let roleBg = '';
+    for (const card of cards) {
+      if (card?.weapon) continue;
+      if (!card.img && card.s) {
+        const firstName = String(card.s).split(/[\/，,、]/)[0]?.trim();
+        card.img = this.getZzzCharacterSplash(firstName) || '';
+      }
+      if (!roleBg && card.img) roleBg = card.img;
+    }
+    // 音擎卡本地数据通常没有官方背景，沿用同期开幕代理人立绘，避免纯色空卡。
+    if (roleBg) {
+      for (const card of cards) {
+        if (card?.weapon && !card.img) card.img = roleBg;
+      }
+    }
+    return cards;
+  }
+
   async getZzzCurrentLocalVersion() {
     const data = await this.fetchZzzPools();
     if (!Array.isArray(data) || !data.length) return '';
@@ -1005,7 +1025,7 @@ export class xhh_gacha_pool extends plugin {
       const latest = data.filter(p => this.poolEndStamp(p) === latestEnd);
       if (!latest.length) return e.reply('当前没有匹配到正在开放的绝区零活动卡池。');
       const latestStage = latest[0]?.version ? `；数据源最新收录：${latest[0].version}` : '';
-      const cards = latest.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; });
+      const cards = this.applyZzzCardBackgrounds(latest.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
       const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
       return this.renderPoolImage(e, {
         game: '绝区零',
@@ -1020,7 +1040,7 @@ export class xhh_gacha_pool extends plugin {
     const sample = pools[0];
     const { end } = this.parseTime(sample);
     const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
-    const cards = pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; });
+    const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
     const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
     return this.renderPoolImage(e, {
       game: '绝区零',
@@ -1045,7 +1065,7 @@ export class xhh_gacha_pool extends plugin {
       return e.reply(`绝区零当前版本已标记为 ${CURRENT_VERSION.zzz}，但卡池数据源还没有收录 ${CURRENT_VERSION.zzz}${phase || ''} 的具体UP信息。`);
     }
     if (!pools.length) return e.reply(`未查询到绝区零 ${version}${phase || ''} 卡池数据。`);
-    const cards = pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; });
+    const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
     const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
     return this.renderPoolImage(e, {
       game: '绝区零',
