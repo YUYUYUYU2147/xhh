@@ -2618,8 +2618,14 @@ ${r.summary || ''}`;
         for (const { pool } of subMatchedPools) subRecords.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
       }
     }
-    const records = mainRecords.length ? mainRecords : subRecords;
-    if (!records.length) return silent ? false : e.reply(`未找到【${name}】的崩坏3补给记录。`);
+    const records = mainRecords;
+    if (!records.length) {
+      const msg = subRecords.length
+        ? `未找到【${name}】的崩坏3主UP/专属装备补给记录。
+本地数据只命中了A/SP陪跑记录，已过滤避免串池；需要的话可以补充更早版本主UP数据。`
+        : `未找到【${name}】的崩坏3补给记录。`;
+      return silent && !subRecords.length ? false : e.reply(msg);
+    }
     const sections = await this.buildBh3HistorySections(records, name, queryNames);
     if (sections.length) {
       return this.renderBh3Logs(e, sections);
