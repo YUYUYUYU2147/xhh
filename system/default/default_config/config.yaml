@@ -106,8 +106,12 @@ manual_gt_public_url: ''
 manual_gt_path: /xhh-gt
 manual_gt_timeout: 120
 
-#卡池立绘来源：custom 使用本地/插件额外图，official 使用官方资源优先
+#卡池立绘来源：兼容旧配置；新配置见下面两个字段
 gacha_art_source: custom
+#右上角立绘来源：custom 随机/本地立绘，official 官方角色立绘
+gacha_header_art_source: custom
+#UP小图来源：custom 本地/面板图，official 官方头像/图标
+gacha_up_icon_source: official
 
 #崩坏3攻略源配置（锅巴可视化修改）
 #格式：关键词|米游社UID|图片序号(英文逗号分隔)|作者名

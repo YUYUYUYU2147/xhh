@@ -413,10 +413,12 @@ export class xhh_gacha_pool extends plugin {
     return arr;
   }
 
-  useCustomGachaArt() {
+  useCustomGachaArt(kind = 'header') {
     try {
       const cfg = yaml.get('./plugins/xhh/config/config.yaml') || {};
-      return (cfg.gacha_art_source || 'custom') !== 'official';
+      const legacy = cfg.gacha_art_source || 'custom';
+      const key = kind === 'up' ? 'gacha_up_icon_source' : 'gacha_header_art_source';
+      return (cfg[key] || legacy || 'custom') !== 'official';
     } catch (_) {
       return true;
     }
@@ -1560,7 +1562,7 @@ ${r.summary || ''}`;
     })();
     const panelIcon = this.getZzzPanelIcon(name);
     // UP 小图跟随锅巴“卡池立绘来源”：自定义优先本地立绘，官方优先游戏官方头像。
-    if (this.useCustomGachaArt() && panelIcon) return panelIcon;
+    if (this.useCustomGachaArt('up') && panelIcon) return panelIcon;
     if (officialIcon) return officialIcon;
     if (panelIcon) return panelIcon;
     const dir = './plugins/Atlas/zzz-atlas/material for role';
@@ -1817,7 +1819,7 @@ ${r.summary || ''}`;
 
   getSrCharacterIcon(name = '') {
     const names = [name, String(name).replace(/Pro$/i, ''), String(name).replace('•', '·')].filter(Boolean);
-    const customFirst = this.useCustomGachaArt();
+    const customFirst = this.useCustomGachaArt('up');
     for (const n of [...new Set(names)]) {
       const profile = this.getMiaoProfileImage(n);
       if (customFirst && profile) return profile;
@@ -2208,7 +2210,7 @@ ${r.summary || ''}`;
 
   getGsCharacterIcon(name = '') {
     const profile = this.getMiaoProfileImage(name);
-    if (this.useCustomGachaArt() && profile) return profile;
+    if (this.useCustomGachaArt('up') && profile) return profile;
     const base = `./plugins/miao-plugin/resources/meta-gs/character/${name}/imgs`;
     for (const file of ['face.webp', 'face-q.webp', 'face0.webp', 'card.webp']) {
       const path = `${base}/${file}`;

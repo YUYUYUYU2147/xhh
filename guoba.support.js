@@ -343,14 +343,26 @@ export const supportGuoba = () => ({
         label: '卡池/图鉴外观',
       },
       {
-        field: 'gacha_art_source',
-        label: '卡池立绘来源',
-        helpMessage: '自定义=优先本地/插件额外图；官方=优先游戏官方资源，影响顶部立绘和UP小图',
+        field: 'gacha_header_art_source',
+        label: '右上角立绘来源',
+        helpMessage: '自定义=优先 fixed_splash/custom_splash/本地随机图；官方=优先游戏官方角色立绘',
         component: 'Select',
         componentProps: {
           options: [
             { label: '自定义立绘', value: 'custom' },
             { label: '官方立绘', value: 'official' },
+          ],
+        },
+      },
+      {
+        field: 'gacha_up_icon_source',
+        label: 'UP小图来源',
+        helpMessage: '自定义=优先本地/面板图；官方=优先游戏官方头像/图标',
+        component: 'Select',
+        componentProps: {
+          options: [
+            { label: '自定义小图', value: 'custom' },
+            { label: '官方小图', value: 'official' },
           ],
         },
       },
@@ -748,6 +760,8 @@ export const supportGuoba = () => ({
         hbxx: !!cfg.hbxx,
         debug: !!cfg.debug,
         gacha_art_source: cfg.gacha_art_source || 'custom',
+        gacha_header_art_source: cfg.gacha_header_art_source || cfg.gacha_art_source || 'custom',
+        gacha_up_icon_source: cfg.gacha_up_icon_source || cfg.gacha_art_source || 'custom',
         tl_priority: cfg.tl_priority ?? -99,
         sign_priority: cfg.sign_priority ?? -26,
         user_priority: cfg.user_priority ?? -9999999999,
@@ -861,6 +875,8 @@ export const supportGuoba = () => ({
       }
 
       if (data.gacha_art_source) yaml.set(_path + 'config.yaml', 'gacha_art_source', data.gacha_art_source === 'official' ? 'official' : 'custom')
+      if (data.gacha_header_art_source) yaml.set(_path + 'config.yaml', 'gacha_header_art_source', data.gacha_header_art_source === 'official' ? 'official' : 'custom')
+      if (data.gacha_up_icon_source) yaml.set(_path + 'config.yaml', 'gacha_up_icon_source', data.gacha_up_icon_source === 'official' ? 'official' : 'custom')
       yaml.set(_path + 'config.yaml', 'manual_gt_public_url', String(data.manual_gt_public_url || '').trim())
 
       yaml.set(_path + 'sign.yaml', 'zd_sign', Number(data.zd_sign) ?? 0)
