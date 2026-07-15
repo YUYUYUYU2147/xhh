@@ -168,6 +168,21 @@ pools:
     - 尤利乌斯·凯撒
     target: 月下誓约·予爱以心
 - version: '8.6'
+  phase: 孑遗跃升
+  start: '2025-12-26 12:00:00'
+  end: '2026-01-16 12:00:00'
+  pools:
+  - name: 「孑遗千星」跃升补给
+    type: char
+    s: 孑遗千星
+    a: []
+  - name: 「羽蔽诸天&薇塔·孑遗千星」跃升武装
+    type: weapon
+    s: 羽蔽诸天
+    a:
+    - 薇塔·孑遗千星
+    target: 孑遗千星
+- version: '8.6'
   phase: 下半
   start: '2026-02-08 10:00:00'
   end: '2026-03-01 11:59:59'
@@ -197,6 +212,21 @@ pools:
     a:
     - 远吕羽氏·贰型
     - 原罪·双生
+- version: '8.5'
+  phase: 周年庆典
+  start: '2025-09-29 12:00:00'
+  end: '2025-10-24 12:00:00'
+  pools:
+  - name: 「孑遗千星」庆典角色补给
+    type: char
+    s: 孑遗千星
+    a: []
+  - name: 「羽蔽诸天&独行于星」庆典装备补给
+    type: weapon
+    s: 羽蔽诸天
+    a:
+    - 独行于星
+    target: 孑遗千星
 - version: '8.5'
   phase: 下半
   start: '2025-12-28 10:00:00'
@@ -312,6 +342,12 @@ pools:
     s: 孑遗千星
     a:
     - 圣仪装·今样
+  - name: 「羽蔽诸天&独行于星」装备补给
+    type: weapon
+    s: 羽蔽诸天
+    a:
+    - 独行于星
+    target: 孑遗千星
 - version: '7.9'
   phase: 孑遗复刻
   start: '2024-11-15 12:00:00'
@@ -347,6 +383,12 @@ pools:
     s: 孑遗千星
     a:
     - 女武神·重机
+  - name: 「羽蔽诸天&独行于星」装备补给
+    type: weapon
+    s: 羽蔽诸天
+    a:
+    - 独行于星
+    target: 孑遗千星
 - version: '7.5'
   phase: 终焉复刻
   start: '2024-06-21 12:00:00'

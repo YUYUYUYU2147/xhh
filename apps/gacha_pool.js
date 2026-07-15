@@ -2614,7 +2614,13 @@ ${r.summary || ''}`;
       if (mainMatchedPools.length) {
         // 只要全局能命中主UP/专属装备，就不要再混入其它版本的A级陪跑记录。
         const shouldAttachWeapon = mainMatchedPools.some(v => v.attachWeapon);
-        const related = vp.pools.filter(pool => mainMatchedPools.some(v => v.pool === pool) || (shouldAttachWeapon && pool.type === 'weapon'));
+        const related = vp.pools.filter(pool => {
+          if (mainMatchedPools.some(v => v.pool === pool)) return true;
+          if (!shouldAttachWeapon || pool.type !== 'weapon') return false;
+          const relatedList = Array.isArray(pool.related) ? pool.related : [];
+          // 只自动带与查询角色绑定的专属装备，避免同一期别人的装备补给串进来。
+          return [pool.target, ...relatedList].some(hitName);
+        });
         for (const pool of related) mainRecords.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
       } else if (subMatchedPools.length) {
         for (const { pool } of subMatchedPools) subRecords.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
