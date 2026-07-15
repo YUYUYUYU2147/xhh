@@ -165,6 +165,16 @@ h1 {
   padding: 8px;
   filter: drop-shadow(0 4px 10px rgba(0,0,0,.18));
 }
+.pool-bg.blur {
+  filter: blur(8px) brightness(.72) saturate(1.08);
+  transform: scale(1.08);
+}
+.pool-bg.contain.blur {
+  padding: 0;
+  object-fit: cover;
+  filter: blur(10px) brightness(.68) saturate(1.05);
+  transform: scale(1.12);
+}
 
 /* 渐变遮罩 - 让文字更清晰 */
 .pool-overlay {

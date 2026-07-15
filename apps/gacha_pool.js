@@ -1793,6 +1793,7 @@ ${r.summary || ''}`;
         s: (item.js_five || []).join(' / '),
         a: (item.js_four || []).join(' / '),
         img: roleBg,
+        bgBlur: !!officialRoleBg,
         weapon: false
       });
       cards.push({
@@ -1803,7 +1804,7 @@ ${r.summary || ''}`;
         s: this.clSrNames(item.gz_five || []).join(' / '),
         a: this.clSrNames(item.gz_four || []).join(' / '),
         img: officialWeaponBg || roleBg,
-        bgContain: !!officialWeaponBg,
+        bgBlur: !!officialWeaponBg,
         weapon: true
       });
       if (isCurrent || versionHit) continue;
