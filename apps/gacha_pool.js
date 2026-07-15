@@ -1932,16 +1932,39 @@ ${r.summary || ''}`;
 
   buildSrHistorySections(data = [], query = '') {
     if (!Array.isArray(data)) return [];
+    const q = this.normalizeSrName(query || '');
     return data.map(item => {
       const rows = [];
+      let jsFive = item.js_five || [];
+      let jsFour = item.js_four || [];
+      let gzFive = item.gz_five || [];
+      let gzFour = item.gz_four || [];
+      if (q) {
+        const charIdx = jsFive.indexOf(q);
+        const weaponNames = this.clSrNames(gzFive || []);
+        const weaponIdx = weaponNames.indexOf(q);
+        if (charIdx >= 0) {
+          jsFive = [jsFive[charIdx]];
+          gzFive = gzFive[charIdx] ? [gzFive[charIdx]] : [];
+        } else if (weaponIdx >= 0) {
+          jsFive = [];
+          jsFour = [];
+          gzFive = [gzFive[weaponIdx]];
+        } else if ((jsFour || []).includes(q)) {
+          jsFive = [];
+          jsFour = [q];
+          gzFive = [];
+          gzFour = [];
+        }
+      }
       const jsItems = [
-        ...(item.js_five || []).map(n => this.buildSrHistoryItem(n, 'five', false, query)),
-        ...(item.js_four || []).map(n => this.buildSrHistoryItem(n, 'four', false, query))
+        ...jsFive.map(n => this.buildSrHistoryItem(n, 'five', false, query)),
+        ...jsFour.map(n => this.buildSrHistoryItem(n, 'four', false, query))
       ];
       if (jsItems.length) rows.push({ title: '角色活动跃迁', weapon: false, items: jsItems });
       const gzItems = [
-        ...(item.gz_five || []).map(n => this.buildSrHistoryItem(n, 'five', true, query)),
-        ...(item.gz_four || []).map(n => this.buildSrHistoryItem(n, 'four', true, query))
+        ...gzFive.map(n => this.buildSrHistoryItem(n, 'five', true, query)),
+        ...gzFour.map(n => this.buildSrHistoryItem(n, 'four', true, query))
       ];
       if (gzItems.length) rows.push({ title: '光锥活动跃迁', weapon: true, items: gzItems });
       return { version: item.ver || '-', time: item.time || '-', rows };
@@ -2305,6 +2328,7 @@ ${r.summary || ''}`;
       const version = dateKey.match('【(.*)】')?.[1] || '';
       const time = dateKey.replace(`【${version}】`, '').replace('~', ' ~ ');
       const rows = pools.map((arr, idx) => {
+        if (!arr.includes(query)) return null;
         const weapon = this.isGsWeaponPool(arr);
         const mixed = this.isGsMixedPool(arr);
         const title = weapon ? '武器活动祈愿' : (mixed || idx === 3 ? '集录祈愿' : '角色活动祈愿');
@@ -2317,7 +2341,7 @@ ${r.summary || ''}`;
             return this.buildGsHistoryItem(n, rarity, itemWeapon, n === query);
           })
         };
-      }).filter(row => row.items.length);
+      }).filter(row => row?.items?.length);
       sections.push({ version, time, rows });
     }
     return sections;
