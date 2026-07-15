@@ -443,20 +443,37 @@ export class xhh_gacha_pool extends plugin {
     return render('gacha_pool/pool', data, { e, ret: true });
   }
 
+  getSectionUpNames(sections = []) {
+    const names = [];
+    for (const sec of sections || []) {
+      for (const row of sec.rows || []) {
+        if (row.weapon) continue;
+        for (const item of row.items || []) if (item?.name) names.push(item.name);
+      }
+    }
+    return names;
+  }
+
+  getHistorySplash(game = '', sections = []) {
+    if (this.useCustomGachaArt()) return this.fixedCornerFallback(game);
+    const splash = this.getCardSplashByGame(game, this.getSectionUpNames(sections));
+    return splash || this.gameMarkIcon(game);
+  }
+
   async renderSrLogs(e, data, query = '') {
     // 星铁也统一走新的“版本 + 时间 + UP头像行”样式，避免特定角色卡池还显示原版大卡片。
     const sections = this.buildSrHistorySections(data, query);
-    const splash = this.fixedCornerFallback('星穹铁道');
+    const splash = this.getHistorySplash('星穹铁道', sections);
     return render('gslogs/logs', { data: sections, splash }, { e, ret: true });
   }
 
   async renderGsLogs(e, sections) {
-    const splash = this.fixedCornerFallback('原神');
+    const splash = this.getHistorySplash('原神', sections);
     return render('gslogs/logs', { data: sections, splash }, { e, ret: true });
   }
 
   async renderZzzLogs(e, sections, query = '') {
-    const splash = this.fixedCornerFallback('绝区零');
+    const splash = this.getHistorySplash('绝区零', sections);
     return render('zzzlogs/logs', { data: sections, splash }, { e, ret: true });
   }
 
