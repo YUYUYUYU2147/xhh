@@ -156,6 +156,17 @@ pools:
     a:
     - 阿里斯托芬
     target: 死生之律者
+- version: '8.7'
+  phase: 大月下主题
+  start: '2026-02-05 10:00:00'
+  end: '2026-02-27 12:00:00'
+  pools:
+  - name: 「偕月续篇」主题补给
+    type: weapon
+    s: 相偕之契
+    a:
+    - 尤利乌斯·凯撒
+    target: 月下誓约·予爱以心
 - version: '8.6'
   phase: 下半
   start: '2026-02-08 10:00:00'
