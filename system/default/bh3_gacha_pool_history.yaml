@@ -157,6 +157,101 @@ pools:
     - 阿里斯托芬
     target: 死生之律者
 - version: '8.7'
+  phase: 天光跃升
+  start: '2026-03-20 12:00:00'
+  end: '2026-04-02 04:00:00'
+  pools:
+  - name: 「天光驰彻」跃升补给
+    type: char
+    s: 天光驰彻
+    a: []
+  - name: 「炽光无前&寰宇取映」跃升武装
+    type: weapon
+    s: 炽光无前
+    a:
+    - 寰宇取映
+    target: 天光驰彻
+- version: '8.5'
+  phase: 天光复刻
+  start: '2025-11-07 12:00:00'
+  end: '2025-12-04 04:00:00'
+  pools:
+  - name: 「天光驰彻」角色补给
+    type: char
+    s: 天光驰彻
+    a:
+    - 女武神·荣光
+  - name: 「炽光无前&寰宇取映」装备补给
+    type: weapon
+    s: 炽光无前
+    a:
+    - 寰宇取映
+    target: 天光驰彻
+- version: '8.4'
+  phase: 天光复刻
+  start: '2025-08-22 12:00:00'
+  end: '2025-09-05 12:00:00'
+  pools:
+  - name: 「天光驰彻」角色补给
+    type: char
+    s: 天光驰彻
+    a:
+    - 女武神·誓约
+  - name: 「炽光无前&寰宇取映」装备补给
+    type: weapon
+    s: 炽光无前
+    a:
+    - 寰宇取映
+    target: 天光驰彻
+- version: '8.3'
+  phase: 天光复刻
+  start: '2025-05-09 12:00:00'
+  end: '2025-05-29 04:00:00'
+  pools:
+  - name: 「天光驰彻」角色补给
+    type: char
+    s: 天光驰彻
+    a:
+    - 圣仪装·今样
+  - name: 「炽光无前&寰宇取映」装备补给
+    type: weapon
+    s: 炽光无前
+    a:
+    - 寰宇取映
+    target: 天光驰彻
+- version: '8.1'
+  phase: 天光复刻
+  start: '2025-03-07 12:00:00'
+  end: '2025-03-27 04:00:00'
+  pools:
+  - name: 「天光驰彻」角色补给
+    type: char
+    s: 天光驰彻
+    a:
+    - 月下初拥
+  - name: 「炽光无前&寰宇取映」装备补给
+    type: weapon
+    s: 炽光无前
+    a:
+    - 寰宇取映
+    target: 天光驰彻
+- version: '8.0'
+  phase: 光绽天霄
+  start: '2024-12-12 10:00:00'
+  end: '2025-01-10 12:00:00'
+  pools:
+  - name: 「光绽天霄」角色补给
+    type: char
+    s: 天光驰彻
+    a:
+    - 圣女祈祷
+  - name: 「炽光无前&寰宇取映」装备补给
+    type: weapon
+    s: 炽光无前
+    a:
+    - 寰宇取映
+    target: 天光驰彻
+- version: '8.7'
   phase: 爱愿复刻
   start: '2026-02-27 12:00:00'
   end: '2026-03-20 12:00:00'
