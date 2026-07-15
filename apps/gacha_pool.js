@@ -978,7 +978,32 @@ export class xhh_gacha_pool extends plugin {
 
   async zzzCurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中绝区零当前卡池:', e.msg);
-    // 先尝试从米游社公告获取当前UP信息（含封面图）
+    // 优先使用本地当前时间段数据，避免米游社公告按版本筛选时把 3.0上半/下半混在一起。
+    const data = await this.fetchZzzPools();
+    if (data) {
+      const now = new Date();
+      const pools = data.filter(p => {
+        const { start, end } = this.parseTime(p);
+        return start && end && now >= start && now <= end;
+      });
+      if (pools.length) {
+        const sample = pools[0];
+        const { end } = this.parseTime(sample);
+        const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
+        const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
+        const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
+        return this.renderPoolImage(e, {
+          game: '绝区零',
+          title: '绝区零当前卡池',
+          subtitle: `v${sample.version} · ${this.zzzPoolTime(sample)} · 剩余约${days}天`,
+          mode: 'zzz',
+          markIcon,
+          markWide: !!markIcon,
+          cards
+        });
+      }
+    }
+    // 本地没有当前期时，再尝试从米游社公告获取。
     const { records } = await officialPool.fetch('zzz');
     if (records.length) {
       // 只使用公告标题能明确解析到当前版本的记录；避免旧公告解析不到版本时被 officialCard 兜底成 3.0，导致右上角抽到旧角色（如比利）。
@@ -1012,8 +1037,7 @@ export class xhh_gacha_pool extends plugin {
       });
       }
     }
-    // 兜底：使用本地数据
-    const data = await this.fetchZzzPools();
+    // 兜底：使用本地最新收录数据
     if (!data) return e.reply('绝区零卡池数据获取失败，请稍后再试。');
     const now = new Date();
     const pools = data.filter(p => {
