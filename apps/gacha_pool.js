@@ -1749,6 +1749,7 @@ export class xhh_gacha_pool extends plugin {
       );
       if (isCurrent && !ver.startsWith(currentVersion)) continue;
       if (!isCurrent && !versionHit && !nameHit) continue;
+      const roleBg = this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
       cards.push({
         version: ver,
         title: `${ver} 角色活动跃迁`,
@@ -1756,7 +1757,7 @@ export class xhh_gacha_pool extends plugin {
         time: item.time || '',
         s: (item.js_five || []).join(' / '),
         a: (item.js_four || []).join(' / '),
-        img: '',
+        img: roleBg,
         weapon: false
       });
       cards.push({
@@ -1766,7 +1767,8 @@ export class xhh_gacha_pool extends plugin {
         time: item.time || '',
         s: this.clSrNames(item.gz_five || []).join(' / '),
         a: this.clSrNames(item.gz_four || []).join(' / '),
-        img: '',
+        // 光锥本身多为透明图标，不适合作卡片背景；沿用同期开幕角色立绘，避免纯色空背景。
+        img: roleBg,
         weapon: true
       });
       if (isCurrent || versionHit) continue;
