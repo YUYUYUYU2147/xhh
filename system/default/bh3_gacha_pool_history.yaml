@@ -311,6 +311,16 @@ pools:
     type: char
     s: 月下誓约·予爱以心
     a: []
+- version: '7.8'
+  phase: 星间踱步
+  start: '2024-09-19 10:00:00'
+  end: '2024-10-18 12:00:00'
+  pools:
+  - name: 「星间踱步」角色补给
+    type: char
+    s: 孑遗千星
+    a:
+    - 女武神·重机
 - version: '7.5'
   phase: 终焉复刻
   start: '2024-06-21 12:00:00'
