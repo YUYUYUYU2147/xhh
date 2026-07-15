@@ -19,7 +19,7 @@ const ZZZ_MARK_ICON = 'zzz_md/imgs/ellen.png';
 const GS_MARK_ICON = 'gs_mark/paimon.png';
 const SR_MARK_ICON = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
 const MYS_MARK_ICON = 'gacha_pool/mys.png';
-const CURRENT_VERSION = { gs: '6.7', sr: '4.4', zzz: '3.0', bh3: '9.0' };
+const CURRENT_VERSION = { gs: '6.7', sr: '4.4', zzz: '3.0', bh3: '8.9' };
 const ZZZ_VERSION_UP_NAMES = {
   '3.0上半': ['维琳娜', '叶瞬光'],
   '3.0下半': ['诺姆', '千夏'],
