@@ -1,9 +1,41 @@
 # 崩坏3卡池历史数据（本地可手动修正）
 # type: char=角色补给，weapon=装备补给；s=主UP，a=副UP/圣痕套装；target=装备对应角色，便于按角色名查询到专属装备。
 version: '1.0'
-updated: '2026-07-04'
+updated: '2026-07-15'
 source: 米游社官方公告+社区整理
 pools:
+- version: '9.0'
+  phase: 初期
+  start: '2026-07-10 12:00:00'
+  end: '2026-07-23 04:00:00'
+  pools:
+  - name: 「窈窕谍影」角色补给
+    type: char
+    s: 窈窕谍影
+    a:
+    - 女武神·巡矢
+  - name: 「代号：丽影&天命特工」装备补给
+    type: weapon
+    s: 代号：丽影
+    a:
+    - 天命特工
+    target: 窈窕谍影
+  - name: 「一客逍游」跃升补给
+    type: char
+    s: 一客逍游
+    a: []
+  - name: 「翻翠袖&顺时而乐」跃升武装
+    type: weapon
+    s: 翻翠袖
+    a:
+    - 顺时而乐
+    target: 一客逍游
+  - name: 「苍雷星梭EX19&天文学大成」装备补给
+    type: weapon
+    s: 苍雷星梭EX19
+    a:
+    - 天文学大成
+    target: 次生银翼
 - version: '8.9'
   phase: 末期
   start: '2026-06-26 12:00:00'
