@@ -2610,7 +2610,7 @@ ${r.summary || ''}`;
         }
       }
       if (mainMatchedPools.length) {
-        // 只要全局能命中主UP/专属装备，就不要再混入其它版本的A/SP陪跑记录。
+        // 只要全局能命中主UP/专属装备，就不要再混入其它版本的副UP/陪跑记录。
         const shouldAttachWeapon = mainMatchedPools.some(v => v.attachWeapon);
         const related = vp.pools.filter(pool => mainMatchedPools.some(v => v.pool === pool) || (shouldAttachWeapon && pool.type === 'weapon'));
         for (const pool of related) mainRecords.push({ ...pool, version: vp.version, phase: vp.phase, start: vp.start, end: vp.end });
@@ -2622,7 +2622,7 @@ ${r.summary || ''}`;
     if (!records.length) {
       const msg = subRecords.length
         ? `未找到【${name}】的崩坏3主UP/专属装备补给记录。
-本地数据只命中了A/SP陪跑记录，已过滤避免串池；需要的话可以补充更早版本主UP数据。`
+本地数据只命中了副UP/陪跑记录，已过滤避免串池；需要的话可以补充更早版本主UP数据。`
         : `未找到【${name}】的崩坏3补给记录。`;
       return silent && !subRecords.length ? false : e.reply(msg);
     }
@@ -2631,8 +2631,12 @@ ${r.summary || ''}`;
       return this.renderBh3Logs(e, sections);
     }
     const first = records[0];
-    const rarity = hitName(first.s) ? 'S级' : 'A级';
-    const type = first.type === 'weapon' ? '武器' : '角色';
+    const type = first.type === 'weapon' ? '装备' : '角色';
+    const firstRelated = Array.isArray(first.related) ? first.related : [];
+    const hitMain = first.type === 'weapon'
+      ? (hitName(first.target) || firstRelated.some(hitName))
+      : (hitName(first.s) || hitName(first.target) || firstRelated.some(hitName));
+    const rarity = first.type === 'weapon' ? (hitMain ? '专属' : '') : (hitMain ? 'S级' : '副UP');
     let markIcon = BH3_MARK_ICON;
     let markWide = true;
     return this.renderPoolImage(e, {
@@ -2898,7 +2902,7 @@ ${r.summary || ''}`;
       const lines = [`【v${v}】`];
       if (vp) {
         for (const p of vp.pools) {
-          lines.push(`${vp.version}${vp.phase} ${p.type === 'weapon' ? '武' : '角'}：S-${p.s} | A-${Array.isArray(p.a) ? p.a.join('，') : p.a}`);
+          lines.push(`${vp.version}${vp.phase} ${p.type === 'weapon' ? '装备' : '角色'}：主UP-${p.s} | 副UP-${Array.isArray(p.a) ? p.a.join('，') : p.a}`);
         }
       }
       return lines.join('\n');
