@@ -19,7 +19,7 @@ const ZZZ_MARK_ICON = 'zzz_md/imgs/ellen.png';
 const GS_MARK_ICON = 'gs_mark/paimon.png';
 const SR_MARK_ICON = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
 const MYS_MARK_ICON = 'gacha_pool/mys.png';
-const CURRENT_VERSION = { gs: '6.7', sr: '4.3', zzz: '3.0', bh3: '8.9' };
+const CURRENT_VERSION = { gs: '6.7', sr: '4.4', zzz: '3.0', bh3: '8.9' };
 const ZZZ_VERSION_UP_NAMES = {
   '3.0上半': ['维琳娜', '叶瞬光'],
   '3.0下半': ['诺姆', '千夏'],
@@ -791,10 +791,18 @@ export class xhh_gacha_pool extends plugin {
     logger.mark('[xhh][gacha_pool] 官方卡池识别:', msg, '=>', game || 'all');
     if (!game) {
       const results = await officialPool.fetchAll();
-      const cards = results.flatMap(r => {
+      const cards = [];
+      for (const r of results) {
         const meta = officialPool.games[r.game];
-        return (r.records || []).slice(0, 5).map(v => this.officialCard(v, meta?.name));
-      });
+        if (r.game === 'sr') {
+          const srCards = await this.loadSrLocalCards('current');
+          if (srCards.length) {
+            cards.push(...srCards);
+            continue;
+          }
+        }
+        cards.push(...(r.records || []).slice(0, 5).map(v => this.officialCard(v, meta?.name)));
+      }
       if (!cards.length) return e.reply('暂未从米游社官方公告匹配到卡池/补给信息。');
       return this.renderPoolImage(e, {
         game: '米游社',
@@ -808,6 +816,22 @@ export class xhh_gacha_pool extends plugin {
     }
     const meta = officialPool.games[game];
     logger.mark(`[xhh][gacha_pool] 命中${meta.name}官方卡池:`, e.msg);
+    // 星铁 4.4 起一条公告里同时包含多角色、多光锥，通用公告解析容易混排或漏项。
+    // 指定“星铁米游社/官方卡池”时优先用按官方公告整理后的本地结构化表。
+    if (game === 'sr') {
+      const cards = await this.loadSrLocalCards('current');
+      if (cards.length) {
+        return this.renderPoolImage(e, {
+          game: meta.name,
+          title: `${meta.name}米游社官方卡池`,
+          subtitle: `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`,
+          mode: 'official official-game',
+          markIcon: this.fixedCornerFallback(meta.name),
+          markWide: true,
+          cards
+        });
+      }
+    }
     const { records, error, cache } = await officialPool.fetch(game);
     if (!records.length) return e.reply(`${meta.name}米游社公告卡池数据获取失败${error ? '：' + error : ''}`);
     const cards = records.map(r => this.officialCard(r, meta.name));
@@ -1422,6 +1446,12 @@ export class xhh_gacha_pool extends plugin {
 
   async srCurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中星铁当前卡池:', e.msg);
+    // 优先走本地结构化卡池表，避免米游社单条公告解析时把角色/光锥混排或漏项。
+    const srData = this.loadSrPoolHistory();
+    if (Array.isArray(srData) && srData.length) {
+      const current = srData.filter(v => String(v.ver || '').startsWith(CURRENT_VERSION.sr));
+      if (current.length) return this.renderSrLogs(e, current);
+    }
     const { records, error, cache } = await officialPool.fetch('sr');
     if (records.length) {
       const cards = records.slice(0, 6).map((r, i) => {
@@ -1459,14 +1489,6 @@ export class xhh_gacha_pool extends plugin {
         markWide,
         cards
       });
-    }
-    const srData = this.loadSrPoolHistory();
-    if (Array.isArray(srData) && srData.length) {
-      const currentVersion = CURRENT_VERSION.sr;
-      const current = srData.filter(v => String(v.ver || '').startsWith(currentVersion));
-      if (current.length) {
-        return this.renderSrLogs(e, current);
-      }
     }
     return e.reply(`星铁米游社公告卡池数据获取失败${error ? '：' + error : ''}`);
   }
