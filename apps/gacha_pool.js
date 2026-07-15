@@ -458,9 +458,13 @@ export class xhh_gacha_pool extends plugin {
 
   getHistorySplash(game = '', sections = []) {
     if (this.useCustomGachaArt()) return this.fixedCornerFallback(game);
-    const splash = this.getCardSplashByGame(game, this.getSectionUpNames(sections));
-    // 官方立绘模式下，取不到角色立绘就不显示右上角图，避免回退到 gs_mark/paimon.png 这类公告截图。
-    return splash || '';
+    // 历史卡池右上角空间很小，官方模式使用干净的 UP 头像/小图，避免竖向立绘背景色和标题框冲突。
+    const name = this.getSectionUpNames(sections)[0] || '';
+    if (!name) return '';
+    if (game === '原神') return this.getGsCharacterIcon(name) || '';
+    if (game === '星穹铁道') return this.getSrCharacterIcon(name) || '';
+    if (game === '绝区零') return this.getZzzIcon(name, false) || '';
+    return '';
   }
 
   async renderSrLogs(e, data, query = '') {
