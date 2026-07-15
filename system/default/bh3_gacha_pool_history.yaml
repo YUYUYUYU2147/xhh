@@ -164,9 +164,7 @@ pools:
   - name: 「孑遗千星」角色补给
     type: char
     s: 孑遗千星
-    a:
-    - 终焉之律者
-    - 始源之律者
+    a: []
   - name: 「天命难逃」武器补给
     type: weapon
     s: 天命难逃
@@ -181,9 +179,7 @@ pools:
   - name: 「天命难逃」角色补给
     type: char
     s: 天命难逃
-    a:
-    - 死生之律者
-    - 真理之律者
+    a: []
   - name: 「瞒天乐游·曙影」武器补给
     type: weapon
     s: 瞒天乐游·曙影
@@ -198,9 +194,7 @@ pools:
   - name: 「破弃孤光·逐影」角色补给
     type: char
     s: 破弃孤光·逐影
-    a:
-    - 终焉之律者
-    - 始源之律者
+    a: []
   - name: 「享乐狂宴·邀影」武器补给
     type: weapon
     s: 享乐狂宴·邀影
@@ -215,9 +209,7 @@ pools:
   - name: 「深空定锚·曙光」角色补给
     type: char
     s: 深空定锚·曙光
-    a:
-    - 死生之律者
-    - 真理之律者
+    a: []
   - name: 「女武神·巡矢」武器补给
     type: weapon
     s: 女武神·巡矢
@@ -232,9 +224,7 @@ pools:
   - name: 「女武神·重机」角色补给
     type: char
     s: 女武神·重机
-    a:
-    - 终焉之律者
-    - 始源之律者
+    a: []
   - name: 「月之恒&征服王」装备补给
     type: weapon
     s: 月之恒
@@ -249,9 +239,7 @@ pools:
   - name: 「天行·绘星之卷」角色补给
     type: char
     s: 天行·绘星之卷
-    a:
-    - 死生之律者
-    - 真理之律者
+    a: []
   - name: 「月下誓约·予爱以心」武器补给
     type: weapon
     s: 月下誓约·予爱以心
@@ -266,9 +254,7 @@ pools:
   - name: 「奇迹☆魔法少女」角色补给
     type: char
     s: 奇迹☆魔法少女
-    a:
-    - 终焉之律者
-    - 始源之律者
+    a: []
   - name: 「死生之律者」武器补给
     type: weapon
     s: 死生之律者
@@ -283,9 +269,7 @@ pools:
   - name: 「糖露星霜」角色补给
     type: char
     s: 糖露星霜
-    a:
-    - 死生之律者
-    - 真理之律者
+    a: []
   - name: 「织羽梦旌」武器补给
     type: weapon
     s: 织羽梦旌
@@ -300,9 +284,7 @@ pools:
   - name: 「终末协理0017」角色补给
     type: char
     s: 终末协理0017
-    a:
-    - 终焉之律者
-    - 始源之律者
+    a: []
   - name: 「真理之律者」武器补给
     type: weapon
     s: 真理之律者
