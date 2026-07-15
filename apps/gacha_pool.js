@@ -909,6 +909,26 @@ export class xhh_gacha_pool extends plugin {
     return '';
   }
 
+  applyCardVersion(cards = [], version = '') {
+    if (!version) return cards;
+    for (const card of cards) {
+      card.version = version;
+      if (card.index) card.versionTag = `#${card.index} ${version}`;
+    }
+    return cards;
+  }
+
+  async getZzzCurrentLocalVersion() {
+    const data = await this.fetchZzzPools();
+    if (!Array.isArray(data) || !data.length) return '';
+    const now = new Date();
+    const current = data.find(p => {
+      const { start, end } = this.parseTime(p);
+      return start && end && now >= start && now <= end;
+    });
+    return current?.version || '';
+  }
+
   async zzzCurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中绝区零当前卡池:', e.msg);
     // 先尝试从米游社公告获取当前UP信息（含封面图）
@@ -931,6 +951,7 @@ export class xhh_gacha_pool extends plugin {
         card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
         return card;
       });
+      this.applyCardVersion(cards, await this.getZzzCurrentLocalVersion());
       const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
       let markWide = !!markIcon;
       return this.renderPoolImage(e, {
@@ -1846,16 +1867,9 @@ ${r.summary || ''}`;
       card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
       return card;
     });
-    let verFromApi = records.find(r => r.version && r.version !== '-')?.version;
-    if (!verFromApi) {
-      const localCards = await this.loadGsLocalCards('current');
-      verFromApi = localCards.find(c => c.version && c.version !== '-')?.version || '';
-    }
-    if (verFromApi) {
-      cards.forEach(c => {
-        if (!c.version || c.version === '-') { c.version = verFromApi; c.versionTag = `#${c.index} ${verFromApi}`; }
-      });
-    }
+    const localCurrentVersion = (await this.loadGsLocalCards('current')).find(c => c.version && c.version !== '-')?.version || '';
+    const verFromApi = localCurrentVersion || records.find(r => r.version && r.version !== '-')?.version || '';
+    this.applyCardVersion(cards, verFromApi);
     let markIcon = GS_MARK_ICON;
     let markWide = false;
     for (const r of records) {
@@ -2288,7 +2302,8 @@ ${r.summary || ''}`;
     });
     if (!hit) return [];
     const maps = await this.getBh3WikiMaps();
-    return Promise.all(hit.pools.map(p => this.bh3PoolToCard({ ...p, version: hit.version, start: hit.start, end: hit.end }, maps)));
+    const displayVersion = `${hit.version || ''}${hit.phase || ''}` || hit.version;
+    return Promise.all(hit.pools.map(p => this.bh3PoolToCard({ ...p, version: displayVersion, start: hit.start, end: hit.end }, maps)));
   }
 
   async bh3PoolToCard(pool, maps = null) {
