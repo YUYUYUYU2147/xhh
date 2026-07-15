@@ -1,7 +1,7 @@
 import { yaml, render, config, pluginPriority } from '#xhh';
 
 const path = '../../../../..';
-const SR_CURRENT_VERSION = '4.3';
+const SR_CURRENT_VERSION = '4.4';
 
 export class sr_logs extends plugin {
   constructor(e) {
