@@ -365,6 +365,7 @@ export class xhh_gacha_pool extends plugin {
   }
 
   getFixedCornerImage(game = '') {
+    if (!this.useCustomGachaArt()) return '';
     const gameName = String(game || '').trim();
     const primaryDirs = [
       `./plugins/xhh/resources/gacha_pool/fixed_splash/${gameName}`,
@@ -422,7 +423,7 @@ export class xhh_gacha_pool extends plugin {
   }
 
   async renderPoolImage(e, data) {
-    const fixed = this.fixedCornerFallback(data?.game);
+    const fixed = this.getFixedCornerImage(data?.game);
     if (fixed) {
       data.markIcon = fixed;
       data.markWide = true;
@@ -512,6 +513,7 @@ export class xhh_gacha_pool extends plugin {
   }
 
   getCustomCornerSplash(gameName = '', name = '') {
+    if (!this.useCustomGachaArt()) return '';
     const game = String(gameName || '').trim();
     const raw = String(name || '').trim();
     if (!game || !raw) return '';
