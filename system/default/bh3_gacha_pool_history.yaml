@@ -960,3 +960,47 @@ pools:
     a:
     - 布洛妮娅·扎伊切克
     target: 真理之律者
+
+- version: '6.8'
+  phase: 天元进阶
+  start: '2023-07-14 12:00:00'
+  end: '2023-07-28 12:00:00'
+  pools:
+  - name: 「天元骑英」进阶补给
+    type: char
+    s: 天元骑英
+    a: []
+- version: '6.0'
+  phase: 周年自选三期
+  start: '2022-09-28 12:00:00'
+  end: '2022-09-30 12:00:00'
+  pools:
+  - name: 「天元骑英」自选扩充补给
+    type: char
+    s: 天元骑英
+    a: []
+- version: '6.0'
+  phase: 周年自选六期
+  start: '2022-10-05 12:00:00'
+  end: '2022-10-07 12:00:00'
+  pools:
+  - name: 「天元骑英」自选扩充补给
+    type: char
+    s: 天元骑英
+    a: []
+- version: '5.5'
+  phase: 天命不灭
+  start: '2022-01-27 10:00:00'
+  end: '2022-02-25 12:00:00'
+  pools:
+  - name: 「天元骑英」扩充角色补给
+    type: char
+    s: 天元骑英
+    a:
+    - 月下初拥
+  - name: 「天元骑英」扩充装备补给
+    type: weapon
+    s: 子夜的阿塔吉娜
+    a:
+    - 比安卡·舞台
+    target: 天元骑英
