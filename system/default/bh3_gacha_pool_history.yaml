@@ -1,7 +1,7 @@
 # 崩坏3卡池历史数据（本地可手动修正）
 # type: char=角色补给，weapon=装备补给；s=主UP，a=副UP/圣痕套装；target=装备对应角色，便于按角色名查询到专属装备。
 version: '1.0'
-updated: '2026-07-15'
+updated: '2026-07-16'
 source: 米游社官方公告+社区整理
 pools:
 - version: '8.9'
@@ -809,3 +809,49 @@ pools:
     a:
     - 琪亚娜·卡斯兰娜
     target: 终焉之律者
+
+- version: '7.2'
+  phase: 始源复刻
+  start: '2024-01-19 12:00:00'
+  end: '2024-01-26 12:00:00'
+  pools:
+  - name: 「始源之律者」扩充补给
+    type: char
+    s: 始源之律者
+    a:
+    - 雪地狙击
+- version: '7.1'
+  phase: 始源复刻
+  start: '2023-12-15 12:00:00'
+  end: '2023-12-21 04:00:00'
+  pools:
+  - name: 「始源之律者」扩充补给
+    type: char
+    s: 始源之律者
+    a:
+    - 女武神·强袭
+- version: '6.7'
+  phase: 始源复刻
+  start: '2023-06-23 12:00:00'
+  end: '2023-06-30 12:00:00'
+  pools:
+  - name: 「始源之律者」扩充补给
+    type: char
+    s: 始源之律者
+    a:
+    - 断罪皇女！！
+- version: '6.4'
+  phase: 始源的重光
+  start: '2023-01-18 10:00:00'
+  end: '2023-02-17 12:00:00'
+  pools:
+  - name: 「始源的重光」限时活动补给
+    type: char
+    s: 始源之律者
+    a: []
+  - name: 「素心沉影」限时活动补给
+    type: weapon
+    s: 澄凝之境：自性纯一
+    a:
+    - 雷电芽衣
+    target: 始源之律者
