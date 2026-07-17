@@ -1306,7 +1306,10 @@ ${r.summary || ''}`;
         const chars = same.filter(v => v.type !== '武器');
         const weapons = same.filter(v => v.type === '武器');
         const idx = chars.indexOf(p);
-        if (idx >= 0 && weapons[idx]) records.push(weapons[idx]);
+        const signature = this.getZzzSignatureWeaponName(p.s);
+        const signatureClean = this.cleanZzzName(signature);
+        const weapon = (signatureClean && weapons.find(w => this.cleanZzzName(w.s) === signatureClean)) || (idx >= 0 ? weapons[idx] : null);
+        if (weapon) records.push(weapon);
       }
       records = records.filter((v, i, arr) => arr.indexOf(v) === i);
     } else {
@@ -1336,6 +1339,38 @@ ${r.summary || ''}`;
 
   cleanZzzName(name = '') {
     return String(name || '').replace(/[\s「」『』【】［］()（）·・•!！&]/g, '').trim();
+  }
+
+  getZzzSignatureWeaponName(agentName = '') {
+    const agentClean = this.cleanZzzName(this.normalizeZzzName(agentName));
+    if (!agentClean) return '';
+    const manualMap = {
+      叶瞬光: '云霓孤光',
+      维琳娜: '琳琅鎏心',
+      千夏: '思络成歌',
+      诺姆: '首席跟班'
+    };
+    for (const [agent, weapon] of Object.entries(manualMap)) {
+      if (this.cleanZzzName(agent) === agentClean) return weapon;
+    }
+    try {
+      const partner = JSON.parse(fs.readFileSync('./plugins/ZZZ-Plugin/resources/map/PartnerId2Data.json', 'utf-8'));
+      const agents = [];
+      for (const info of Object.values(partner)) {
+        const names = [info?.name, info?.full_name, info?.Name, info?.FullName].filter(Boolean);
+        if (names.some(v => this.cleanZzzName(v) === agentClean)) agents.push(...names);
+      }
+      if (!agents.length) agents.push(agentName);
+      const agentTargets = [...new Set(agents.map(v => this.cleanZzzName(v)).filter(Boolean))];
+      const weapons = JSON.parse(fs.readFileSync('./plugins/ZZZ-Plugin/resources/map/WeaponId2Data.json', 'utf-8'));
+      for (const info of Object.values(weapons)) {
+        const weaponName = info?.Name || info?.name || '';
+        const text = [info?.Desc, info?.Desc3, info?.Talents && JSON.stringify(info.Talents)].filter(Boolean).join('');
+        const cleanText = this.cleanZzzName(text);
+        if (weaponName && agentTargets.some(v => cleanText.includes(v))) return weaponName;
+      }
+    } catch (_) {}
+    return '';
   }
 
   normalizeZzzName(name = '') {
