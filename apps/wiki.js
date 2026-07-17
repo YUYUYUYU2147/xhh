@@ -55,6 +55,35 @@ function extractElements(arr = [], indexes = []) {
   return indexes.map(i => arr[i]).filter(v => v !== undefined && v !== null && v !== '');
 }
 
+function decodeWikiText(text = '') {
+  return String(text || '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractWikiMaterialEntries(html = '') {
+  const ret = [];
+  const text = String(html || '');
+  const re = /data-entry-img=["']([^"']+)["'][\s\S]*?data-entry-name=["']([^"']+)["'][\s\S]*?data-entry-amount=["']([^"']+)["']/g;
+  let m;
+  while ((m = re.exec(text))) {
+    const amount = Number(String(m[3] || '').replace(/[^\d.]/g, '')) || 0;
+    ret.push({
+      img: m[1],
+      name: decodeWikiText(m[2]),
+      amount,
+    });
+  }
+  return ret;
+}
+
 function extractUniqueHttpsLinks(text = '') {
   const links = String(text || '').match(/https?:\/\/[^\s"'<>\)]+/g) || [];
   return [...new Set(links)];
@@ -973,26 +1002,39 @@ export class Wiki extends plugin {
       }
     });
 
-    //计算天赋材料
-    character_talent = character_talent[character_talent.length - 1];
-    //取3,4,11的图片,重新排序一下
-    let pngs = [
-      ...extractUnique(character_talent[2]),
-      ...extractUnique(character_talent[3]),
-      ...extractUnique(character_talent[10]),
-    ];
-    let png_names = [
-      ...extractUnique(character_talent[2], true),
-      ...extractUnique(character_talent[3], true),
-      ...extractUnique(character_talent[10], true),
-    ];
-    const pngs_ = extractElements(pngs, [1, 3, 5]);
-    const png_names_ = extractElements(png_names, [1, 3, 5]);
-    pngs = [...pngs_, ...pngs];
-    png_names = [...png_names_, ...png_names];
-    png_names[0] += ' x18';
-    png_names[1] += ' x66';
-    png_names[2] += ' x93';
+    //计算天赋材料：新版米游社 Wiki 的天赋表格字段经常变动，不能再固定取 3/4/11 列
+    const talentRows = Array.isArray(character_talent) ? character_talent : [];
+    const materialRow =
+      talentRows.find(row => Array.isArray(row) && row.some(v => /升级材料/.test(decodeWikiText(v)))) ||
+      talentRows[talentRows.length - 1] ||
+      [];
+    const materialMap = new Map();
+    for (const cell of materialRow.slice(2)) {
+      for (const item of extractWikiMaterialEntries(cell)) {
+        if (!item.name || !item.img) continue;
+        const old = materialMap.get(item.name) || { ...item, amount: 0, order: materialMap.size };
+        old.amount += item.amount;
+        materialMap.set(item.name, old);
+      }
+    }
+    const bookRank = name => {
+      if (/教导/.test(name)) return 0;
+      if (/指引/.test(name)) return 1;
+      if (/哲学/.test(name)) return 2;
+      return 9;
+    };
+    const materialRank = name => {
+      if (bookRank(name) < 9) return 0;
+      if (/皇冠|智识之冕/.test(name)) return 3;
+      // 常见掉落材料放在天赋书后面，周本材料前面
+      if (/哨|面具|绘卷|箭簇|鸦印|刀镡|孢|蜜|花蜜|徽记|史莱姆|丘丘|鳍|齿|牙|壳|核|枝|叶|芽|露|尉官|士官|新兵/.test(name)) return 1;
+      return 2;
+    };
+    const talentMaterials = [...materialMap.values()]
+      .map(v => ({ ...v, amount: v.amount * 3 }))
+      .sort((a, b) => materialRank(a.name) - materialRank(b.name) || bookRank(a.name) - bookRank(b.name) || a.order - b.order);
+    let pngs = talentMaterials.map(v => v.img).slice(0, 8);
+    let png_names = talentMaterials.map(v => `${v.name} x${v.amount}`).slice(0, 8);
     const weeks = {
       '周一/四/日': ['自由', '繁荣', '浮世', '诤言', '公平', '角逐', '月光'],
       '周二/五/日': ['抗争', '勤劳', '风雅', '巧思', '正义', '焚燔', '乐园'],
@@ -1001,17 +1043,12 @@ export class Wiki extends plugin {
     let week;
     for (const k in weeks) {
       weeks[k].map(v => {
-        if (png_names[3].includes(v)) week = k;
+        if (png_names.some(name => name.includes(v))) week = k;
       });
       if (week) break;
     }
-    png_names[3] += ' x9';
-    png_names[4] += ' x63';
-    png_names[5] += ' x114';
-    png_names[6] += ' x18';
-    png_names[7] += ' x3';
-    pngs.splice(3, 0, pngs.splice(6, 1)[0]);
-    png_names.splice(3, 0, png_names.splice(6, 1)[0]);
+    while (pngs.length < 8) pngs.push('');
+    while (png_names.length < 8) png_names.push('');
 
     //计算成长属性
     let grow = character_material.list[character_material.list.length - 1];

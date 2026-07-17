@@ -144,18 +144,25 @@ body {
 }
 
 .two_box .material_ {
-  flex: 1;
-  min-width: 240px;
+  flex: 0 0 245px;
+  min-width: 245px;
+  min-height: 72px;
   display: flex;
   flex-wrap: nowrap;
+  align-items: center;
+  margin-bottom: 8px;
+  overflow: hidden;
 }
 
 .two_box p {
   position: relative;
-  top: 35px;
+  top: 0;
   /* margin-right: 25px; */
   font-size: 14px;
+  line-height: 1.2;
   color: #ae5c5c;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 /* .two_box .png_names{
