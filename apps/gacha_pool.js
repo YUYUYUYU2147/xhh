@@ -63,14 +63,14 @@ export class xhh_gacha_pool extends plugin {
         { reg: '^#*(小花火)?(绝区零|ZZZ)(.+)(卡池|复刻)(统计|记录|历史)$', fnc: 'zzzNameHistory' },
         { reg: '^#*(小花火)?(绝区零|ZZZ)(卡池|复刻)(统计|记录|历史)$', fnc: 'zzzAllPool' },
         // 类似"雷神卡池/德莉莎卡池/白厄卡池"的用法：依次查绝区零、崩三、星铁、原神
-        { reg: '^(?!#*(?:小花火)?(?:原神|星铁|崩铁|崩三|崩坏3|崩坏三|BH3|绝区零|ZZZ))#*(小花火)?(.+)(卡池|复刻)(统计|记录|历史)?$', fnc: 'genericNameHistory' }
+        { reg: '^(?!#*(?:小花火)?(?:原神|星铁|崩铁|崩三|崩坏3|崩坏三|BH3|绝区零|ZZZ))#*(小花火)?([\u4e00-\u9fa5A-Za-z0-9·・•!！「」『』（）()]{1,16})(卡池|复刻)(统计|记录|历史)?$', fnc: 'genericNameHistory' }
       ]
     });
   }
 
   async accept(e) {
     const msg = String(e?.msg || '')
-      .replace(/[\u200b-\u200f\ufeff]/g, '')
+      .replace(/[\u0000-\u001f\u007f\u200b-\u200f\ufeff]/g, '')
       .replace(/[＃井]/g, '#')
       .replace(/\s+/g, '');
     // 有些插件/适配器会在规则前抢“原神卡池”，这里用 accept 兜底优先接管当前卡池。
@@ -829,7 +829,7 @@ export class xhh_gacha_pool extends plugin {
   }
 
   detectOfficialGame(text = '') {
-    const msg = String(text || '').replace(/[\u200b-\u200f\ufeff]/g, '').replace(/[＃井]/g, '#').replace(/\s+/g, '').toLowerCase();
+    const msg = String(text || '').replace(/[\u0000-\u001f\u007f\u200b-\u200f\ufeff]/g, '').replace(/[＃井]/g, '#').replace(/\s+/g, '').toLowerCase();
     if (/原神/.test(msg)) return 'gs';
     if (/(星铁|崩铁|星穹铁道)/.test(msg)) return 'sr';
     if (/(绝区零|绝区|zzz)/i.test(msg)) return 'zzz';
@@ -843,7 +843,7 @@ export class xhh_gacha_pool extends plugin {
   }
 
   async officialCurrentPool(e) {
-    const msg = this.eventText(e).replace(/[\u200b-\u200f\ufeff]/g, '').replace(/[＃井]/g, '#').replace(/\s+/g, '');
+    const msg = this.eventText(e).replace(/[\u0000-\u001f\u007f\u200b-\u200f\ufeff]/g, '').replace(/[＃井]/g, '#').replace(/\s+/g, '');
     // 明确指定游戏时必须按单游戏查，避免“#原神官方卡池”被当成“官方卡池”汇总。
     const gameLabel = msg.match(/(?:#|小花火)*(原神|星铁|崩铁|星穹铁道|绝区零|ZZZ|崩三|崩坏3|崩坏三|BH3)(?:米游社|官方)/i)?.[1] || '';
     const game = this.detectOfficialGame(msg) || officialPool.resolveGame(gameLabel) || officialPool.resolveGame(msg) || officialPool.resolveGame(e.msg);
@@ -1230,7 +1230,7 @@ ${r.summary || ''}`;
 
   async genericNameHistory(e) {
     const normalized = String(e?.msg || '')
-      .replace(/[\u200b-\u200f\ufeff]/g, '')
+      .replace(/[\u0000-\u001f\u007f\u200b-\u200f\ufeff]/g, '')
       .replace(/[＃井]/g, '#')
       .replace(/\s+/g, '');
     // 兜底：如果“原神卡池/#原神卡池”被通用规则误吞，直接转到当前卡池。
@@ -1247,6 +1247,13 @@ ${r.summary || ''}`;
       return this.gsCurrentPool(e);
     }
     if (!name || /^(当前|本期|当期|时间|剩余|剩下)$/i.test(name)) return false;
+    // 通用“xx卡池”只接短命令，避免群聊普通句子以“雨果卡池/雷神卡池”等结尾时误触发。
+    // 如果带 #，视为明确命令；不带 # 时过滤长句和明显句读符号。
+    if (!normalized.startsWith('#') && (
+      cnName.length > 16
+      || /[，,。！？?、；;：:…]/.test(name)
+      || /^(为啥|为什么|怎么|居然|可惜|没有|是不是|如果|但是|不过|然后|还有|我想|我看|你看|帮我)/.test(cnName)
+    )) return false;
     logger.mark('[xhh][gacha_pool] 尝试通用名称卡池:', name);
     // 先查绝区零
     const zzzResult = await this.replyZzzNameHistory(e, name, true);
