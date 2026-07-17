@@ -23,7 +23,8 @@ pools:
   - name: 「一客逍游」跃升补给
     type: char
     s: 一客逍游
-    a: []
+    a:
+    - 真炎幸魂
   - name: 「翻翠袖&顺时而乐」跃升武装
     type: weapon
     s: 翻翠袖
@@ -1054,3 +1055,36 @@ pools:
     a:
     - 花火·诡戏千役
     target: 诡戏千役「友情出演！」
+
+- version: '8.6'
+  phase: 一客复刻
+  start: '2026-01-16 12:00:00'
+  end: '2026-02-05 04:00:00'
+  pools:
+  - name: 「一客逍游」角色补给
+    type: char
+    s: 一客逍游
+    a:
+    - 原罪猎人
+  - name: 「翻翠袖&顺时而乐」装备补给
+    type: weapon
+    s: 翻翠袖
+    a:
+    - 顺时而乐
+    target: 一客逍游
+- version: '8.2'
+  phase: 逍游云间
+  start: '2025-03-27 10:00:00'
+  end: '2025-05-09 12:00:00'
+  pools:
+  - name: 「逍游云间」角色补给
+    type: char
+    s: 一客逍游
+    a:
+    - 女武神·巡矢
+  - name: 「翻翠袖&顺时而乐」装备补给
+    type: weapon
+    s: 翻翠袖
+    a:
+    - 顺时而乐
+    target: 一客逍游
