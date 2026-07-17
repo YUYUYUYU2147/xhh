@@ -1088,3 +1088,78 @@ pools:
     a:
     - 顺时而乐
     target: 一客逍游
+
+- version: '6.5'
+  phase: 识律进阶
+  start: '2023-03-09 10:00:00'
+  end: '2023-03-24 12:00:00'
+  pools:
+  - name: 「识之律者」进阶补给
+    type: char
+    s: 识之律者
+    a: []
+- version: '6.0'
+  phase: 识律进阶特别篇
+  start: '2022-08-26 12:00:00'
+  end: '2022-09-09 12:00:00'
+  pools:
+  - name: 「识之律者」进阶补给·特别篇
+    type: char
+    s: 识之律者
+    a: []
+- version: '5.7'
+  phase: 识律复刻
+  start: '2022-06-02 12:00:00'
+  end: '2022-06-13 12:00:00'
+  pools:
+  - name: 「识之律者」扩充补给
+    type: char
+    s: 识之律者
+    a:
+    - 驱动装·山吹
+- version: '5.3'
+  phase: 识律复刻
+  start: '2021-11-19 12:00:00'
+  end: '2021-12-03 12:00:00'
+  pools:
+  - name: 「识之律者」扩充补给
+    type: char
+    s: 识之律者
+    a:
+    - 女武神·凯旋
+- version: '5.0'
+  phase: 识律复刻
+  start: '2021-08-13 12:00:00'
+  end: '2021-08-19 04:00:00'
+  pools:
+  - name: 「识之律者」扩充补给
+    type: char
+    s: 识之律者
+    a:
+    - 断罪皇女！！
+- version: '4.8'
+  phase: 识律复刻
+  start: '2021-05-14 12:00:00'
+  end: '2021-05-28 12:00:00'
+  pools:
+  - name: 「识之律者」扩充补给
+    type: char
+    s: 识之律者
+    a:
+    - 驱动装·山吹
+- version: '4.6'
+  phase: 睥睨天下
+  start: '2021-02-05 12:00:00'
+  end: '2021-02-26 12:00:00'
+  pools:
+  - name: 「识之律者」扩充角色补给
+    type: char
+    s: 识之律者
+    a:
+    - 月下初拥
+  - name: 「识之律者」扩充装备补给
+    type: weapon
+    s: 拂手阴晴
+    a:
+    - 神州折剑
+    target: 识之律者
