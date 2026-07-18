@@ -318,9 +318,15 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 if (name) return list;
         }
         if (name) {
-            for (let va of list) {
-                if (va.title.replace(/ /g, '') == name) return { id: va.content_id };
-            }
+            const clean = v => String(v || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '').toLowerCase();
+            const target = clean(name);
+            let found = list.find(va => clean(va.title) == target);
+            // 兼容官方 Wiki 返回全名、nanoka 只用简称的情况，例如「雨果·维拉德」=>「雨果」
+            if (!found) found = list.find(va => {
+                const title = clean(va.title);
+                return target && title && (title.includes(target) || target.includes(title));
+            });
+            if (found) return { id: found.content_id };
             return false;
         } else {
             let names = [], ids = [], icons = [], jis = [], attributes = [], types = [], factions = [];
