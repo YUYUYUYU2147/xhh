@@ -115,11 +115,11 @@ export class Wiki extends plugin {
       priority: pr || -99,
       rule: [
         {
-          reg: '^#*(星铁|绝区零|ZZZ|崩坏3|崩坏三|崩三|BH3)?\\s*(.+)图鉴$',
+          reg: '^[#%]*(星铁|绝区零|ZZZ|崩坏3|崩坏三|崩三|BH3)?\\s*(.+)图鉴$',
           fnc: 'illustrated_book',
         },
         {
-          reg: '^#*(星铁|绝区零|ZZZ|崩坏3|崩坏三|崩三|BH3)?\\s*图鉴\\s*(.+)$',
+          reg: '^[#%]*(星铁|绝区零|ZZZ|崩坏3|崩坏三|崩三|BH3)?\\s*图鉴\\s*(.+)$',
           fnc: 'illustrated_book',
         },
       ],
@@ -151,7 +151,7 @@ export class Wiki extends plugin {
     const isZZZ = e.msg.includes('绝区零') || e.msg.includes('ZZZ');
     const isBH3 = e.msg.includes('崩坏3') || e.msg.includes('崩坏三') || e.msg.includes('崩三') || e.msg.includes('BH3');
     let name = e.msg
-      .replace(/^#*/, '')
+      .replace(/^[#%]*/, '')
       .replace(/星铁|绝区零|ZZZ|崩坏3|崩坏三|崩三|BH3/gi, '')
       .trim();
     name = name.startsWith('图鉴') ? name.replace(/^图鉴/, '') : name.replace(/图鉴$/, '');
