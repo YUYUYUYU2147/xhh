@@ -1194,3 +1194,21 @@ pools:
     a:
     - 神州折剑
     target: 识之律者
+
+- version: '5.2'
+  phase: 初登场
+  start: '2021-09-23 11:00:00'
+  end: '2021-10-22 12:00:00'
+  pools:
+  - name: 「无限·噬界之蛇」扩充补给
+    type: char
+    s: 无限·噬界之蛇
+    a: []
+  - name: 「往世的蛇影·死之衣&林奈」装备补给
+    type: weapon
+    s: 往世的蛇影·死之衣
+    a:
+    - 林奈
+    target: 无限·噬界之蛇
+    related:
+    - 梅比乌斯

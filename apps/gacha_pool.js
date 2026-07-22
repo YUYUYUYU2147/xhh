@@ -296,7 +296,40 @@ export class xhh_gacha_pool extends plugin {
     const keyOf = pool => `${pool.version || '-'}|${pool.type || '-'}|${pool.s || '-'}|${pool.title || ''}`;
     const map = new Map(data.map(pool => [keyOf(pool), pool]));
     for (const pool of local) map.set(keyOf(pool), pool);
-    return [...map.values()].sort((a, b) => this.poolEndStamp(a) - this.poolEndStamp(b));
+    return this.resolveZzzVersionUpdateTimes([...map.values()])
+      .sort((a, b) => this.poolEndStamp(a) - this.poolEndStamp(b));
+  }
+
+  resolveZzzVersionUpdateTimes(data = []) {
+    const pools = Array.isArray(data) ? data : [];
+    const endStamp = pool => {
+      const end = pool?.endTime || String(pool?.timer || '').split('~')[1]?.trim() || '';
+      const t = new Date(end).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+    const sorted = [...pools].sort((a, b) => endStamp(a) - endStamp(b));
+    for (let i = 0; i < sorted.length; i++) {
+      const pool = sorted[i];
+      const timer = String(pool?.timer || '');
+      if (timer.includes('公测开启后')) {
+        const end = timer.split('~')[1]?.trim() || pool.endTime || '';
+        pool.startTime = '2024/07/04 10:00:00';
+        pool.endTime = end;
+        pool.timer = `${pool.startTime} ~ ${pool.endTime}`;
+        continue;
+      }
+      if (!timer.includes('版本更新后')) continue;
+      const end = timer.split('~')[1]?.trim() || pool.endTime || '';
+      const prev = [...sorted].slice(0, i).reverse().find(v => endStamp(v) > 0 && endStamp(v) < endStamp(pool));
+      const d = prev ? new Date(endStamp(prev)) : null;
+      if (!d || Number.isNaN(d.getTime())) continue;
+      d.setSeconds(d.getSeconds() + 1);
+      const start = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+      pool.startTime = start;
+      pool.endTime = end;
+      pool.timer = `${start} ~ ${end}`;
+    }
+    return pools;
   }
 
   async fetchZzzCurrentAppend(history = []) {
@@ -522,8 +555,49 @@ export class xhh_gacha_pool extends plugin {
     return render('bh3logs/logs', { data: sections, splash }, { e, ret: true });
   }
 
-  zzzPoolTime(pool) {
-    return pool?.timer?.replace(/ \d{2}:\d{2}:\d{2}/g, '') || '-';
+  zzzPoolTime(pool = {}) {
+    const start = pool.startTime || String(pool.timer || '').split('~')[0]?.trim();
+    const end = pool.endTime || String(pool.timer || '').split('~')[1]?.trim();
+    if (start && end) return `${start} ~ ${end}`;
+    return pool?.timer || '-';
+  }
+
+  formatGsHistoryTime(dateKey = '') {
+    const raw = String(dateKey || '').replace(/^【.*?】/, '').trim();
+    const [start, end] = raw.split('~').map(v => v?.trim()).filter(Boolean);
+    if (!start || !end) return raw || '-';
+    return `${this.ensureFullTime(start, true)} ~ ${this.ensureFullTime(end, false)}`;
+  }
+
+  ensureFullTime(text = '', isStart = true) {
+    const t = String(text || '').trim();
+    if (!t) return '';
+    if (/\d{2}:\d{2}(?::\d{2})?/.test(t)) return /\d{2}:\d{2}:\d{2}/.test(t) ? t : `${t}:00`;
+    if (/\d{4}[\/.-]\d{1,2}[\/.-]\d{1,2}/.test(t)) {
+      return `${t}${t.includes(' ') ? '' : ' '}${isStart ? '00:00:00' : '23:59:59'}`;
+    }
+    return t;
+  }
+
+  normalizeSrHistoryTime(time = '', prevEnd = '') {
+    const raw = String(time || '').trim();
+    if (!raw) return { time: '-', end: '' };
+    const parts = raw.split('~').map(v => v.trim()).filter(Boolean);
+    if (!parts.length) return { time: raw, end: '' };
+    const startText = parts[0];
+    const endText = parts[1] || '';
+    let start = startText;
+    if (/版本更新后/.test(startText) && prevEnd) {
+      const d = new Date(prevEnd);
+      if (!Number.isNaN(d.getTime())) {
+        d.setSeconds(d.getSeconds() + 1);
+        start = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+      }
+    } else {
+      start = this.ensureFullTime(startText, true);
+    }
+    const end = this.ensureFullTime(endText || startText, false);
+    return { time: `${start} ~ ${end}`, end };
   }
 
   buildZzzPoolsReply(title, pools = [], extra = '') {
@@ -1975,6 +2049,7 @@ ${r.summary || ''}`;
   buildSrHistorySections(data = [], query = '') {
     if (!Array.isArray(data)) return [];
     const q = this.normalizeSrName(query || '');
+    let prevEnd = '';
     return data.map(item => {
       const rows = [];
       let jsFive = item.js_five || [];
@@ -2009,7 +2084,9 @@ ${r.summary || ''}`;
         ...gzFour.map(n => this.buildSrHistoryItem(n, 'four', true, query))
       ];
       if (gzItems.length) rows.push({ title: '光锥活动跃迁', weapon: true, items: gzItems });
-      return { version: item.ver || '-', time: item.time || '-', rows };
+      const timeRes = this.normalizeSrHistoryTime(item.time || '-', prevEnd);
+      prevEnd = timeRes.end || prevEnd;
+      return { version: item.ver || '-', time: timeRes.time, rows };
     }).filter(v => v.rows.length);
   }
 
@@ -2051,6 +2128,7 @@ ${r.summary || ''}`;
     const isCurrent = query === 'current';
     const cards = [];
     const currentVersion = CURRENT_VERSION.sr;
+    let prevEnd = '';
     for (const item of data) {
       const ver = item.ver || '';
       const versionHit = !isCurrent && (ver === query || ver.startsWith(query) || ver.replace(/上半|下半/g, '') === query);
@@ -2062,6 +2140,8 @@ ${r.summary || ''}`;
       );
       if (isCurrent && !ver.startsWith(currentVersion)) continue;
       if (!isCurrent && !versionHit && !nameHit) continue;
+      const timeRes = this.normalizeSrHistoryTime(item.time || '-', prevEnd);
+      prevEnd = timeRes.end || prevEnd;
       const officialRoleBg = this.getSrOfficialPoolImage(item, false, officialRecords);
       // 光锥公告图经常自带大标题文字，和卡片标题重叠；当前卡池统一使用同一期角色公告图做弱化背景。
       const officialWeaponBg = officialRoleBg || this.getSrOfficialPoolImage(item, true, officialRecords);
@@ -2070,7 +2150,7 @@ ${r.summary || ''}`;
         version: ver,
         title: isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`,
         type: '星穹铁道',
-        time: item.time || '',
+        time: timeRes.time,
         s: (item.js_five || []).join(' / '),
         a: (item.js_four || []).join(' / '),
         img: roleBg,
@@ -2080,7 +2160,7 @@ ${r.summary || ''}`;
         version: ver,
         title: isCurrent ? '光锥活动跃迁' : `${ver} 光锥活动跃迁`,
         type: '星穹铁道',
-        time: item.time || '',
+        time: timeRes.time,
         s: this.clSrNames(item.gz_five || []).join(' / '),
         a: this.clSrNames(item.gz_four || []).join(' / '),
         img: officialWeaponBg || roleBg,
@@ -2368,7 +2448,7 @@ ${r.summary || ''}`;
       const pools = lines.map(line => String(line || '').split(',').map(v => v.trim()).filter(Boolean));
       if (!pools.some(arr => arr.includes(query))) continue;
       const version = dateKey.match('【(.*)】')?.[1] || '';
-      const time = dateKey.replace(`【${version}】`, '').replace('~', ' ~ ');
+      const time = this.formatGsHistoryTime(dateKey);
       const hasCharMatch = pools.some(arr => arr.includes(query) && !this.isGsWeaponPool(arr) && !this.isGsMixedPool(arr));
       const rows = pools.map((arr, idx) => {
         const weapon = this.isGsWeaponPool(arr);
@@ -2401,7 +2481,7 @@ ${r.summary || ''}`;
       const ver = dateKey.match('【(.*)】')?.[1] || '';
       if (!ver) continue;
       const imgs = data.imgs[`【${ver}】`] || [];
-      const time = dateKey.replace(`【${ver}】`, '').replace('~', ' ~ ');
+      const time = this.formatGsHistoryTime(dateKey);
       const versionHit = !isCurrent && (ver === query || ver.startsWith(query) || ver.replace(/上半|下半/g, '') === query);
       if (isCurrent || versionHit) {
         names.forEach((line, i) => {
@@ -2935,7 +3015,7 @@ ${r.summary || ''}`;
     const maps = await this.getBh3WikiMaps();
     const highlights = Array.isArray(queryNames) ? queryNames : [query];
     for (const p of records) {
-      const time = p.start && p.end ? `${p.start.slice(0, 10)} ~ ${p.end.slice(0, 10)}` : '';
+      const time = p.start && p.end ? `${p.start} ~ ${p.end}` : '';
       const key = `${p.version || '-'}|${time}`;
       if (!map.has(key)) map.set(key, { version: `${p.version || '-'}`, time, rows: [] });
       const weapon = p.type === 'weapon';

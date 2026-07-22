@@ -54,24 +54,24 @@ body {
 }
 .t-line {
   position: relative;
-  font-size: 13px;
+  font-size: 12px;
   font-family: '宋';
   font-weight: bold;
   background: url('../srlogs/imgs/h.png');
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  padding: 0 10px 0 23px;
-  display: inline-flex;
+  padding: 5px 10px 5px 22px;
+  display: inline-block;
   align-items: center;
   width: fit-content;
-  max-width: 280px;
+  max-width: 248px;
   box-sizing: border-box;
   min-height: 30px;
   height: auto;
-  line-height: 18px;
+  line-height: 16px;
   margin-bottom: 10px;
   white-space: normal;
-  word-break: keep-all;
+  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .body {

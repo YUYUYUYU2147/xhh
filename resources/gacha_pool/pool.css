@@ -437,11 +437,14 @@ h1 {
   box-shadow: 2px 3px 8px rgba(83, 142, 180, .35), inset 2px 2px 6px rgba(255,255,255,.95);
 }
 .time-bar {
-  height: 34px;
-  display: inline-flex;
+  display: inline-block;
+  width: auto;
+  max-width: 268px;
+  min-height: 34px;
+  height: auto;
   align-items: center;
   margin: 0 0 10px 4px;
-  padding: 0 18px;
+  padding: 6px 14px;
   color: #64b3df;
   font-family: '主','宋';
   font-size: 17px;
@@ -450,6 +453,10 @@ h1 {
   border-radius: 8px;
   background: #fff0bf;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.6);
+  white-space: normal;
+  line-height: 1.35;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .history-panel {
   background: rgba(255,255,255,.84);
