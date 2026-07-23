@@ -47,10 +47,11 @@ function writeData(qq, data) {
   fs.writeFileSync(dataPath(qq), JSON.stringify(data, null, 2), 'utf8');
 }
 
-async function sendMsg(e, msg) {
+async function sendMsg(e, msg, opts = {}) {
+  if (opts?.recallMsg !== undefined) return e.reply(msg, true, opts);
   if (e.group) return e.group.sendMsg([{ type: 'text', data: { text: msg } }]);
   if (e.friend) return e.friend.sendMsg([{ type: 'text', data: { text: msg } }]);
-  return e.reply(msg);
+  return e.reply(msg, true, opts);
 }
 
 export class currency_balance extends plugin {
@@ -109,7 +110,7 @@ export class currency_balance extends plugin {
     const balance = Number(String(e.msg || '').match(/(\d+)\s*$/)?.[1] || 0);
     if (!Number.isFinite(balance) || balance < 0) return sendMsg(e, `请输入正确的${meta.unit}数量，例如：#设置${meta.short}余额 12345`);
 
-    await sendMsg(e, `正在读取${meta.name}札记基准值，请稍后...`);
+    await sendMsg(e, `正在读取${meta.name}札记基准值，请稍后...`, { recallMsg: 60 });
     const snap = await this.getLedgerSnapshot(e, game);
     if (snap.error) return sendMsg(e, `设置失败：${snap.error}`);
     const qq = this.getTargetQq(e);

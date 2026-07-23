@@ -5,13 +5,18 @@ import moment from "moment";
 import fs from 'fs';
 import YAML from 'yaml';
 
-async function sendMsg(e, msg) {
+async function sendMsg(e, msg, opts = {}) {
+    if (opts?.recallMsg !== undefined) {
+        return e.reply(msg, true, opts);
+    }
     if (typeof msg === 'string') {
         if (e.group) await e.group.sendMsg([{ type: 'text', data: { text: msg } }]);
         else if (e.friend) await e.friend.sendMsg([{ type: 'text', data: { text: msg } }]);
+        else await e.reply(msg, true, opts);
     } else {
         if (e.group) await e.group.sendMsg([msg]);
         else if (e.friend) await e.friend.sendMsg([msg]);
+        else await e.reply(msg, true, opts);
     }
 }
 
@@ -614,7 +619,7 @@ export class bh3_ledger extends plugin {
 
     async ledger(e) {
         try {
-            sendMsg(e, '正在获取水晶，请稍后...');
+            sendMsg(e, '正在获取水晶，请稍后...', { recallMsg: 60 });
             const auth = await this.getBh3Auth(e);
             if (!auth) return false;
             const { uid, headers, qq, region } = auth;
@@ -721,7 +726,7 @@ export class bh3_ledger extends plugin {
 
     async ledgerLastMonth(e) {
         try {
-            sendMsg(e, '正在获取上月水晶，请稍后...');
+            sendMsg(e, '正在获取上月水晶，请稍后...', { recallMsg: 60 });
             const auth = await this.getBh3Auth(e);
             if (!auth) return false;
             const { uid, headers, qq, region } = auth;

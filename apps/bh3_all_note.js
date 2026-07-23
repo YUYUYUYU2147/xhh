@@ -155,7 +155,7 @@ export class bh3_all_note extends plugin {
   }
 
   async allNote(e) {
-    await e.reply('正在获取四游戏体力数据...', true);
+    await e.reply('正在获取四游戏体力数据，请稍后...', true, { recallMsg: 60 });
 
     const results = [];
     const add = (item) => {

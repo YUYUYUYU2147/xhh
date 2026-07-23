@@ -238,7 +238,7 @@ export class abyss_report extends plugin {
     const req = parseMsg(e.msg || '');
     const version = req.version || await currentVersion(req.game);
     const numbers = imageNumbers(req.game, version, req.type);
-    await e.reply(`正在获取${req.game === 'sr' ? '星铁' : '原神'} ${version} ${req.type}速报，请稍后...`, true);
+    await e.reply(`正在获取${req.game === 'sr' ? '星铁' : '原神'} ${version} ${req.type}速报，请稍后...`, true, { recallMsg: 60 });
 
     const images = [];
     for (const num of numbers) {

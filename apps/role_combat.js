@@ -134,7 +134,7 @@ export class role_combat extends plugin {
   }
 
   async roleCombat(e) {
-    await e.reply('正在获取幻想真境剧诗数据，请稍后...', true);
+    await e.reply('正在获取幻想真境剧诗数据，请稍后...', true, { recallMsg: 60 });
     const requestedMonth = parseMonth(e.msg || '');
     let payload;
     try {

@@ -11,16 +11,17 @@ async function loadAbyssBossModule() {
   return await import(`../system/bh3_abyss_boss.js?v=${version}`);
 }
 
-function sendMsg(e, msg) {
+function sendMsg(e, msg, opts = {}) {
+  if (opts?.recallMsg !== undefined) return e.reply(msg, true, opts);
   if (typeof msg === 'object' && msg.constructor?.name === 'Buffer') {
     const seg = segment.image(msg);
     if (e.group) return e.group.sendMsg([seg]);
     if (e.friend) return e.friend.sendMsg([seg]);
-    return e.reply(seg);
+    return e.reply(seg, true, opts);
   }
   if (e.group) return e.group.sendMsg([{ type: 'text', data: { text: msg } }]);
   if (e.friend) return e.friend.sendMsg([{ type: 'text', data: { text: msg } }]);
-  return e.reply(msg);
+  return e.reply(msg, true, opts);
 }
 
 function fmtTs(ts) {

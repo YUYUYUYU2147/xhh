@@ -506,7 +506,7 @@ export class mhy_estimate extends plugin {
       }
     }
     const guideName = key === 'abyss' ? '深渊' : key === 'battlefield' ? '战场' : key === 'godwar' ? '乐土' : key === 'zzz_defense' ? '防卫战' : key === 'zzz_deadly' ? '危局' : cfg.name;
-    await e.reply(query ? `正在搜索「${query}」${guideName}攻略，请稍后...` : cfg.tip, true);
+    await e.reply(query ? `正在搜索「${query}」${guideName}攻略，请稍后...` : cfg.tip, true, { recallMsg: 60 });
 
     const msg = [];
     const seenPosts = new Set();

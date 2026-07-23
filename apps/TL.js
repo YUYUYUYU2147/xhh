@@ -93,7 +93,7 @@ export class TL extends plugin {
     const singleGameKey = isGenshinOnly ? 'gs' : isStarRail ? 'sr' : isZZZ ? 'zzz' : isBH3 ? 'bh3' : '';
     const isQueryAll = !singleGameKey && ['体力', '小花火体力', '全体力', '四游戏体力', '米游社体力', '体力总览'].includes(rawMsg);
     const tipName = isQueryAll ? '四游戏' : singleGameKey ? this.getGameMeta(singleGameKey).name : '原神';
-    await e.reply(`正在获取${tipName}体力数据，请稍后...`, true);
+    await e.reply(`正在获取${tipName}体力数据，请稍后...`, true, { recallMsg: 60 });
     const getZZZData = async () => {
       const data = await this.note(e, 'zzz', isQueryAll);
       if (
