@@ -28,7 +28,7 @@ const api = {
   zzz: 'https://announcement-api.mihoyo.com/common/nap_cn/announcement/api/getAnnList?game=nap&game_biz=nap_cn&lang=zh-cn&bundle_id=nap_cn&channel_id=1&level=70&platform=pc&region=prod_gf_cn&uid=12345678',
 };
 
-const BH3_NEWS_API = 'https://bbs-api-static.miyoushe.com/painter/wapi/getNewsList?gids=1&page_size=35&type=1';
+const BH3_NEWS_API = 'https://bbs-api-static.miyoushe.com/painter/wapi/getNewsList?gids=1&page_size=80&type=1';
 const BH3_POST_API = 'https://bbs-api.miyoushe.com/post/wapi/getPostFull?gids=1&read=1&post_id=';
 const bh3IgnoreReg = /(封禁|外挂|账号交易|公平运营|问题修复|已知问题|维护通知|更新说明|防沉迷|客服|开奖|名单|问卷|壁纸)/;
 
@@ -173,7 +173,8 @@ async function getBh3Activities() {
   const listJson = await fetchJson(BH3_NEWS_API);
   const posts = listJson?.data?.list || [];
   const ret = [];
-  for (const item of posts.slice(0, 28)) {
+  // 崩三公告量较大，活动到期提醒只扫前 28 条容易被资讯/攻略挤掉，导致没有推送。
+  for (const item of posts.slice(0, 60)) {
     const post = item?.post || item;
     const title = cleanText(post.subject || post.title || '');
     if (!title || bh3IgnoreReg.test(title)) continue;
@@ -202,6 +203,15 @@ async function getBh3Activities() {
 function extractBh3Time(text = '', createdAt = 0) {
   text = String(text || '').replace(/\s+/g, ' ');
   const year = moment.unix(Number(createdAt) || moment().unix()).year();
+  const versionAfter = text.match(/(\d+\.\d+)版本更新后\s*[~～至\-—]+\s*(?:(20\d{2})[年\/-])?([0-9]{1,2})月([0-9]{1,2})日?\s*([0-9]{1,2}:[0-9]{2})/);
+  if (versionAfter) {
+    const s = getBh3VersionStart(versionAfter[1], createdAt);
+    const e = moment(`${versionAfter[2] || year}-${versionAfter[3]}-${versionAfter[4]} ${versionAfter[5]}`, 'YYYY-M-D H:mm');
+    if (s.isValid() && e.isValid()) {
+      if (e.isBefore(s)) e.add(1, 'year');
+      return { start: s, end: e };
+    }
+  }
   const regs = [
     /(?:开放时间|活动时间|补给时间|上架时间|售卖时间|兑换时间|开启时间|期间)[：:>\s]*([0-9]{4})[年\/-]([0-9]{1,2})[月\/-]([0-9]{1,2})日?\s*([0-9]{1,2}:[0-9]{2})(?:[:0-9]*)?\s*[~～至\-—]+\s*(?:([0-9]{4})[年\/-])?([0-9]{1,2})[月\/-]([0-9]{1,2})日?\s*([0-9]{1,2}:[0-9]{2})/,
     /(?:开放时间|活动时间|补给时间|上架时间|售卖时间|兑换时间|开启时间|期间)[：:>\s]*([0-9]{1,2})月([0-9]{1,2})日\s*([0-9]{1,2}:[0-9]{2})\s*[~～至\-—]+\s*([0-9]{1,2})月([0-9]{1,2})日\s*([0-9]{1,2}:[0-9]{2})/,
@@ -223,6 +233,15 @@ function extractBh3Time(text = '', createdAt = 0) {
     return { start: s, end: e };
   }
   return null;
+}
+
+function getBh3VersionStart(version = '', createdAt = 0) {
+  const map = {
+    '9.0': '2026-07-23 11:00',
+  };
+  if (map[version]) return moment(map[version], 'YYYY-MM-DD HH:mm');
+  const base = moment.unix(Number(createdAt) || moment().unix());
+  return base.hour(11).minute(0).second(0).millisecond(0);
 }
 
 async function getActivities(game) {

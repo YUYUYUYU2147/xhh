@@ -3,10 +3,12 @@ import fetch from 'node-fetch';
 import moment from 'moment';
 import { render, pluginPriority } from '#xhh';
 
-const NEWS_API = 'https://bbs-api-static.miyoushe.com/painter/wapi/getNewsList?gids=1&page_size=40&type=1';
+const NEWS_API = 'https://bbs-api-static.miyoushe.com/painter/wapi/getNewsList?gids=1&page_size=80&type=1';
 const POST_API = 'https://bbs-api.miyoushe.com/post/wapi/getPostFull?gids=1&read=1&post_id=';
-const CACHE_KEY = 'xhh:bh3:calendar:v1';
-const CACHE_TTL = 10 * 60;
+const CACHE_KEY = 'xhh:bh3:calendar:v3';
+// 崩三公告/活动更新较频繁；原先缓存 10 分钟会让日历看起来不像实时更新。
+// 保留 60 秒短缓存，避免同一分钟内重复请求米游社过多。
+const CACHE_TTL = 60;
 
 const ignoreReg = /(封禁|外挂|账号交易|公平运营|问题修复|已知问题|维护通知|更新说明|防沉迷|客服|开奖|名单|问卷|壁纸)/;
 const timeTitleReg = /(开放时间|活动时间|补给时间|上架时间|售卖时间|兑换时间|开启时间|期间)/;
@@ -27,7 +29,8 @@ export class bh3_calendar extends plugin {
 
   async calendar(e) {
     try {
-      const data = await this.getCalendarData(e);
+      // 用户主动查询日历时直接实时拉取，不读 Redis 旧缓存。
+      const data = await this.getCalendarData(e, true);
       if (!data?.list?.length) return e.reply('暂未解析到崩坏3活动日历数据，请稍后再试。');
       return render('bh3_calendar/calendar', data, { e, ret: true, pct: 1.65 });
     } catch (err) {
@@ -36,10 +39,10 @@ export class bh3_calendar extends plugin {
     }
   }
 
-  async getCalendarData(e) {
+  async getCalendarData(e, force = false) {
     moment.locale('zh-cn');
     const now = moment();
-    let cached = await redis.get(CACHE_KEY);
+    let cached = force ? null : await redis.get(CACHE_KEY);
     if (cached) {
       try {
         const data = JSON.parse(cached);
@@ -53,7 +56,8 @@ export class bh3_calendar extends plugin {
 
     const posts = await this.requestNews();
     const list = [];
-    for (const item of posts.slice(0, 28)) {
+    // 多扫一些公告，避免当前有效活动/补给被近期资讯挤出前 28 条后不显示。
+    for (const item of posts.slice(0, 60)) {
       const post = item?.post || item;
       const title = this.cleanText(post.subject || post.title || '');
       if (!title || ignoreReg.test(title)) continue;
@@ -158,6 +162,15 @@ export class bh3_calendar extends plugin {
   extractTime(text = '', createdAt = 0) {
     text = String(text || '').replace(/\s+/g, ' ');
     const year = moment.unix(Number(createdAt) || moment().unix()).year();
+    const versionAfter = text.match(/(\d+\.\d+)版本更新后\s*[~～至\-—]+\s*(?:(20\d{2})[年\/-])?([0-9]{1,2})月([0-9]{1,2})日?\s*([0-9]{1,2}:[0-9]{2})/);
+    if (versionAfter) {
+      const s = this.getVersionStart(versionAfter[1], createdAt);
+      const e = moment(`${versionAfter[2] || year}-${versionAfter[3]}-${versionAfter[4]} ${versionAfter[5]}`, 'YYYY-M-D H:mm');
+      if (s.isValid() && e.isValid()) {
+        if (e.isBefore(s)) e.add(1, 'year');
+        return { start: s, end: e };
+      }
+    }
     const regs = [
       /(?:开放时间|活动时间|补给时间|上架时间|售卖时间|兑换时间|开启时间|期间)[：:>\s]*([0-9]{4})[年\/-]([0-9]{1,2})[月\/-]([0-9]{1,2})日?\s*([0-9]{1,2}:[0-9]{2})(?:[:0-9]*)?\s*[~～至\-—]+\s*(?:([0-9]{4})[年\/-])?([0-9]{1,2})[月\/-]([0-9]{1,2})日?\s*([0-9]{1,2}:[0-9]{2})/,
       /(?:开放时间|活动时间|补给时间|上架时间|售卖时间|兑换时间|开启时间|期间)[：:>\s]*([0-9]{1,2})月([0-9]{1,2})日\s*([0-9]{1,2}:[0-9]{2})\s*[~～至\-—]+\s*([0-9]{1,2})月([0-9]{1,2})日\s*([0-9]{1,2}:[0-9]{2})/,
@@ -182,6 +195,16 @@ export class bh3_calendar extends plugin {
     return null;
   }
 
+  getVersionStart(version = '', createdAt = 0) {
+    const map = {
+      '9.0': '2026-07-23 11:00',
+    };
+    if (map[version]) return moment(map[version], 'YYYY-MM-DD HH:mm');
+    const base = moment.unix(Number(createdAt) || moment().unix());
+    // 兜底：没有维护结束时间时，按公告发布日期 11:00 作为版本更新后起点。
+    return base.hour(11).minute(0).second(0).millisecond(0);
+  }
+
   getType(title = '') {
     if (/补给|扩充|精准|跃升|协同/.test(title)) return 'supply';
     if (/服装|皮肤|时装/.test(title)) return 'outfit';
@@ -195,7 +218,8 @@ export class bh3_calendar extends plugin {
   }
 
   getRange(now) {
-    return { start: now.clone().startOf('day').subtract(2, 'days'), end: now.clone().startOf('day').add(14, 'days').endOf('day') };
+    // 日历默认展示“今天起”的当前/未来活动；不再把昨天已结束的补给挤在最前面。
+    return { start: now.clone().startOf('day'), end: now.clone().startOf('day').add(16, 'days').endOf('day') };
   }
 
   getDateList(start) {

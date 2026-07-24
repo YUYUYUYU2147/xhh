@@ -1073,7 +1073,10 @@ export class xhh_gacha_pool extends plugin {
     const ver = String(version || '').trim();
     const raw = String(time || '').trim();
     const dateMatches = [...raw.matchAll(/(20\d{2})[\/.-](\d{1,2})[\/.-](\d{1,2})(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?/g)];
-    const fmt = m => `${m[1]}/${String(m[2]).padStart(2, '0')}/${String(m[3]).padStart(2, '0')}`;
+    const fmt = m => {
+      const date = `${m[1]}/${String(m[2]).padStart(2, '0')}/${String(m[3]).padStart(2, '0')}`;
+      return m[4] ? `${date} ${String(m[4]).slice(0, 5)}` : date;
+    };
     const parse = m => {
       const hhmm = m[4] || '23:59:59';
       const t = new Date(`${m[1]}/${String(m[2]).padStart(2, '0')}/${String(m[3]).padStart(2, '0')} ${hhmm}`).getTime();
@@ -2177,25 +2180,26 @@ ${r.summary || ''}`;
 
   async gsCurrentPool(e) {
     logger.mark('[xhh][gacha_pool] 命中原神当前卡池:', e.msg);
+    // 当前卡池优先走本地结构化数据，避免米游社公告缓存/公告顺序导致 #原神卡池 显示过期信息。
+    const localCards = await this.loadGsLocalCards('current');
+    if (localCards.length) {
+      localCards.forEach((card, i) => {
+        card.index = i + 1;
+        card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
+      });
+      const markIcon = this.getHeaderSplashFromCards('原神', localCards, GS_MARK_ICON);
+      return this.renderPoolImage(e, {
+        game: '原神',
+        title: '原神当前卡池',
+        subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, `本地卡池库 · v${CURRENT_VERSION.gs}`),
+        mode: 'gs',
+        markIcon,
+        markWide: !!markIcon,
+        cards: localCards
+      });
+    }
     const { records, error, cache } = await officialPool.fetch('gs');
     if (!records.length) {
-      const localCards = await this.loadGsLocalCards('current');
-      if (localCards.length) {
-        localCards.forEach((card, i) => {
-          card.index = i + 1;
-          card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
-        });
-        const markIcon = this.getHeaderSplashFromCards('原神', localCards, GS_MARK_ICON);
-        return this.renderPoolImage(e, {
-          game: '原神',
-          title: '原神当前卡池',
-          subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, '本地卡池库兜底'),
-          mode: 'gs',
-          markIcon,
-          markWide: !!markIcon,
-          cards: localCards
-        });
-      }
       return e.reply(`原神米游社公告卡池数据获取失败${error ? '：' + error : ''}`);
     }
     const cards = records.slice(0, 4).map((r, i) => {
@@ -2649,18 +2653,24 @@ ${r.summary || ''}`;
 
   async bh3PoolToCard(pool, maps = null) {
     const weapon = pool.type === 'weapon';
+    const partner = !weapon && /协同/.test(`${pool.name || ''}${pool.s || ''}`);
+    const title = partner
+      ? String(pool.name || '').replace(/协同补给丨协同者/, '协同补给丨').replace(/「([^」]+)」/g, '$1')
+      : (pool.name || '');
     // 崩三卡池单个 UP 卡片右侧不再放立绘/图标，只保留顶部卡片立绘。
     return {
+      gameClass: 'bh3',
       version: pool.version || '-',
-      title: pool.name || '',
-      type: weapon ? '装备补给' : '角色补给',
-      time: pool.start && pool.end ? `${pool.start.slice(0, 10)} ~ ${pool.end.slice(0, 10)}` : '',
+      title,
+      type: weapon ? '装备补给' : (partner ? '协同补给' : '角色补给'),
+      time: pool.start && pool.end ? `${pool.start.slice(0, 16)} ~ ${pool.end.slice(0, 16)}` : '',
       s: pool.s || '-',
       a: Array.isArray(pool.a) ? pool.a.join(' / ') : (pool.a || '-'),
       img: '',
       icon: '',
       weapon,
-      mainLabel: weapon ? '武器' : 'S',
+      partner,
+      mainLabel: weapon ? '武器' : (partner ? '协同' : 'S'),
       subLabel: weapon ? '圣痕' : 'A'
     };
   }
@@ -2682,7 +2692,7 @@ ${r.summary || ''}`;
     return this.renderPoolImage(e, {
       game: '崩坏3',
       title: `v${phase ? `${version}${phase}` : version} 补给记录`,
-      subtitle: phase ? `${pools[0].start?.slice(0, 10)} ~ ${pools[0].end?.slice(0, 10)}` : '历史版本补给记录',
+      subtitle: phase ? `${pools[0].start?.slice(0, 16)} ~ ${pools[0].end?.slice(0, 16)}` : '历史版本补给记录',
       mode: 'bh3',
       markIcon,
       markWide,
