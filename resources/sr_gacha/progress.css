@@ -1,0 +1,442 @@
+@import url("../../../font/fonts.css");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  position: relative;
+  font-size: 18px;
+  color: #fff;
+  transform: scale(1.2);
+  transform-origin: 0 0;
+  width: 1200px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -10%, rgba(178, 152, 255, 0.5), transparent 65%),
+    radial-gradient(ellipse 70% 60% at 85% 110%, rgba(126, 100, 218, 0.45), transparent 60%),
+    linear-gradient(180deg, #3c4894 0%, #273174 55%, #1d255c 100%);
+}
+
+/* 星空底纹 */
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 130px 80px, #fff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 160px 120px, #ddd, rgba(0,0,0,0));
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 全局背景花火立绘（图片在 HTML 中渲染，{{ppath}} 才会被替换） */
+.bg_huohuo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 42%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right center;
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 55%, rgba(0, 0, 0, 0));
+  mask-image: linear-gradient(to left, rgba(0, 0, 0, 1) 55%, rgba(0, 0, 0, 0));
+}
+
+.container {
+  width: 1200px;
+  padding: 30px 40px 20px;
+  font-family: "Number", "SR";
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== 顶部用户信息 ===== */
+.header {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  padding: 18px 28px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+/* 顶部白卡内的花火立绘 */
+.header_img {
+  position: absolute;
+  right: 18px;
+  bottom: 6px;
+  width: 112px;
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.avatar {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background-color: #555c72;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid #d4b98c;
+  flex-shrink: 0;
+}
+
+.user_info {
+  margin-left: 18px;
+  flex: 1;
+}
+
+.nickname {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2b2f36;
+  line-height: 1.2;
+}
+
+.uid {
+  font-size: 18px;
+  color: #8a8f9e;
+  margin-top: 6px;
+}
+
+.stats {
+  display: flex;
+  gap: 8px;
+}
+
+.stat_item {
+  min-width: 92px;
+  text-align: center;
+  padding: 8px 6px;
+  background: rgba(212, 185, 140, 0.12);
+  border-radius: 10px;
+}
+
+.stat_num {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2b2f36;
+  font-style: italic;
+}
+
+.stat_label {
+  font-size: 13px;
+  color: #8a8f9e;
+  margin-top: 2px;
+}
+
+/* ===== 提示文本（置于顶部白框内，绝对居中） ===== */
+.tip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  color: rgba(43, 47, 54, 0.62);
+  font-size: 14px;
+}
+
+/* ===== 卡池标签 ===== */
+.label {
+  display: inline-block;
+  font-size: 14px;
+  color: #fff;
+  line-height: 1.4;
+  padding: 1px 10px;
+  border-radius: 10px;
+  vertical-align: 2px;
+  background: #d4b98c;
+}
+.label.char { background: #d4b98c; }
+.label.weapon { background: #7f8cb8; }
+.label.collabChar { background: #b78aae; }
+.label.collabWeapon { background: #6aa8a0; }
+.label.newbie { background: #8ca86a; }
+.label.common { background: #8a8f9e; }
+
+/* ===== 多卡池区块 ===== */
+.pool_block {
+  margin-bottom: 18px;
+}
+
+.pool_head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
+.pool_name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+/* 卡池统计：透明方框 + 居中 */
+.pool_meta {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.meta_box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  padding: 5px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.meta_box b {
+  font-size: 18px;
+  color: #ffd484;
+  margin: 0 2px;
+}
+
+.empty_box {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: rgba(30, 35, 50, 0.72);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ===== 进度条列表（miao-plugin 官方 gacha-detail 时间轴风格） ===== */
+.progress_box {
+  background: rgba(30, 35, 50, 0.72);
+  border-radius: 16px;
+  padding: 16px 24px 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gacha-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.gacha-item {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 6px;
+}
+
+.gacha-item.has-date {
+  margin-top: 6px;
+}
+
+/* 日期列：date-icon.webp 竖线时间轴 */
+.gacha-item .date {
+  width: 97px;
+  line-height: 38px;
+  padding-left: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-self: stretch;
+  border-radius: 6px 0 0 6px;
+}
+
+.gacha-item .date .dot {
+  width: 26px;
+  height: 38px;
+  background: url('stellar-jade.png') center / 22px auto no-repeat;
+  flex-shrink: 0;
+}
+
+/* 统一显示星琼图标，不再使用 date-icon.webp 雪碧图定位 */
+
+.gacha-item .date .txt {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.gacha-item.no-date .date .txt {
+  opacity: 0;
+}
+
+/* 名称列 */
+.gacha-item .name {
+  width: 110px;
+  text-align: right;
+  line-height: 38px;
+  padding-right: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gacha-item.wai .name {
+  color: #aaa;
+}
+
+.gacha-item.up .name {
+  color: #ffd484;
+}
+
+.gacha-item.no-avatar .name {
+  color: #d4b98c;
+}
+
+/* 图标列 */
+.gacha-item .icon {
+  width: 40px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.gacha-item .icon .icon-bg {
+  width: 32px;
+  height: 32px;
+  margin: 3px 0 0 4px;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #5a637a, #3e465b);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gacha-item .icon .icon-bg.star5 {
+  background: linear-gradient(160deg, #f6e3b4, #d4a94e);
+}
+
+/* 无图标的已抽行显示 ? 占位 */
+.gacha-item .icon .icon-bg.no-img::after {
+  content: "?";
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.gacha-item .icon .img {
+  display: block;
+  width: 30px;
+  height: 30px;
+  background-size: auto 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 4px;
+}
+
+/* 进度条列（官方配色） */
+.gacha-item .process {
+  flex: 1;
+  padding-right: 15px;
+}
+
+.gacha-item .process .bar {
+  border-radius: 0 5px 5px 0;
+  height: 26px;
+  line-height: 26px;
+  margin: 6px 0;
+  padding-left: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 6px;
+  white-space: nowrap;
+}
+
+.gacha-item .process .bar.gold {
+  background: #ffeb73;
+  color: #6f4b00;
+  min-width: 18px;
+}
+
+.gacha-item .process .bar.good {
+  background: #168b2c;
+  min-width: 13%;
+  color: #fff;
+}
+
+.gacha-item .process .bar.normal {
+  background: #6939b7;
+  color: #fff;
+}
+
+.gacha-item .process .bar.bad {
+  background: #9d3333;
+  color: #fff;
+}
+
+.gacha-item .process .bar.current {
+  background: linear-gradient(90deg, #37b56a, #2a9d5c);
+  color: #fff;
+}
+
+/* UP 标签（官方 :after 实现） */
+.gacha-item.up .bar {
+  position: relative;
+}
+
+.gacha-item.up .bar:after {
+  display: block;
+  position: absolute;
+  right: 5px;
+  top: 3px;
+  width: 26px;
+  border-radius: 15px;
+  content: "UP";
+  text-align: center;
+  height: 18px;
+  line-height: 18px;
+  font-size: 12px;
+  font-weight: bold;
+  background: #ffeb73;
+  color: #6f4b00;
+  box-shadow: 0 0 3px 0 #6f4b00;
+}
+
+.gacha-item.up .bar.gold:after {
+  right: -30px;
+}
+
+.gacha-item.no-avatar .bar:after {
+  display: none;
+}
+
+/* ===== 底部 ===== */
+.footer {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  margin-top: 16px;
+}

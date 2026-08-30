@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}sr_gacha/summary.css" />
+  </head>
+  <body {{sys.scale}}>
+    <div class="container">
+      {{each pools pool}}
+      <div class="info_box">
+        <div class="head_box">
+          <div class="id_text">UID: {{uid}}</div>
+          <h2 class="day_text">{{pool.allNum || '--'}}抽 <span class="label label_{{pool.labelClass}}">{{pool.name}}</span></h2>
+          <img class="starrail_logo" src="{{ppath}}Tl/imgs/小花火.png" />
+        </div>
+        <div class="data_box">
+          <div class="tab_lable">数据总览</div>
+          {{each pool.line line}}
+          <div class="data_line">
+            {{each line item}}
+            <div class="data_line_item">
+              <div class="num">{{item.num}}<span class="unit">{{item.unit}}</span></div>
+              <div class="lable">{{item.lable}}</div>
+            </div>
+            {{/each}}
+          </div>
+          {{/each}}
+          <div class="line_box">
+            <span class="line"></span>
+            <span class="text">五星历史 {{pool.firstTime}} ~ {{pool.lastTime}}</span>
+            <span class="line"></span>
+          </div>
+          <div class="card_list">
+            {{if !pool.yearGroups.length}}
+            <div class="empty_box">暂无记录</div>
+            {{/if}}
+            {{each pool.yearGroups group}}
+            <div class="year_group">
+              <div class="year_title">{{group.year}}</div>
+              <div class="card_list">
+                {{each group.list val}}
+                <div class="item star5 {{val.num<=10?'gold': (val.num<pool.maxPity*0.5 ? 'good' : (val.num<pool.maxPity*0.83 ? 'normal' : 'bad'))}}">
+                  {{if val.isUp}}
+                  <span class="minimum">UP</span>
+                  {{/if}}
+                  {{if val.icon}}
+                  <span class="role_img" style="background-image:url('{{val.icon}}')"></span>
+                  {{else}}
+                  <span class="role_img role_text"></span>
+                  {{/if}}
+                  <div class="gacha_num {{val.num<=10?'gold': (val.num<pool.maxPity*0.5 ? 'good' : (val.num<pool.maxPity*0.83 ? 'normal' : 'bad'))}}">{{val.num}}</div>
+                  <div class="month_day_info">{{val.fullDate}}</div>
+                </div>
+                {{/each}}
+              </div>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+      </div>
+      {{/each}}
+      <div class="logo">Created By 小花火</div>
+    </div>
+  </body>
+</html>

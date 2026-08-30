@@ -406,12 +406,21 @@ export class bh3_gacha extends plugin {
           history[gachaName] = [...older, ...newRecords];
         }
       } else {
-        const keys = new Set(history[gachaName].map(r => `${r.time}\u0000${r.content}`));
+        // 不能只用 time+content 当 Set 去重：崩三十连会出现同一秒抽到多个相同材料，
+        // 例如 40 抽里有多条“同一时间 + [材料]金币*50000”。用 Set 会把真实重复抽数吞掉。
+        // 这里按“同键出现次数”做多重集合合并，只补本次接口比本地多出来的 occurrence。
+        const oldKeyCounts = new Map();
+        for (const r of history[gachaName]) {
+          const key = this.getGachaRecordBaseKey(r);
+          oldKeyCounts.set(key, (oldKeyCounts.get(key) || 0) + 1);
+        }
+        const incomingKeyCounts = new Map();
         for (const r of newRecords) {
-          const key = `${r.time}\u0000${r.content}`;
-          if (!keys.has(key)) {
+          const key = this.getGachaRecordBaseKey(r);
+          const incomingCount = (incomingKeyCounts.get(key) || 0) + 1;
+          incomingKeyCounts.set(key, incomingCount);
+          if (incomingCount > (oldKeyCounts.get(key) || 0)) {
             history[gachaName].push(r);
-            keys.add(key);
           }
         }
       }
@@ -614,7 +623,30 @@ export class bh3_gacha extends plugin {
     return `${poolType}:${normalizedName}`;
   }
 
-  getGachaRecordKey(poolName = '', record = {}) {
+  getGachaRecordBaseKey(record = {}) {
+    return `${record.time || ''}\u0000${record.content || ''}`;
+  }
+
+  getGachaRecordKey(poolName = '', record = {}, seq = 1) {
+    return `${poolName}\u0000${record.time || ''}\u0000${record.content || ''}\u0000${seq || 1}`;
+  }
+
+  withOccurrenceKeys(poolName = '', records = []) {
+    const counts = new Map();
+    return [...(Array.isArray(records) ? records : [])]
+      .sort((a, b) => String(a.time).localeCompare(String(b.time)))
+      .map(record => {
+        const base = this.getGachaRecordBaseKey(record);
+        const seq = (counts.get(base) || 0) + 1;
+        counts.set(base, seq);
+        return {
+          record,
+          key: this.getGachaRecordKey(poolName, record, seq),
+        };
+      });
+  }
+
+  getLegacyGachaRecordKey(poolName = '', record = {}) {
     return `${poolName}\u0000${record.time || ''}\u0000${record.content || ''}`;
   }
 
@@ -635,14 +667,20 @@ export class bh3_gacha extends plugin {
 
     const result = new Map();
     for (const [group, list] of groupBuckets) {
+      const perPoolCounts = new Map();
       const sorted = [...list].sort((a, b) => String(a.record.time).localeCompare(String(b.record.time)));
       let pullSinceLast = 0;
       const pullByRecord = new Map();
       const pullCounts = [];
       for (const item of sorted) {
+        const base = `${item.poolName}\u0000${this.getGachaRecordBaseKey(item.record)}`;
+        const seq = (perPoolCounts.get(base) || 0) + 1;
+        perPoolCounts.set(base, seq);
         pullSinceLast++;
         if (this.isRareRecord(item.record.content, item.poolType, maps)) {
-          pullByRecord.set(this.getGachaRecordKey(item.poolName, item.record), pullSinceLast);
+          pullByRecord.set(this.getGachaRecordKey(item.poolName, item.record, seq), pullSinceLast);
+          // 兼容旧逻辑：非重复记录也写一份旧 key，避免其它调用没有带 occurrence 时查不到。
+          if (seq === 1) pullByRecord.set(this.getLegacyGachaRecordKey(item.poolName, item.record), pullSinceLast);
           pullCounts.push(pullSinceLast);
           pullSinceLast = 0;
         }
@@ -669,16 +707,17 @@ export class bh3_gacha extends plugin {
       }));
     const sharedPityMap = this.buildSharedPityMap(poolEntries, maps);
     const pools = await Promise.all(poolEntries.map(async ({ name, records, poolType }) => {
-      const sorted = [...records].sort((a, b) => String(a.time).localeCompare(String(b.time)));
+      const sorted = this.withOccurrenceKeys(name, records);
       const items = [];
       let pullSinceLast = 0;
       const pullCounts = [];
       const sharedGroup = this.getSharedPityGroup(name, poolType);
       const sharedPity = sharedGroup ? sharedPityMap.get(sharedGroup) : null;
-      for (const r of sorted) {
+      for (const row of sorted) {
+        const r = row.record;
         pullSinceLast++;
         if (this.isRareRecord(r.content, poolType, maps)) {
-          const sharedPulls = sharedPity?.pullByRecord?.get(this.getGachaRecordKey(name, r));
+          const sharedPulls = sharedPity?.pullByRecord?.get(row.key) || sharedPity?.pullByRecord?.get(this.getLegacyGachaRecordKey(name, r));
           const pulls = sharedPulls || pullSinceLast;
           items.push({
             ...r,

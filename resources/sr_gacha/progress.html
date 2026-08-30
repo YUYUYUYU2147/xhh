@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}sr_gacha/progress.css" />
+  </head>
+  <body {{sys.scale}}>
+    <!-- 全局背景花火立绘 -->
+    <img class="bg_huohuo" src="{{ppath}}Tl/imgs/小花火.png" onerror="this.style.display='none'" />
+    <div class="container">
+      <!-- 顶部用户信息 -->
+      <div class="header">
+        <div class="avatar" style="background-image:url('{{avatar || ppath + 'Tl/imgs/小花火.png'}}')"></div>
+        <div class="user_info">
+          <div class="nickname">{{nickname}}</div>
+          <div class="uid">#{{uid}}</div>
+        </div>
+        <!-- 提示文本（置于白框内居中） -->
+        <div class="tip">#xhh星铁更新抽卡记录 更新，#xhh星铁抽卡记录 / 角色记录 / 武器记录 查看</div>
+        <img class="header_img" src="{{ppath}}Tl/imgs/小花火.png" />
+      </div>
+
+      {{if !sections.length}}
+      <div class="empty_box">暂无抽卡记录，请先发送【#xhh星铁更新抽卡记录】</div>
+      {{/if}}
+
+      <!-- 每个卡池一个进度条区块 -->
+      {{each sections sec}}
+      <div class="pool_block">
+        <div class="pool_head">
+          <span class="pool_name label label_{{sec.labelClass}}">{{sec.title}}</span>
+          <div class="pool_meta">
+            <span class="meta_box">总<b>{{sec.allNum}}</b>抽</span>
+            <span class="meta_box">金<b>{{sec.fiveNum}}</b></span>
+            <span class="meta_box">平均<b>{{sec.avgPity}}</b>抽/金</span>
+            <span class="meta_box">UP需<b>{{sec.upYs}}</b>星琼</span>
+          </div>
+        </div>
+        <div class="progress_box">
+          <div class="gacha-list">
+            {{each sec.list item idx}}
+            {{set hasDate = (idx===0 || idx===sec.list.length-1 || (idx>0 && sec.list[idx-1].date !== item.date))}}
+            <div class="gacha-item {{!hasDate?'no-date':'has-date'}} {{item.isUp ?'up':'wai'}} {{item.isCurrent?'no-avatar':''}}">
+              <div class="date">
+                <div class="dot {{idx===0?'first':''}} {{idx===sec.list.length-1?'last':''}}"></div>
+                <div class="txt">{{item.date}}</div>
+              </div>
+              <div class="name">{{item.isCurrent ? '已抽' : item.name}}</div>
+              <div class="icon">
+                <div class="icon-bg {{item.icon ? 'star5' : 'no-img'}}">
+                  {{if item.icon}}
+                  <span class="img mini" style="background-image:url('{{item.icon}}')"></span>
+                  {{/if}}
+                </div>
+              </div>
+              <div class="process">
+                <div class="bar {{item.barClass}}" style="width:{{item.pct}}%">{{item.num}}</div>
+              </div>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+      </div>
+      {{/each}}
+
+      <div class="footer">Created By 小花火</div>
+    </div>
+  </body>
+</html>

@@ -2134,6 +2134,12 @@ ${r.summary || ''}`;
     let prevEnd = '';
     for (const item of data) {
       const ver = item.ver || '';
+      const timeRes = this.normalizeSrHistoryTime(item.time || '-', prevEnd);
+      prevEnd = timeRes.end || prevEnd;
+      const now = Date.now();
+      const startAt = new Date(String(timeRes.time || '').split('~')[0]?.trim()).getTime();
+      const endAt = new Date(String(timeRes.end || '').trim()).getTime();
+      const timeActive = !Number.isNaN(startAt) && !Number.isNaN(endAt) && now >= startAt && now <= endAt;
       const versionHit = !isCurrent && (ver === query || ver.startsWith(query) || ver.replace(/上半|下半/g, '') === query);
       const nameHit = !isCurrent && (
         (item.js_five || []).includes(query) ||
@@ -2141,10 +2147,8 @@ ${r.summary || ''}`;
         this.clSrNames(item.gz_five || []).includes(query) ||
         this.clSrNames(item.gz_four || []).includes(query)
       );
-      if (isCurrent && !ver.startsWith(currentVersion)) continue;
+      if (isCurrent && !ver.startsWith(currentVersion) && !timeActive) continue;
       if (!isCurrent && !versionHit && !nameHit) continue;
-      const timeRes = this.normalizeSrHistoryTime(item.time || '-', prevEnd);
-      prevEnd = timeRes.end || prevEnd;
       const officialRoleBg = this.getSrOfficialPoolImage(item, false, officialRecords);
       // 光锥公告图经常自带大标题文字，和卡片标题重叠；当前卡池统一使用同一期角色公告图做弱化背景。
       const officialWeaponBg = officialRoleBg || this.getSrOfficialPoolImage(item, true, officialRecords);

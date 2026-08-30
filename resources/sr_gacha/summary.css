@@ -1,0 +1,324 @@
+@import url("../../../font/fonts.css");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  position: relative;
+  font-size: 18px;
+  color: #1e1f20;
+  transform: scale(1.2);
+  transform-origin: 0 0;
+  width: 1200px;
+  overflow: hidden;
+  background-color: #f5f6fb;
+}
+
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url('../Tl/imgs/小花火.png') no-repeat center;
+  background-size: cover;
+  opacity: 0.28;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  width: 1200px;
+  font-family: "Number", "SR";
+  padding: 20px 15px 15px 15px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: stretch;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== 单张卡池卡片 ===== */
+.info_box {
+  width: 570px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.info_box .head_box {
+  background: linear-gradient(180deg, #2c3349 0%, #1f2538 100%);
+  border-radius: 12px 12px 0 0;
+  padding: 12px 20px 10px;
+  position: relative;
+  min-height: 88px;
+  overflow: hidden;
+}
+
+.info_box .head_box::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(212, 185, 140, 0) 0%, #d4b98c 50%, rgba(212, 185, 140, 0) 100%);
+}
+
+.info_box .id_text {
+  color: #d4b98c;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.info_box .day_text {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.info_box .starrail_logo {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 104px;
+  opacity: 0.9;
+}
+
+.label {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 14px;
+  color: #fff;
+  line-height: 1.4;
+  padding: 1px 10px;
+  border-radius: 10px;
+  vertical-align: 4px;
+  background: #d4b98c;
+}
+
+.label.char { background: #d4b98c; }
+.label.weapon { background: #7f8cb8; }
+.label.collabChar { background: #b78aae; }
+.label.collabWeapon { background: #6aa8a0; }
+.label.newbie { background: #8ca86a; }
+.label.common { background: #8a8f9e; }
+
+.info_box .data_box {
+  background: #fff;
+  border-radius: 0 0 12px 12px;
+  padding: 22px 15px 10px;
+  box-shadow: 0 4px 12px rgba(31, 37, 56, 0.15);
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab_lable {
+  position: absolute;
+  top: -11px;
+  left: 14px;
+  background: #d4b98c;
+  color: #fff;
+  font-size: 14px;
+  padding: 3px 12px;
+  border-radius: 14px 14px 14px 0;
+  z-index: 20;
+  box-shadow: 0 2px 6px rgba(212, 185, 140, 0.4);
+}
+
+.data_line {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 12px;
+}
+
+.data_line_item {
+  width: 120px;
+  text-align: center;
+}
+
+.data_line_item .num {
+  font-size: 24px;
+  font-style: italic;
+  font-weight: 700;
+  color: #2b2f36;
+}
+
+.data_line_item .unit {
+  font-size: 13px;
+  color: #7f858a;
+  margin-left: 2px;
+}
+
+.data_line_item .lable {
+  font-size: 13px;
+  color: #7f858a;
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.line_box {
+  display: flex;
+  align-items: center;
+  margin: 10px 0 12px;
+}
+
+.line_box .line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(212, 185, 140, 0.6), rgba(212, 185, 140, 0.1));
+}
+
+.line_box .text {
+  padding: 0 10px;
+  color: #9a8b6f;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.card_list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* ===== 按年份分组 ===== */
+.year_group {
+  width: 100%;
+}
+
+.year_title {
+  display: flex;
+  align-items: center;
+  margin: 2px 0 8px;
+  color: #9a8b6f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.year_title::before {
+  content: "";
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: #d4b98c;
+  margin-right: 6px;
+}
+
+.year_group .card_list {
+  margin-bottom: 4px;
+}
+
+.empty_box {
+  width: 100%;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f7f8fc;
+  color: #7f858a;
+  font-size: 14px;
+}
+
+.item {
+  width: 102px;
+  height: 118px;
+  margin: 0 8px 8px 0;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(132, 93, 90, 0.16);
+  background: linear-gradient(180deg, #fdf8ec 0%, #f3e8cf 100%);
+  border: 1px solid rgba(212, 185, 140, 0.35);
+}
+
+/* 底部渐隐遮罩，防止日期与头像重叠 */
+.item::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  background: linear-gradient(to top, rgba(253, 248, 236, 0.95) 0%, rgba(253, 248, 236, 0.5) 60%, rgba(253, 248, 236, 0) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.item .role_img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 88px;
+  height: 88px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  border-radius: 8px;
+}
+
+.item .role_text {
+  background: linear-gradient(180deg, #f0e6d0, #e3d4b4);
+}
+
+.item .minimum {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  z-index: 3;
+  background: #d4b98c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.item .gacha_num {
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  z-index: 3;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.item .gacha_num.gold { background: #ffcf3f; color: #6f4b00; }
+.item .gacha_num.good { background: #37b56a; }
+.item .gacha_num.normal { background: #7b6bd6; }
+.item .gacha_num.bad { background: #e0584f; }
+
+.item .month_day_info {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #8a7a5c;
+  z-index: 4;
+  padding: 1px 5px;
+  background: rgba(253, 248, 236, 0.7);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.logo {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  color: #a8adba;
+  padding: 4px 0 2px;
+}

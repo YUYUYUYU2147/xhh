@@ -224,10 +224,13 @@ body {
 }
 
 .char {
+  width: 76px;
+  flex: 0 0 76px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow: hidden;
 }
 
 .char-icon-wrap {
@@ -258,11 +261,19 @@ body {
 }
 
 .char-name {
-  font-size: 11px;
+  width: 76px;
+  max-width: 76px;
+  min-height: 26px;
+  font-size: 10.5px;
+  line-height: 1.18;
   color: #888;
-  white-space: nowrap;
-  padding: 0 2px;
-  max-width: 90px;
+  padding: 0 1px;
+  white-space: normal;
+  word-break: break-all;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .char-icon { position: relative; }

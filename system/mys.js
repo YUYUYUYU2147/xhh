@@ -7,6 +7,14 @@ import YAML from 'yaml';
 
 const ZZZ_NANOKA_VERSION = '3.1.3+17059869';
 const ZZZ_NANOKA_BASE = `https://static.nanoka.cc/zzz/${ZZZ_NANOKA_VERSION}`;
+const ZZZ_WIKI_BASE = 'https://api-takumi-static.mihoyo.com/common/blackboard/zzz_wiki';
+const ZZZ_WIKI_APP_SN = 'zzz_wiki';
+const ZZZ_WIKI_CHANNEL_MAP = {
+    js: 43,   // 代理人
+    yq: 44,   // 邦布
+    wq: 45,   // 音擎
+    syw: 46   // 驱动盘
+};
 
 const BH3_WIKI_BASE = 'https://api-takumi-static.mihoyo.com/common/blackboard/bh3_wiki';
 const BH3_APP_SN = 'bh3_wiki';
@@ -20,6 +28,83 @@ const BH3_CHANNEL_MAP = {
 };
 
 class mys {
+    // 部分第三方图鉴源异常时会返回 HTML 错误页，不能直接调用 response.json()。
+    async fetchJson(url, label = '') {
+        const response = await fetch(url, {
+            headers: {
+                Referer: 'https://www.miyoushe.com/',
+                'User-Agent': 'Mozilla/5.0'
+            }
+        });
+        const text = await response.text();
+        if (!response.ok || !/^\s*[\[{]/.test(text)) {
+            throw new Error(`${label || url} 返回非 JSON（HTTP ${response.status}）`);
+        }
+        return JSON.parse(text);
+    }
+
+    async zzz_official_list(type) {
+        const channelId = ZZZ_WIKI_CHANNEL_MAP[type];
+        if (!channelId) return [];
+        const url = `${ZZZ_WIKI_BASE}/v1/home/content/list?app_sn=${ZZZ_WIKI_APP_SN}&channel_id=${channelId}`;
+        const res = await this.fetchJson(url, `ZZZ 官方 Wiki ${type}`);
+        const root = res?.data?.list?.[0];
+        return Array.isArray(root?.list) ? root.list : [];
+    }
+
+    zzz_official_item(item, type) {
+        const channelId = ZZZ_WIKI_CHANNEL_MAP[type];
+        let ext = item?.ext;
+        if (typeof ext !== 'string') ext = JSON.stringify(ext || {});
+        let parsed = {};
+        try { parsed = JSON.parse(ext || '{}'); } catch (_) {}
+        const channelExt = parsed[`c_${channelId}`] || {};
+        const filterText = channelExt.filter?.text || parsed.filter?.text || '[]';
+        // 保留旧版 xhh 读取 ext.filter.text 的兼容格式。
+        const normalizedExt = JSON.stringify({
+            ...parsed,
+            filter: { text: typeof filterText === 'string' ? filterText : JSON.stringify(filterText || []) },
+            c_30: parsed.c_30 || { picture: { list: [item?.icon || ''] } }
+        });
+        return {
+            content_id: item?.content_id,
+            title: item?.title || item?.alias_name || String(item?.content_id || ''),
+            icon: item?.icon || '',
+            summary: item?.summary || '',
+            alias_name: item?.alias_name || '',
+            ext: normalizedExt
+        };
+    }
+
+    async zzz_official_detail(id, type) {
+        const list = await this.zzz_official_list(type);
+        const item = list.find(v => String(v.content_id) === String(id));
+        if (!item) return false;
+        const normalized = this.zzz_official_item(item, type);
+        let filters = [];
+        try { filters = JSON.parse(JSON.parse(normalized.ext).filter.text || '[]'); } catch (_) {}
+        const values = {};
+        for (const entry of filters) {
+            const [key, ...rest] = String(entry).split('/');
+            if (key && rest.length) values[key] = rest.join('/');
+        }
+        const rarity = values['稀有度'] === 'S' ? 4 : values['稀有度'] === 'A' ? 3 : undefined;
+        const content = {
+            name: normalized.title,
+            title: normalized.title,
+            icon: normalized.icon,
+            summary: normalized.summary,
+            desc: normalized.summary,
+            story: normalized.summary,
+            rarity,
+            element_type: values['属性'] ? [values['属性']] : [],
+            weapon_type: values['特性'] ? [values['特性']] : [],
+            camp: values['阵营'] ? [values['阵营']] : [],
+            ext: normalized.ext
+        };
+        return { content };
+    }
+
     //图鉴
     async tujian(isSr = false, isZZZ = false, isBH3 = false) {
         if (isZZZ) {
@@ -51,14 +136,14 @@ class mys {
         });
         return data;
     }
-    // 绝区零图鉴 (使用 nanoka.cc)
+    // 绝区零图鉴（nanoka.cc 优先，米游社官方 Wiki 回退）
     async zzz_tujian() {
         try {
             const [chars, weapons, equipments, bangboos] = await Promise.all([
-                fetch(`${ZZZ_NANOKA_BASE}/character.json`).then(r => r.json()),
-                fetch(`${ZZZ_NANOKA_BASE}/weapon.json`).then(r => r.json()),
-                fetch(`${ZZZ_NANOKA_BASE}/equipment.json`).then(r => r.json()),
-                fetch(`${ZZZ_NANOKA_BASE}/bangboo.json`).then(r => r.json())
+                this.fetchJson(`${ZZZ_NANOKA_BASE}/character.json`, 'ZZZ nanoka角色'),
+                this.fetchJson(`${ZZZ_NANOKA_BASE}/weapon.json`, 'ZZZ nanoka音擎'),
+                this.fetchJson(`${ZZZ_NANOKA_BASE}/equipment.json`, 'ZZZ nanoka驱动盘'),
+                this.fetchJson(`${ZZZ_NANOKA_BASE}/bangboo.json`, 'ZZZ nanoka邦布')
             ]);
             return {
                 js_list: Object.entries(chars).map(([id, c]) => ({
@@ -106,8 +191,24 @@ class mys {
                 }))
             };
         } catch (error) {
-            logger.error('ZZZ nanoka访问失败:', error);
-            return false;
+            logger.error('ZZZ nanoka访问失败，切换米游社官方 Wiki:', error);
+            try {
+                const [chars, weapons, equipments, bangboos] = await Promise.all([
+                    this.zzz_official_list('js'),
+                    this.zzz_official_list('wq'),
+                    this.zzz_official_list('syw'),
+                    this.zzz_official_list('yq')
+                ]);
+                return {
+                    js_list: chars.map(v => this.zzz_official_item(v, 'js')),
+                    wq_list: weapons.map(v => this.zzz_official_item(v, 'wq')),
+                    syw_list: equipments.map(v => this.zzz_official_item(v, 'syw')),
+                    yq_list: bangboos.map(v => this.zzz_official_item(v, 'yq'))
+                };
+            } catch (fallbackError) {
+                logger.error('ZZZ 官方 Wiki 访问失败:', fallbackError);
+                return false;
+            }
         }
     }
 
@@ -337,9 +438,10 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 names.push(title);
                 ids.push(list[n].content_id);
                 icons.push(list[n].icon);
-                let text = JSON.parse(list[n].ext);
-                text = text.filter?.text || '[]';
-                text = JSON.parse(text);
+                let text = {};
+                try { text = JSON.parse(list[n].ext || '{}'); } catch (_) {}
+                text = text.filter?.text || text.c_43?.filter?.text || '[]';
+                try { text = JSON.parse(text); } catch (_) { text = []; }
                 for (let s of text) {
                     if (s.includes('星级')) jis.push(s.replace(/星级\//, ''));
                     else if (s.includes('属性')) attributes.push(s.replace(/属性\//, ''));
@@ -350,7 +452,7 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 data[i] = {
                     name: v,
                     id: ids[i],
-                    icon: JSON.parse(list[i].ext).c_30?.picture?.list[0] || icons[i],
+                    icon: (() => { try { return JSON.parse(list[i].ext || '{}').c_30?.picture?.list[0] || icons[i]; } catch (_) { return icons[i]; } })(),
                     ji: jis[i],
                     yuanshu: attributes[i],
                     wuqi: types[i],
@@ -463,26 +565,47 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
         return res.data;
     }
 
-    // 绝区零详细信息 (nanoka.cc)
+    // 绝区零详细信息（nanoka.cc 优先，米游社官方 Wiki 回退）
     async zzz_detail(id) {
+        let type = id >= 1000 && id < 2000 ? 'js'
+            : id >= 12000 && id < 20000 ? 'wq'
+            : id >= 31000 && id < 40000 ? 'syw'
+            : id >= 53000 && id < 60000 ? 'yq' : '';
+        // 米游社官方 Wiki 的 content_id 并不沿用 nanoka 的编号区间，
+        // 例如角色 1624、音擎 2162、邦布 2108，因此按分类列表补判一次。
+        if (!type) {
+            for (const candidate of ['js', 'wq', 'syw', 'yq']) {
+                try {
+                    const list = await this.zzz_official_list(candidate);
+                    if (list.some(item => String(item.content_id) === String(id))) {
+                        type = candidate;
+                        break;
+                    }
+                } catch (_) {}
+            }
+        }
+        if (!type) return false;
         try {
             let url;
-            if (id >= 1000 && id < 2000) {
+            if (type === 'js') {
                 url = `${ZZZ_NANOKA_BASE}/zh/character/${id}.json`;
-            } else if (id >= 12000 && id < 20000) {
+            } else if (type === 'wq') {
                 url = `${ZZZ_NANOKA_BASE}/zh/weapon/${id}.json`;
-            } else if (id >= 31000 && id < 40000) {
+            } else if (type === 'syw') {
                 url = `${ZZZ_NANOKA_BASE}/zh/equipment/${id}.json`;
-            } else if (id >= 53000 && id < 60000) {
+            } else if (type === 'yq') {
                 url = `${ZZZ_NANOKA_BASE}/zh/bangboo/${id}.json`;
-            } else {
-                return false;
             }
-            const res = await fetch(url).then(r => r.json());
+            const res = await this.fetchJson(url, `ZZZ nanoka详情 ${id}`);
             return { content: res };
         } catch (error) {
-            logger.error('ZZZ nanoka详情访问失败:', error);
-            return false;
+            logger.error('ZZZ nanoka详情访问失败，切换米游社官方 Wiki:', error);
+            try {
+                return await this.zzz_official_detail(id, type);
+            } catch (fallbackError) {
+                logger.error('ZZZ 官方 Wiki 详情访问失败:', fallbackError);
+                return false;
+            }
         }
     }
 
