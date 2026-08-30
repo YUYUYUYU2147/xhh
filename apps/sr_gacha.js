@@ -157,6 +157,7 @@ function buildSummaryView(data, uid, e, layout = 'grid') {
       group.list.push(item)
     }
     // 数据总览：两行 x 四列
+    const fourPity = Number(pool.fourPity || 0) || 0
     const line = [
       [
         { num: fiveNum ? pity : '--', unit: '', lable: '未出五星' },
@@ -165,7 +166,7 @@ function buildSummaryView(data, uid, e, layout = 'grid') {
         { num: maxPity || '--', unit: '', lable: '最非' },
       ],
       [
-        { num: '--', unit: '', lable: '未出四星' },
+        { num: fourPity || '--', unit: '', lable: '未出四星' },
         { num: upAvg, unit: '', lable: 'UP平均' },
         { num: upYs, unit: '', lable: 'UP花费星琼' },
         { num: minPity || '--', unit: '', lable: '最欧' },
@@ -479,6 +480,181 @@ async function fetchCommonPool(e, uid) {
   return buildCommonPoolView(data)
 }
 
+// ===== 官方抽卡链接（authkey）全量拉取 =====
+// 官方网页版跃迁记录链接带 authkey，权限高于小程序 ck，
+// 可获取全部卡池（含常驻/新手）与全部星级（含四星）记录
+const GACHA_TYPE_MAP = {
+  '301': 'GachaType_AvatarUp',
+  '302': 'GachaType_EquipmentUp',
+  '303': 'GachaType_CollabAvatarUp',
+  '304': 'GachaType_CollabEquipmentUp',
+  '200': 'common',
+  '1001': 'GachaType_Newbie',
+}
+
+function parseGachaUrl(url) {
+  try {
+    const q = new URL(String(url).trim()).searchParams
+    const authkey = q.get('authkey') || ''
+    if (!authkey) return null
+    return {
+      authkey,
+      authkey_ver: q.get('authkey_ver') || '1',
+      sign_type: q.get('sign_type') || '2',
+      auth_appid: q.get('auth_appid') || 'webview_gacha',
+      init_type: q.get('init_type') || '301',
+      game_biz: q.get('game_biz') || 'hkrpg_cn',
+      lang: q.get('lang') || 'zh-cn',
+    }
+  } catch {
+    return null
+  }
+}
+
+async function fetchGachaLogPage(query, gachaType, page, size, endId) {
+  const params = new URLSearchParams({
+    authkey_ver: query.authkey_ver,
+    sign_type: query.sign_type,
+    auth_appid: query.auth_appid,
+    init_type: query.init_type,
+    gacha_type: gachaType,
+    page: String(page),
+    size: String(size),
+    lang: query.lang,
+  })
+  if (endId) params.set('end_id', endId)
+  params.set('authkey', query.authkey)
+  params.set('game_biz', query.game_biz)
+  const { data } = await requestJson(
+    `https://api-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?${params}`,
+    {
+      headers: {
+        accept: 'application/json, text/plain, */*',
+        origin: 'https://webstatic.mihoyo.com',
+        referer: 'https://webstatic.mihoyo.com/',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Mobile Safari/537.36',
+      },
+    }
+  )
+  if (data?.retcode !== 0) {
+    const msg = String(data?.message || '')
+    if (msg.includes('timeout') || msg.includes('expire') || msg.includes('login')) {
+      throw new Error('authkey 已过期或无效，请从游戏内重新打开【跃迁记录】并复制最新链接')
+    }
+    throw new Error(msg || '获取抽卡记录失败')
+  }
+  return data?.data || { list: [], page, size }
+}
+
+// 把某个卡池的全量记录统计成渲染所需结构（含四星保底）
+function buildPoolFromRows(gachaType, pool, rows) {
+  const base = {
+    ...(pool || {}),
+    type: gachaType,
+    key: pool?.key,
+    name: pool?.name || gachaType,
+    records: [],
+    fourLog: [],
+    pity: 0,
+    fourPity: 0,
+    totalPulls: 0,
+    fiveNum: 0,
+    upNum: 0,
+    avgPity: '0.0',
+    recent: [],
+  }
+  if (!rows?.length) return base
+  // 按时间升序（旧→新），逐抽累计保底
+  rows.sort((a, b) => String(a.time).localeCompare(String(b.time)))
+  let pulls = 0
+  let fourPulls = 0
+  let fourNum = 0
+  const fiveRecs = []
+  const fourRecs = []
+  for (const row of rows) {
+    pulls++
+    fourPulls++
+    const rank = String(row.rank_type || row.gacha_rank_type || '')
+    const itemType = row.item_type === '角色' || row.item_type === '光锥' ? row.item_type : (String(row.item_id || '').length === 5 ? '角色' : '光锥')
+    if (rank === '5') {
+      fiveRecs.push({
+        id: String(row.id || ''),
+        name: row.name || '未知',
+        item_type: itemType,
+        is_up: false,
+        gacha_count: pulls,
+        time: row.time || '',
+        icon: row.icon || '',
+      })
+      pulls = 0
+    } else if (rank === '4') {
+      fourNum++
+      if (fourRecs.length < 10) {
+        fourRecs.push({
+          id: String(row.id || ''),
+          name: row.name || '未知',
+          item_type: itemType,
+          is_up: false,
+          gacha_count: fourPulls,
+          time: row.time || '',
+          icon: row.icon || '',
+        })
+      }
+      fourPulls = 0
+    }
+  }
+  fourRecs.sort((a, b) => String(b.time).localeCompare(String(a.time)))
+  const fiveNum = fiveRecs.length
+  return {
+    ...base,
+    records: fiveRecs.slice().reverse().slice(0, 8),
+    fourLog: fourRecs,
+    fourNum,
+    pity: pulls,
+    fourPity: fourPulls,
+    totalPulls: rows.length,
+    fiveNum,
+    avgPity: fiveNum ? (rows.length / fiveNum).toFixed(1) : '0.0',
+  }
+}
+
+async function fetchAllByAuthkey(query) {
+  const pools = {}
+  for (const [gachaType, key] of Object.entries(GACHA_TYPE_MAP)) {
+    const rows = []
+    let page = 1
+    let endId = ''
+    const size = 20
+    while (page <= 300) {
+      const data = await fetchGachaLogPage(query, gachaType, page, size, endId)
+      const list = data?.list || []
+      if (!list.length) break
+      rows.push(...list)
+      endId = rows[rows.length - 1]?.id || ''
+      if (!endId || list.length < size) break
+      page++
+      await sleep(250)
+    }
+    const pool = POOLS.find(v => v.type === gachaType)
+    pools[key] = buildPoolFromRows(gachaType, pool, rows)
+  }
+  return { pools }
+}
+
+// 从旧数据继承五星 is_up 标记（authkey 接口不返回 UP 标记）
+function inheritIsUp(oldPools, newPools) {
+  for (const key of Object.keys(newPools)) {
+    const old = oldPools?.[key]
+    if (!old?.records?.length) continue
+    const oldMap = new Map()
+    for (const r of old.records) oldMap.set(`${r.name}|${r.time}`, !!r.is_up)
+    for (const r of newPools[key].records || []) {
+      if (oldMap.get(`${r.name}|${r.time}`)) r.is_up = true
+    }
+  }
+  return newPools
+}
+
 function getSrRegion(uid) {
   return /^5/.test(String(uid || '')) ? 'prod_qd_cn' : 'prod_gf_cn'
 }
@@ -565,6 +741,7 @@ export class sr_gacha extends plugin {
       priority: pluginPriority('sr_gacha', 100),
       rule: [
         { reg: '^#*(xhh|小花火)(星铁|崩铁)?抽卡帮助$', fnc: 'help' },
+        { reg: '^#*(xhh|小花火)(星铁|崩铁)?抽卡链接', fnc: 'gachaLink' },
         { reg: '^#*(xhh|小花火)(星铁|崩铁)?(刷新|更新)抽卡记录$', fnc: 'refresh' },
         { reg: '^#*(xhh|小花火)(星铁|崩铁)?(抽卡记录|抽卡统计)$', fnc: 'summary' },
         { reg: '^#*(xhh|小花火)(星铁|崩铁)?角色记录$', fnc: 'roleRecord' },
@@ -696,11 +873,46 @@ export class sr_gacha extends plugin {
     return this.summary(e)
   }
 
+  async gachaLink(e) {
+    const auth = await getUserAuth(e)
+    if (auth.error) return e.reply(auth.error)
+    const url = String(e.msg || '').match(/https?:\/\/\S+/)?.[0]
+    if (!url) return e.reply(
+      '请把崩铁官方【跃迁记录】页面的完整链接发给我，例如：\n' +
+      '#xhh星铁抽卡链接 https://act.mihoyo.com/hkrpg/event/e20211215gacha-v2/index.html?authkey=xxx&game_biz=hkrpg_cn\n\n' +
+      '获取方法：游戏内打开【跃迁记录】→ 点击右上角【分享/网页】用浏览器打开 → 复制地址栏完整网址（必须带 authkey=）'
+    )
+    const query = parseGachaUrl(url)
+    if (!query?.authkey) return e.reply('链接里没有 authkey，请复制地址栏完整链接（含 authkey= 参数）后重试')
+    await e.reply('正在通过官方抽卡链接获取完整记录（含四星/常驻/新手池），请稍候……')
+    try {
+      const result = await fetchAllByAuthkey(query)
+      // 继承旧数据的五星 UP 标记
+      const old = readData(getDataFile(auth.qq, auth.uid))
+      if (old?.pools) result.pools = inheritIsUp(old.pools, result.pools)
+      result.update_time = formatNow()
+      result.uid = auth.uid
+      result.source = 'authkey'
+      saveData(getDataFile(auth.qq, auth.uid), result)
+      const stats = Object.values(result.pools).map(p =>
+        `【${p.name}】共${p.totalPulls}抽｜五星${p.fiveNum}｜四星${p.fourNum || 0}｜当前距五星${p.pity}抽`
+      ).join('\n')
+      await e.reply(`抽卡链接解析成功！\n${stats}`)
+      // 自动输出抽卡记录总览图
+      await this.renderSummary(e, [], 'grid')
+      return e.reply('发送【#xhh星铁抽卡帮助】查看全部抽卡指令')
+    } catch (err) {
+      logger.error('[xhh][sr_gacha] gachaLink failed:', err)
+      return e.reply(`抽卡链接解析失败：${err?.message || err}`)
+    }
+  }
+
   async help(e) {
     return e.reply([
       '【#xhh星铁抽卡帮助】',
       '— 更新数据 —',
-      '#xhh星铁更新抽卡记录　刷新抽卡数据',
+      '#xhh星铁更新抽卡记录　刷新抽卡数据（ck）',
+      '#xhh星铁抽卡链接　　　用官方链接获取完整记录（含四星/常驻）',
       '— 查询指令 —',
       '#xhh星铁抽卡记录　　　抽卡总览统计',
       '#xhh星铁角色记录　　　角色卡池进度',
