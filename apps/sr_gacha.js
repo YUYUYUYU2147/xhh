@@ -102,10 +102,10 @@ function timeFromId(id) {
 function buildSummaryView(data, uid, e, layout = 'grid') {
   const pools = Object.entries(data?.pools || {}).map(([key, pool]) => {
     const recent = Array.isArray(pool.records) ? pool.records : (Array.isArray(pool.recent) ? pool.recent : [])
-    const fiveNum = recent.length
+    const fiveNum = Number(pool?.fiveNum) || recent.length
     const upNum = recent.filter(v => v.is_up).length
     const pity = Number(typeof pool.pity === 'object' ? pool.pity?.gacha_count : pool.pity || 0) || 0
-    const totalPulls = (sum(recent, 'gacha_count') + pity) || 0
+    const totalPulls = Number(pool?.totalPulls) || (sum(recent, 'gacha_count') + pity) || 0
     const pullValues = recent.map(v => Number(v.gacha_count || 0)).filter(v => v > 0)
     const upValues = recent.filter(v => v.is_up).map(v => Number(v.gacha_count || 0)).filter(v => v > 0)
     const fiveAvg = fiveNum ? (sum(recent, 'gacha_count') / fiveNum).toFixed(1) : '--'
@@ -137,6 +137,7 @@ function buildSummaryView(data, uid, e, layout = 'grid') {
       const full = String(time || '').slice(0, 10)
       return {
         name: item.name || '未知',
+        id: String(item.id || ''),
         icon: makeIcon(item),
         num: pulls,
         isUp: item.is_up === true,
@@ -145,7 +146,12 @@ function buildSummaryView(data, uid, e, layout = 'grid') {
         fullDate: full || '--',
         monthDay: full.slice(5) || '--',
       }
-    }).sort((a, b) => String(b.year + b.monthDay).localeCompare(String(a.year + a.monthDay)))
+    }).sort((a, b) => {
+      const ai = BigInt(String(a.id || '0'))
+      const bi = BigInt(String(b.id || '0'))
+      if (ai === bi) return String(b.fullDate).localeCompare(String(a.fullDate))
+      return ai > bi ? -1 : 1
+    })
     // 按年份分组（年份倒序，组内保持时间倒序）
     const yearGroups = []
     for (const item of fiveLog) {
@@ -517,13 +523,10 @@ function parseGachaUrl(url) {
     // game_biz 规范化：链接里可能是截断的 hkrpg_，补齐为国服
     const normalizedBiz = /^hkrpg_cn$/.test(gameBiz) || gameBiz.startsWith('hkrpg_global') ? gameBiz : 'hkrpg_cn'
     return {
-      authkey_ver: params.authkey_ver || '1',
-      sign_type: params.sign_type || '2',
-      auth_appid: params.auth_appid || 'webview_gacha',
-      lang: params.lang || 'zh-cn',
+      ...params,
+      authkey,
       game_biz: normalizedBiz,
       region: params.region || 'prod_gf_cn',
-      authkey,
     }
   } catch {
     return null
@@ -563,20 +566,21 @@ function findSrAuthkeyUrl(e) {
 }
 
 // 新版 getGachaLog：page 恒为 1，靠 end_id 游标翻页；联动池走 getLdGachaLog
-async function fetchGachaLogPage(query, gachaType, size, endId) {
+async function fetchGachaLogPage(query, gachaType, size, endId, page = 1) {
   const region = query.region || 'prod_gf_cn'
   const host = /^prod_(gf|qd)_cn$/.test(region) ? GACHA_LOG_HOST_CN : GACHA_LOG_HOST_OS
   const ep = (gachaType === '21' || gachaType === '22') ? 'getLdGachaLog' : 'getGachaLog'
   const gameBiz = /^hkrpg_(cn|global)/.test(String(query.game_biz || '')) ? query.game_biz : 'hkrpg_cn'
-  // 与 genshin 插件完全一致的参数构造：不传 sign_type / auth_appid
+  // 尽量保留原始链接里的全部参数，和 genshin 的 logApi 保持一致。
   const params = new URLSearchParams({
+    ...query,
     authkey_ver: query.authkey_ver || '1',
     lang: query.lang || 'zh-cn',
     game_biz: gameBiz,
     region,
     authkey: query.authkey,
     gacha_type: gachaType,
-    page: '1',
+    page: String(page),
     size: String(size),
     end_id: String(endId || '0'),
   })
@@ -591,6 +595,22 @@ async function fetchGachaLogPage(query, gachaType, size, endId) {
     throw new Error(msg || '获取抽卡记录失败')
   }
   return data?.data || { list: [] }
+}
+
+async function resolveAuthkeyRegion(query) {
+  const candidates = []
+  if (query?.region) candidates.push(query.region)
+  candidates.push('prod_gf_cn', 'prod_qd_cn')
+  const seen = new Set()
+  for (const region of candidates) {
+    if (!region || seen.has(region)) continue
+    seen.add(region)
+    try {
+      const probe = await fetchGachaLogPage({ ...query, region }, '11', 1, '0')
+      if (Array.isArray(probe?.list) && probe.list.length > 0) return region
+    } catch {}
+  }
+  return query?.region || 'prod_gf_cn'
 }
 
 // 把某个卡池的全量记录统计成渲染所需结构（含四星保底）
@@ -611,8 +631,13 @@ function buildPoolFromRows(gachaType, pool, rows) {
     recent: [],
   }
   if (!rows?.length) return base
-  // 按时间升序（旧→新），逐抽累计保底
-  rows.sort((a, b) => String(a.time).localeCompare(String(b.time)))
+  // 按 id 升序（旧→新），比 time 更稳定，能保留同秒多抽的真实顺序
+  rows.sort((a, b) => {
+    const ai = BigInt(String(a.id || '0'))
+    const bi = BigInt(String(b.id || '0'))
+    if (ai === bi) return String(a.time).localeCompare(String(b.time))
+    return ai < bi ? -1 : 1
+  })
   let pulls = 0
   let fourPulls = 0
   let fourNum = 0
@@ -654,7 +679,7 @@ function buildPoolFromRows(gachaType, pool, rows) {
   const fiveNum = fiveRecs.length
   return {
     ...base,
-    records: fiveRecs.slice().reverse().slice(0, 8),
+    records: fiveRecs.slice().reverse(),
     fourLog: fourRecs,
     fourNum,
     pity: pulls,
@@ -666,19 +691,32 @@ function buildPoolFromRows(gachaType, pool, rows) {
 }
 
 async function fetchAllByAuthkey(query) {
+  const region = await resolveAuthkeyRegion(query)
+  const resolvedQuery = { ...query, region }
   const pools = {}
   for (const pool of NEW_POOLS) {
     const rows = []
+    const seenIds = new Set()
     let endId = '0'
+    let page = 1
     const size = 20
     let pageCount = 0
     while (pageCount < 120) {
-      const data = await fetchGachaLogPage(query, pool.type, size, endId)
+      const data = await fetchGachaLogPage(resolvedQuery, pool.type, size, endId, page)
       const list = data?.list || []
       if (!list.length) break
-      rows.push(...list)
+      // 按 id 去重：网页接口偶发重复返回最近几条记录，不去重会导致垫抽/总抽数虚高
+      const before = rows.length
+      for (const row of list) {
+        const id = String(row?.id || '')
+        if (id && seenIds.has(id)) continue
+        if (id) seenIds.add(id)
+        rows.push(row)
+      }
+      if (rows.length === before) break // 本页全部是重复记录，避免死循环
       endId = rows[rows.length - 1]?.id || ''
       if (!endId || list.length < size) break
+      page++
       pageCount++
       // 控制请求节奏，避免触发官方限流（visit too frequently）
       await sleep(500)
@@ -687,7 +725,7 @@ async function fetchAllByAuthkey(query) {
     await sleep(1000)
     pools[pool.key] = buildPoolFromRows(pool.type, pool, rows)
   }
-  return { pools }
+  return { pools, region }
 }
 
 // 从旧数据继承五星 is_up 标记（authkey 接口不返回 UP 标记）
@@ -701,6 +739,104 @@ function inheritIsUp(oldPools, newPools) {
       if (oldMap.get(`${r.name}|${r.time}`)) r.is_up = true
     }
   }
+  return newPools
+}
+
+// 用 ck（five_star_list 接口，返回准确 UP 标记）校准 authkey 结果的 is_up：
+// authkey 全量接口不带 is_up，新五星只能靠 ck 数据补全，否则会被全部当成非UP
+function mergeIsUp(summaryPools, newPools) {
+  if (!summaryPools) return newPools
+  const map = new Map()
+  for (const pool of Object.values(summaryPools)) {
+    const list = pool?.records || pool?.recent || pool?.fiveLog || []
+    for (const r of list) {
+      const name = r.name || ''
+      if (!name) continue
+      map.set(`${name}|${r.time}`, !!r.is_up)
+      map.set(`${name}|${r.gacha_count ?? r.num}`, !!r.is_up)
+    }
+  }
+  for (const pool of Object.values(newPools || {})) {
+    for (const r of pool?.records || []) {
+      const up = map.get(`${r.name}|${r.time}`) ?? map.get(`${r.name}|${r.gacha_count}`)
+      if (up !== undefined) r.is_up = up
+    }
+  }
+  return newPools
+}
+
+// ---- 两条数据源合并策略 ----
+// 数据源特性：
+//   ck（#xhh星铁更新抽卡记录 / five_star_list）：五星历史全（小程序保留一年），但不含四星/逐抽/常驻
+//   authkey（#xhh星铁抽卡链接 / getGachaLog）：全量逐抽含四星，但网页只保留近半年，超过半年的
+//     五星拉不到、或 gacha_count 被截断算小（如刃从完整 77 被算成 33）
+// 因此合并原则：
+//   1. 五星记录：整份保留"更全"的一方（数量多者；数量相同取 gacha_count 总和更大者），
+//      不做逐条匹配——ck 与 authkey 的字段（id/time/num）并不一致，逐条去重会误删
+//   2. 四星/常驻：authkey 有 ck 无，ck 更新时从旧数据继承
+//   3. 垫抽/统计：由本次拉取的数据源（最新）提供，并按选定的五星历史重算 totalPulls
+
+// 兼容 records/recent/fiveLog 三种字段、gacha_count/num 两种抽数字段
+function getPoolRecords(pool) {
+  if (Array.isArray(pool?.records)) return pool.records
+  if (Array.isArray(pool?.recent)) return pool.recent
+  return Array.isArray(pool?.fiveLog) ? pool.fiveLog : []
+}
+
+function countTotal(records) {
+  return (records || []).reduce((s, r) => s + Number(r?.gacha_count ?? r?.num ?? 0), 0)
+}
+
+// 两份五星记录中挑"更完整"的一份
+function pickFullerRecords(oldRecords, newRecords) {
+  const o = oldRecords || []
+  const n = newRecords || []
+  if (!o.length) return n
+  if (!n.length) return o
+  if (o.length !== n.length) return o.length > n.length ? o : n
+  return countTotal(o) >= countTotal(n) ? o : n
+}
+
+// 按选定的五星记录重算统计值；pity 兼容数字或 { gacha_count } 两种格式
+function recountPool(pool, records) {
+  const pity = Number(typeof pool?.pity === 'object' ? pool.pity?.gacha_count : pool.pity || 0) || 0
+  const fiveNum = records.length
+  const totalPulls = countTotal(records) + pity
+  return {
+    ...pool,
+    records,
+    fiveNum,
+    totalPulls: totalPulls || pool?.totalPulls || 0,
+    avgPity: fiveNum ? (totalPulls / fiveNum).toFixed(1) : '0.0',
+  }
+}
+
+// 发链接（authkey）后调用：五星历史取更全一份，四星/垫抽用本次 authkey 数据
+function mergePoolsForAuthkey(oldPools, newPools) {
+  for (const key of Object.keys(newPools || {})) {
+    const oldPool = oldPools?.[key]
+    const newPool = newPools[key]
+    if (!oldPool) continue
+    newPools[key] = recountPool(newPool, pickFullerRecords(getPoolRecords(oldPool), getPoolRecords(newPool)))
+  }
+  // authkey 接口不返回常驻池，保留旧数据里的常驻记录
+  if (oldPools?.common && !newPools?.common) newPools.common = oldPools.common
+  return newPools
+}
+
+// ck 更新后调用：五星历史取更全一份，四星/常驻从旧数据（authkey）继承，避免 ck 覆盖丢四星
+function mergePoolsForCk(oldPools, newPools) {
+  for (const key of Object.keys(newPools || {})) {
+    const oldPool = oldPools?.[key]
+    const newPool = newPools[key]
+    if (!oldPool) continue
+    if (!newPool?.fourLog?.length) newPool.fourLog = oldPool.fourLog || []
+    if (!newPool?.fourNum) newPool.fourNum = oldPool.fourNum || 0
+    if (!newPool?.fourPity) newPool.fourPity = oldPool.fourPity || 0
+    newPools[key] = recountPool(newPool, pickFullerRecords(getPoolRecords(oldPool), getPoolRecords(newPool)))
+  }
+  // ck 接口不返回常驻池，保留旧数据里的常驻记录
+  if (oldPools?.common && !newPools?.common) newPools.common = oldPools.common
   return newPools
 }
 
@@ -832,6 +968,13 @@ export class sr_gacha extends plugin {
         logger.mark(`[xhh][sr_gacha] 常驻同步失败：${error?.message || error}`)
       }
       result.update_time = formatNow()
+      // 与已有数据合并（可能是 authkey 全量逐抽），避免 ck 更新覆盖丢四星/常驻；
+      // ck 只负责补全更早的五星（小程序保留一年）与 UP 标记
+      const old = readData(getDataFile(auth.qq, auth.uid))
+      if (old?.pools) {
+        result.pools = mergePoolsForCk(old.pools, result.pools)
+        result.pools = inheritIsUp(old.pools, result.pools)
+      }
       saveData(getDataFile(auth.qq, auth.uid), result)
       const text = POOLS.map(pool => {
         const updated = result.addedByPool?.[pool.type] || 0
@@ -963,9 +1106,21 @@ export class sr_gacha extends plugin {
     await e.reply('正在通过官方抽卡链接获取完整记录（含四星/常驻/新手池），可能需要一两分钟，请稍候……')
     try {
       const result = await fetchAllByAuthkey(query)
-      // 继承旧数据的五星 UP 标记
-      const old = readData(getDataFile(auth.qq, auth.uid))
-      if (old?.pools) result.pools = inheritIsUp(old.pools, result.pools)
+      // authkey 接口不返回 is_up，用 ck（five_star_list 接口）校准新五星 UP 标记，
+      // 否则刚发链接拉取的新五星会被全部当成非UP，导致角色池统计不准确
+      for (const cookie of auth.cookies) {
+        try {
+          const summary = new SrGachaSummary({ uid: auth.uid, cookie, file: `./data/srGachaSummary/${auth.uid}.json` })
+          const sr = await summary.update()
+          if (sr?.pools) {
+            result.pools = mergeIsUp(sr.pools, result.pools)
+            saveSrGachaCookie(auth.cookieFile, cookie)
+            break
+          }
+        } catch (err) {
+          logger.mark(`[xhh][sr_gacha] ck 校准 UP 标记失败：${err?.message || err}`)
+        }
+      }
       result.update_time = formatNow()
       result.uid = auth.uid
       result.source = 'authkey'
