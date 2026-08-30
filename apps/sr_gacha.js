@@ -483,67 +483,114 @@ async function fetchCommonPool(e, uid) {
 // ===== 官方抽卡链接（authkey）全量拉取 =====
 // 官方网页版跃迁记录链接带 authkey，权限高于小程序 ck，
 // 可获取全部卡池（含常驻/新手）与全部星级（含四星）记录
-const GACHA_TYPE_MAP = {
-  '301': 'GachaType_AvatarUp',
-  '302': 'GachaType_EquipmentUp',
-  '303': 'GachaType_CollabAvatarUp',
-  '304': 'GachaType_CollabEquipmentUp',
-  '200': 'common',
-  '1001': 'GachaType_Newbie',
-}
+// 新版跃迁记录接口（与官方网页版一致）：gacha_type 数字 → 池定义
+const NEW_POOLS = [
+  { type: '11', key: 'GachaType_AvatarUp', name: '角色活动跃迁', hint: '角色' },
+  { type: '12', key: 'GachaType_EquipmentUp', name: '光锥活动跃迁', hint: '光锥' },
+  { type: '21', key: 'GachaType_CollabAvatarUp', name: '联动角色跃迁', hint: '联动角色' },
+  { type: '22', key: 'GachaType_CollabEquipmentUp', name: '联动光锥跃迁', hint: '联动光锥' },
+  { type: '2', key: 'GachaType_Newbie', name: '新手跃迁', hint: '新手' },
+  { type: '1', key: 'common', name: '常驻跃迁', hint: '常驻' },
+]
+const GACHA_LOG_HOST_CN = 'https://public-operation-hkrpg.mihoyo.com'
+const GACHA_LOG_HOST_OS = 'https://public-operation-hkrpg-sg.hoyoverse.com'
 
 function parseGachaUrl(url) {
   try {
-    const q = new URL(String(url).trim()).searchParams
-    const authkey = q.get('authkey') || ''
+    const u = String(url).trim().replace(/〈=/g, '&=')
+    // 依次尝试从 getGachaLog? / getLdGachaLog? / index.html? / 最后一个 ? 后取参数
+    let query = ''
+    for (const mark of ['getLdGachaLog?', 'getGachaLog?', 'index.html?', '?']) {
+      const idx = u.indexOf(mark)
+      if (idx >= 0) {
+        query = u.slice(idx + mark.length)
+        break
+      }
+    }
+    if (!query.includes('authkey')) return null
+    const params = Object.fromEntries(new URLSearchParams(query))
+    const authkey = String(params.authkey || '').replace(/(#\/log|#\/|#).*$/, '')
     if (!authkey) return null
+    // 归属校验：game_biz 必须含 hkrpg，否则视为其他游戏链接
+    const gameBiz = String(params.game_biz || '')
+    if (gameBiz && !gameBiz.includes('hkrpg')) return null
+    // game_biz 规范化：链接里可能是截断的 hkrpg_，补齐为国服
+    const normalizedBiz = /^hkrpg_cn$/.test(gameBiz) || gameBiz.startsWith('hkrpg_global') ? gameBiz : 'hkrpg_cn'
     return {
+      authkey_ver: params.authkey_ver || '1',
+      sign_type: params.sign_type || '2',
+      auth_appid: params.auth_appid || 'webview_gacha',
+      lang: params.lang || 'zh-cn',
+      game_biz: normalizedBiz,
+      region: params.region || 'prod_gf_cn',
       authkey,
-      authkey_ver: q.get('authkey_ver') || '1',
-      sign_type: q.get('sign_type') || '2',
-      auth_appid: q.get('auth_appid') || 'webview_gacha',
-      init_type: q.get('init_type') || '301',
-      game_biz: q.get('game_biz') || 'hkrpg_cn',
-      lang: q.get('lang') || 'zh-cn',
     }
   } catch {
     return null
   }
 }
 
-async function fetchGachaLogPage(query, gachaType, page, size, endId) {
-  const params = new URLSearchParams({
-    authkey_ver: query.authkey_ver,
-    sign_type: query.sign_type,
-    auth_appid: query.auth_appid,
-    init_type: query.init_type,
-    gacha_type: gachaType,
-    page: String(page),
-    size: String(size),
-    lang: query.lang,
-  })
-  if (endId) params.set('end_id', endId)
-  params.set('authkey', query.authkey)
-  params.set('game_biz', query.game_biz)
-  const { data } = await requestJson(
-    `https://api-takumi.mihoyo.com/common/gacha_record/api/getGachaLog?${params}`,
-    {
-      headers: {
-        accept: 'application/json, text/plain, */*',
-        origin: 'https://webstatic.mihoyo.com',
-        referer: 'https://webstatic.mihoyo.com/',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Mobile Safari/537.36',
-      },
+/** 从消息中收集所有可能的链接：覆盖文本段、share/json/xml 卡片、CQ 码 raw_message，去重保序 */
+function extractUrlsFromMsg(e) {
+  const urls = new Set()
+  const add = str => {
+    if (!str) return
+    const list = String(str).match(/https?:\/\/[^\s"'<>，。、；;）)】\]》]+/g) || []
+    for (let u of list) {
+      u = u.replace(/[.,，。、；;:：)>】\]》"']+$/, '')
+      if (u.length > 20) urls.add(u)
     }
-  )
+  }
+  add(e.msg)
+  if (Array.isArray(e.message))
+    for (const s of e.message) {
+      if (s?.type === 'text') add(s.text)
+      else if (s?.data) for (const k of Object.keys(s.data)) add(s.data[k])
+    }
+  // CQ 码原始消息：share/json/xml 卡片里的链接全在里头
+  add(e.raw_message)
+  return [...urls]
+}
+
+/** 从消息中找出含 authkey 的星铁跃迁链接（遍历所有候选链接，不依赖第一个） */
+function findSrAuthkeyUrl(e) {
+  for (const url of extractUrlsFromMsg(e)) {
+    const query = parseGachaUrl(url)
+    const isSr = /hkrpg/i.test(url) || /hkrpg/i.test(String(query?.game_biz || ''))
+    if (query?.authkey && isSr) return url
+  }
+  return ''
+}
+
+// 新版 getGachaLog：page 恒为 1，靠 end_id 游标翻页；联动池走 getLdGachaLog
+async function fetchGachaLogPage(query, gachaType, size, endId) {
+  const region = query.region || 'prod_gf_cn'
+  const host = /^prod_(gf|qd)_cn$/.test(region) ? GACHA_LOG_HOST_CN : GACHA_LOG_HOST_OS
+  const ep = (gachaType === '21' || gachaType === '22') ? 'getLdGachaLog' : 'getGachaLog'
+  const gameBiz = /^hkrpg_(cn|global)/.test(String(query.game_biz || '')) ? query.game_biz : 'hkrpg_cn'
+  // 与 genshin 插件完全一致的参数构造：不传 sign_type / auth_appid
+  const params = new URLSearchParams({
+    authkey_ver: query.authkey_ver || '1',
+    lang: query.lang || 'zh-cn',
+    game_biz: gameBiz,
+    region,
+    authkey: query.authkey,
+    gacha_type: gachaType,
+    page: '1',
+    size: String(size),
+    end_id: String(endId || '0'),
+  })
+  // 新接口路径 gacha_record（authkey_ver=4 新版链接仅兼容此接口）；裸请求，不设置任何特殊头
+  const { res, data } = await requestJson(`${host}/common/gacha_record/api/${ep}?${params}`)
+  if (!res.ok) throw new Error(`接口 HTTP ${res.status}`)
   if (data?.retcode !== 0) {
     const msg = String(data?.message || '')
-    if (msg.includes('timeout') || msg.includes('expire') || msg.includes('login')) {
+    if ([-100, -101, -111].includes(Number(data.retcode)) || /timeout|expire|login/.test(msg)) {
       throw new Error('authkey 已过期或无效，请从游戏内重新打开【跃迁记录】并复制最新链接')
     }
     throw new Error(msg || '获取抽卡记录失败')
   }
-  return data?.data || { list: [], page, size }
+  return data?.data || { list: [] }
 }
 
 // 把某个卡池的全量记录统计成渲染所需结构（含四星保底）
@@ -620,23 +667,25 @@ function buildPoolFromRows(gachaType, pool, rows) {
 
 async function fetchAllByAuthkey(query) {
   const pools = {}
-  for (const [gachaType, key] of Object.entries(GACHA_TYPE_MAP)) {
+  for (const pool of NEW_POOLS) {
     const rows = []
-    let page = 1
-    let endId = ''
+    let endId = '0'
     const size = 20
-    while (page <= 300) {
-      const data = await fetchGachaLogPage(query, gachaType, page, size, endId)
+    let pageCount = 0
+    while (pageCount < 120) {
+      const data = await fetchGachaLogPage(query, pool.type, size, endId)
       const list = data?.list || []
       if (!list.length) break
       rows.push(...list)
       endId = rows[rows.length - 1]?.id || ''
       if (!endId || list.length < size) break
-      page++
-      await sleep(250)
+      pageCount++
+      // 控制请求节奏，避免触发官方限流（visit too frequently）
+      await sleep(500)
     }
-    const pool = POOLS.find(v => v.type === gachaType)
-    pools[key] = buildPoolFromRows(gachaType, pool, rows)
+    // 卡池之间拉开间隔，防止连续请求触发限流
+    await sleep(1000)
+    pools[pool.key] = buildPoolFromRows(pool.type, pool, rows)
   }
   return { pools }
 }
@@ -738,8 +787,10 @@ export class sr_gacha extends plugin {
       name: '[小花火]星铁抽卡记录',
       dsc: '星铁抽卡记录查询与更新',
       event: 'message',
-      priority: pluginPriority('sr_gacha', 100),
+      priority: pluginPriority('sr_gacha', 1),
       rule: [
+        // 强制前缀模式：星铁抽卡链接必须带 #xhh星铁抽卡链接 前缀才处理。
+        // 不再兜底自动识别链接，原神/星铁等链接默认交给 genshin 插件，避免抢链接冲突
         { reg: '^#*(xhh|小花火)(星铁|崩铁)?抽卡帮助$', fnc: 'help' },
         { reg: '^#*(xhh|小花火)(星铁|崩铁)?抽卡链接', fnc: 'gachaLink' },
         { reg: '^#*(xhh|小花火)(星铁|崩铁)?(刷新|更新)抽卡记录$', fnc: 'refresh' },
@@ -873,18 +924,43 @@ export class sr_gacha extends plugin {
     return this.summary(e)
   }
 
-  async gachaLink(e) {
+  /** 兜底监听（强制前缀模式下已停用，规则已移除）：原实现为监听所有消息识别星铁链接 */
+  async autoGachaLink(e) {
+    try {
+      const url = findSrAuthkeyUrl(e)
+      if (!url) return false
+      logger.mark(`[xhh][sr_gacha] 兜底识别到星铁链接: ${url.slice(0, 150)}...`)
+      return this.gachaLink(e, url)
+    } catch (err) {
+      logger.error(`[xhh][sr_gacha] autoGachaLink 异常: ${err}`)
+      return false
+    }
+  }
+
+  async gachaLink(e, preUrl = '') {
+    // 强制前缀模式：消息必须带 #xhh星铁抽卡链接 前缀才处理。
+    // 不带前缀的链接（原神/星铁/绝区零等）一律 return false 放行，交给 genshin 插件正常处理
+    const isCmd = /^#*(xhh|小花火)(星铁|崩铁)?抽卡链接/.test(String(e.msg || ''))
+    if (!isCmd) return false
+    // 从原始消息段提取链接：兼容纯文本、QQ 分享卡片（share/data.url）、json/xml 卡片、断行等情况
+    const fullMsg = [e.msg, ...(Array.isArray(e.message) ? e.message.map(s => (s?.type === 'text' ? s.text : (s?.data?.url || ''))) : [])].filter(Boolean).join('\n')
+    const url = preUrl || findSrAuthkeyUrl(e) || (fullMsg.match(/https?:\/\/[^\s,，。、；;）)】\]》"']+/)?.[0] || '')
+    logger.mark(`[xhh][sr_gacha] 收到链接消息: ${String(e.msg || '').slice(0, 200)}`)
+    if (!url) {
+      // 命令带链接：无链接时提示用法
+      return e.reply(
+        '请把崩铁官方【跃迁记录】页面的链接发给我，例如：\n' +
+        '#xhh星铁抽卡链接 https://public-operation-hkrpg.mihoyo.com/common/gacha_record/api/getGachaLog?authkey=xxx&game_biz=hkrpg_cn\n\n' +
+        '获取方法：游戏内打开【跃迁记录】→ 右上角【分享/网页】用浏览器打开 → 复制地址栏完整网址（必须带 authkey=）'
+      )
+    }
+    const query = parseGachaUrl(url)
+    // 非星铁链接（原神/绝区零等）主动放行，交给 genshin 插件正常处理
+    const isSr = /hkrpg/i.test(url) || /hkrpg/i.test(String(query?.game_biz || ''))
+    if (!query?.authkey || !isSr) return false
     const auth = await getUserAuth(e)
     if (auth.error) return e.reply(auth.error)
-    const url = String(e.msg || '').match(/https?:\/\/\S+/)?.[0]
-    if (!url) return e.reply(
-      '请把崩铁官方【跃迁记录】页面的完整链接发给我，例如：\n' +
-      '#xhh星铁抽卡链接 https://act.mihoyo.com/hkrpg/event/e20211215gacha-v2/index.html?authkey=xxx&game_biz=hkrpg_cn\n\n' +
-      '获取方法：游戏内打开【跃迁记录】→ 点击右上角【分享/网页】用浏览器打开 → 复制地址栏完整网址（必须带 authkey=）'
-    )
-    const query = parseGachaUrl(url)
-    if (!query?.authkey) return e.reply('链接里没有 authkey，请复制地址栏完整链接（含 authkey= 参数）后重试')
-    await e.reply('正在通过官方抽卡链接获取完整记录（含四星/常驻/新手池），请稍候……')
+    await e.reply('正在通过官方抽卡链接获取完整记录（含四星/常驻/新手池），可能需要一两分钟，请稍候……')
     try {
       const result = await fetchAllByAuthkey(query)
       // 继承旧数据的五星 UP 标记
@@ -913,6 +989,9 @@ export class sr_gacha extends plugin {
       '— 更新数据 —',
       '#xhh星铁更新抽卡记录　刷新抽卡数据（ck）',
       '#xhh星铁抽卡链接　　　用官方链接获取完整记录（含四星/常驻）',
+      '　　　　　　　　　　　必须带前缀，例如：',
+      '　　　　　　　　　　　#xhh星铁抽卡链接 + 跃迁记录链接',
+      '　　　　　　　　　　　（不带前缀的链接由 genshin 插件处理，互不冲突）',
       '— 查询指令 —',
       '#xhh星铁抽卡记录　　　抽卡总览统计',
       '#xhh星铁角色记录　　　角色卡池进度',
