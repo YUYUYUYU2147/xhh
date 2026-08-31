@@ -1131,7 +1131,7 @@ export class sr_gacha extends plugin {
       await e.reply(`抽卡链接解析成功！\n${stats}`)
       // 自动输出抽卡记录总览图
       await this.renderSummary(e, [], 'grid')
-      return e.reply('发送【#xhh星铁抽卡帮助】查看全部抽卡指令')
+      return e.reply('下一步必须发送#xhh星铁更新抽卡记录来保证五星数据的准确性；发送【#xhh星铁抽卡帮助】查看全部抽卡指令')
     } catch (err) {
       logger.error('[xhh][sr_gacha] gachaLink failed:', err)
       return e.reply(`抽卡链接解析失败：${err?.message || err}`)
