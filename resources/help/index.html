@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小花火插件 · 命令帮助</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-1: #fff0f3;
+            --bg-2: #f3e8ff;
+            --bg-3: #fff7ed;
+            --text: #2a1828;
+            --muted: #7a5e6e;
+            --card: rgba(255, 255, 255, 0.78);
+            --card-border: rgba(255, 255, 255, 0.9);
+            --shadow: 0 8px 32px rgba(190, 24, 93, 0.14);
+            --accent-pink: #e11d48;
+            --accent-purple: #7c3aed;
+            --accent-blue: #c084fc;
+            --accent-cyan: #22d3ee;
+            --accent-orange: #f59e0b;
+            --accent-gold: #fbbf24;
+            --accent-green: #4ade80;
+            --radius: 20px;
+            --radius-sm: 12px;
+            --t: 0s; /* 动图帧相位偏移 */
+        }
+
+        [data-theme="dark"] {
+            --bg-1: #2a121f;
+            --bg-2: #321e3d;
+            --bg-3: #3f1e23;
+            --text: #fff0f5;
+            --muted: #d4a6b6;
+            --card: rgba(50, 28, 46, 0.72);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        [data-theme="dark"] body {
+            background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background 0.3s ease;
+        }
+
+        /* 背景装饰 */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.55;
+            z-index: -1;
+            pointer-events: none;
+            animation: float 4.8s ease-in-out infinite;
+        }
+
+        .orb-1 { width: 420px; height: 420px; background: #fda4af; top: -120px; right: -80px; animation-delay: calc(0s + var(--t)); }
+        .orb-2 { width: 340px; height: 340px; background: #c4b5fd; top: 35%; left: -120px; animation-delay: calc(-1.2s + var(--t)); }
+        .orb-3 { width: 300px; height: 300px; background: #fcd34d; bottom: 10%; right: 10%; animation-delay: calc(-2.4s + var(--t)); }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(15px, -25px) scale(1.05); }
+        }
+
+        /* 星星粒子 */
+        .stars {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+            opacity: 0;
+            animation: twinkle 1.6s ease-in-out infinite;
+        }
+
+        [data-theme="dark"] .star {
+            background: #fbcfe8;
+            box-shadow: 0 0 8px rgba(251, 207, 232, 0.9);
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; transform: scale(0.6) translateY(0); }
+            50% { opacity: 0.95; transform: scale(1.15) translateY(-6px); }
+        }
+
+        /* 顶部极光光带 */
+        .aurora {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 340px;
+            pointer-events: none;
+            z-index: -1;
+            background:
+                radial-gradient(40% 60% at 20% 40%, rgba(244, 114, 182, 0.28), transparent 70%),
+                radial-gradient(35% 55% at 75% 35%, rgba(167, 139, 250, 0.26), transparent 70%),
+                radial-gradient(30% 50% at 50% 70%, rgba(251, 191, 36, 0.2), transparent 70%);
+            filter: blur(20px);
+            animation: aurora-drift 4.8s ease-in-out infinite;
+        }
+
+        [data-theme="dark"] .aurora {
+            background:
+                radial-gradient(40% 60% at 20% 40%, rgba(236, 72, 153, 0.3), transparent 70%),
+                radial-gradient(35% 55% at 75% 35%, rgba(139, 92, 246, 0.3), transparent 70%),
+                radial-gradient(30% 50% at 50% 70%, rgba(245, 158, 11, 0.22), transparent 70%);
+        }
+
+        @keyframes aurora-drift {
+            0%, 100% { transform: translateX(-3%) skewX(-3deg); opacity: 0.85; }
+            50% { transform: translateX(3%) skewX(3deg); opacity: 1; }
+        }
+
+        /* 背景立绘 */
+        .bg-character {
+            position: fixed;
+            right: -10px;
+            bottom: -10px;
+            width: min(34vw, 440px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.9;
+            filter: drop-shadow(0 24px 48px rgba(190, 24, 93, 0.28));
+            animation: float 4.8s ease-in-out infinite;
+            animation-delay: var(--t);
+        }
+
+        @media (max-width: 1024px) {
+            .bg-character { opacity: 0.3; }
+        }
+
+        @media (max-width: 720px) {
+            .bg-character { display: none; }
+        }
+
+        /* 动图截图模式：fixed 元素改为跟随文档流 */
+        html.anim-mode .bg-character {
+            position: absolute;
+            top: 320px;
+            right: 30px;
+            width: 320px;
+            animation: char-bob 4.8s ease-in-out infinite;
+            animation-delay: var(--t);
+        }
+
+        /* 小花火立绘专属动画：轻微浮动 + 呼吸 + 摇摆 */
+        @keyframes char-bob {
+            0%   { transform: translateY(0px)    scale(1)    rotate(0deg); }
+            25%  { transform: translateY(-10px)  scale(1.03) rotate(-2deg); }
+            50%  { transform: translateY(0px)    scale(1.05) rotate(0deg); }
+            75%  { transform: translateY(-6px)   scale(1.02) rotate(2deg); }
+            100% { transform: translateY(0px)    scale(1)    rotate(0deg); }
+        }
+
+        /* 动图模式下只保留立绘动画，其余装饰全部静止 */
+        html.anim-mode .orb,
+        html.anim-mode .star,
+        html.anim-mode .aurora,
+        html.anim-mode .mascot-bg {
+            animation: none !important;
+        }
+
+        html.anim-mode .orb,
+        html.anim-mode .stars {
+            position: absolute;
+        }
+
+        html.anim-mode .stars {
+            height: 100%;
+        }
+
+        main, header, .hero, footer, .categories {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 顶部导航 */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            background: rgba(255, 255, 255, 0.55);
+            border-bottom: 1px solid var(--card-border);
+            transition: background 0.3s ease;
+        }
+
+        [data-theme="dark"] header {
+            background: rgba(30, 24, 52, 0.7);
+        }
+
+        .nav {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            font-size: 1.25rem;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: url("./sparkle.png") center / cover no-repeat;
+            box-shadow: 0 4px 12px rgba(225, 29, 72, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.85);
+        }
+
+        .theme-toggle {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 1px solid var(--card-border);
+            background: var(--card);
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            font-size: 1.1rem;
+            color: var(--text);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease;
+        }
+
+        .theme-toggle:hover { transform: rotate(15deg) scale(1.05); }
+
+        /* 英雄区 */
+        .hero {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 56px 24px 36px;
+            position: relative;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 220px;
+            gap: 32px;
+            align-items: center;
+        }
+
+        @media (max-width: 860px) {
+            .hero-grid { grid-template-columns: 1fr; text-align: center; }
+        }
+
+        .hero h1 {
+            font-size: clamp(2.2rem, 6vw, 3.6rem);
+            font-weight: 900;
+            line-height: 1.15;
+            margin-bottom: 12px;
+            background: linear-gradient(90deg, var(--accent-pink), #f472b6, var(--accent-purple), var(--accent-orange));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .hero .subtitle {
+            color: var(--muted);
+            font-size: 1.05rem;
+            max-width: 560px;
+            margin-bottom: 28px;
+        }
+
+        .hero-illustration {
+            position: relative;
+            justify-self: center;
+        }
+
+        .mascot {
+            width: 200px;
+            height: 260px;
+            position: relative;
+            animation: bob 2.4s ease-in-out infinite;
+            animation-delay: var(--t);
+        }
+
+        @keyframes bob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .mascot-bg {
+            position: absolute;
+            inset: 8%;
+            background: linear-gradient(135deg, rgba(225,29,72,0.3), rgba(124,58,237,0.25), rgba(245,158,11,0.2));
+            border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+            animation: morph 4.8s ease-in-out infinite;
+            animation-delay: var(--t);
+            filter: blur(2px);
+        }
+
+        @keyframes morph {
+            0%, 100% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+            50% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+        }
+
+        .mascot-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            position: relative;
+            z-index: 2;
+            filter: drop-shadow(0 14px 28px rgba(190, 24, 93, 0.35));
+        }
+
+        .search-bar {
+            position: relative;
+            max-width: 620px;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 16px 20px 16px 52px;
+            border-radius: var(--radius);
+            border: 1px solid var(--card-border);
+            background: var(--card);
+            color: var(--text);
+            font-size: 1rem;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(12px);
+            outline: none;
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .search-bar input:focus {
+            border-color: var(--accent-pink);
+            box-shadow: 0 8px 32px rgba(225, 29, 72, 0.2);
+        }
+
+        .search-bar::before {
+            content: "🔍";
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.7;
+        }
+
+        /* 分类标签 */
+        .categories {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px 32px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .category-btn {
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid var(--card-border);
+            background: var(--card);
+            color: var(--muted);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+        }
+
+        .category-btn:hover { transform: translateY(-2px); }
+        .category-btn.active { color: #fff; border-color: transparent; }
+
+        .category-btn[data-cat="all"].active { background: linear-gradient(135deg, #be185d, #7c3aed); }
+        .category-btn[data-cat="bh3"].active { background: linear-gradient(135deg, #e11d48, #f472b6); }
+        .category-btn[data-cat="ys"].active { background: linear-gradient(135deg, #8b5cf6, #c084fc); }
+        .category-btn[data-cat="bili"].active { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+        .category-btn[data-cat="device"].active { background: linear-gradient(135deg, #0ea5e9, #22d3ee); }
+        .category-btn[data-cat="owner"].active { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+
+        /* 命令网格 */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin: 36px 0 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 18px;
+        }
+
+        @media (max-width: 480px) {
+            .cards { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(14px);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--cat-color, var(--accent-pink));
+        }
+
+        .card:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 16px 40px rgba(190, 24, 93, 0.18);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .card-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+            color: #fff;
+            background: var(--cat-color, var(--accent-pink));
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .card-desc {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .aliases {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 2px;
+        }
+
+        .alias {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.5);
+            color: var(--muted);
+            border: 1px solid var(--card-border);
+        }
+
+        [data-theme="dark"] .alias {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        .empty-state h3 { font-size: 1.3rem; margin-bottom: 8px; color: var(--text); }
+
+        /* 回到顶部 */
+        .back-to-top {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 1px solid var(--card-border);
+            background: var(--card);
+            color: var(--text);
+            display: grid;
+            place-items: center;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 90;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .back-to-top:hover { background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple)); color: #fff; border-color: transparent; }
+
+        /* 页脚 */
+        footer {
+            text-align: center;
+            padding: 28px 24px 48px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        footer a { color: var(--accent-pink); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="aurora"></div>
+    <div class="stars" id="stars"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <img class="bg-character" src="./sparkle.png" alt="小花火" aria-hidden="true">
+
+    <header>
+        <div class="nav">
+            <div class="brand">
+                <div class="brand-icon" title="小花火"></div>
+                <span>小花火插件</span>
+            </div>
+            <button class="theme-toggle" id="themeToggle" title="切换主题">🌙</button>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-grid">
+            <div>
+                <h1>命令帮助 · 指令速查</h1>
+                <p class="subtitle">崩坏3 / 原神 / 星铁 / Bilibili / 设备 / 主人专用命令一站式查询，快速找到你需要的指令。</p>
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="搜索命令、关键词或别名…" autocomplete="off">
+                </div>
+            </div>
+            <div class="hero-illustration" aria-hidden="true">
+                <div class="mascot">
+                    <div class="mascot-bg"></div>
+                    <img src="./sparkle.png" alt="小花火" class="mascot-img">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <nav class="categories" id="categoryNav">
+        <button class="category-btn active" data-cat="all">全部</button>
+        <button class="category-btn" data-cat="bh3">崩坏3</button>
+        <button class="category-btn" data-cat="ys">原神 / 星铁</button>
+        <button class="category-btn" data-cat="bili">Bilibili</button>
+        <button class="category-btn" data-cat="device">设备命令</button>
+        <button class="category-btn" data-cat="owner">主人专用</button>
+    </nav>
+
+    <main class="container" id="commandList">
+        <!-- 内容由 JS 动态渲染 -->
+    </main>
+
+    <footer>
+        <p>Made with ✿ for 小花火插件 · 命令以实际 Bot 响应为准</p>
+    </footer>
+
+    <button class="back-to-top" id="backToTop" title="回到顶部">↑</button>
+
+    <script>
+        const commands = [
+            {
+                category: "bh3",
+                title: "崩三便签 / 崩三实时",
+                aliases: ["便签", "实时"],
+                desc: "查看崩坏3体力、远征、答题、战场等日常信息概览。"
+            },
+            {
+                category: "bh3",
+                title: "崩三深渊 / 崩三超弦 / 崩三战报",
+                aliases: ["深渊", "超弦空间"],
+                desc: "查看当期崩坏3深渊/超弦空间战报与排名信息。"
+            },
+            {
+                category: "bh3",
+                title: "崩三当前深渊 / 崩三深渊boss / 深渊信息",
+                aliases: ["boss", "天气"],
+                desc: "查看当期深渊天气、BOSS、分组与结算时间。"
+            },
+            {
+                category: "bh3",
+                title: "崩三旧深渊 / 崩三原深渊",
+                aliases: ["旧深渊"],
+                desc: "查看崩坏3旧深渊历史记录与相关信息。"
+            },
+            {
+                category: "bh3",
+                title: "崩三战场 / 记忆战场 / 战场战报",
+                aliases: ["战场"],
+                desc: "查看崩坏3记忆战场当期BOSS与战报信息。"
+            },
+            {
+                category: "bh3",
+                title: "崩三乐土 / 往世乐土",
+                aliases: ["乐土"],
+                desc: "查看崩坏3往世乐土当期因子、推荐角色等。"
+            },
+            {
+                category: "bh3",
+                title: "崩三主页 / 崩三角色主页 / 崩三查询 / 崩三角色查询",
+                aliases: ["主页", "角色"],
+                desc: "查询崩坏3角色、装甲、武器、圣痕等主页信息。"
+            },
+            {
+                category: "bh3",
+                title: "崩三图鉴 / 崩坏三图鉴 / xx崩三图鉴",
+                aliases: ["图鉴"],
+                desc: "查询崩坏3武器、圣痕、人偶、协同者图鉴。"
+            },
+            {
+                category: "bh3",
+                title: "崩三xx专武图鉴 / 崩三xx专属圣痕图鉴",
+                aliases: ["专武", "专属"],
+                desc: "按角色或装甲名快捷查询专属武器、专属圣痕。"
+            },
+            {
+                category: "bh3",
+                title: "崩三当前卡池 / 崩三卡池",
+                aliases: ["卡池"],
+                desc: "查看崩坏3当前卡池与补给信息。"
+            },
+            {
+                category: "bh3",
+                title: "！日历 / #崩三日历",
+                aliases: ["日历"],
+                desc: "查看崩坏3活动、补给日历，数据来源米游社官方公告。"
+            },
+            {
+                category: "bh3",
+                title: "崩三x.x卡池 / 崩三x.x上半/下半卡池",
+                aliases: ["版本卡池"],
+                desc: "查看崩坏3指定版本卡池UP角色及时间。"
+            },
+            {
+                category: "bh3",
+                title: "崩三xx卡池 / xx崩三卡池",
+                aliases: ["历史卡池"],
+                desc: "查询崩坏3角色历史卡池（支持装甲名和角色名）。"
+            },
+            {
+                category: "bh3",
+                title: "崩三卡池历史 / 崩三卡池全部",
+                aliases: ["全部卡池"],
+                desc: "查看崩坏3全部版本卡池列表。"
+            },
+            {
+                category: "bh3",
+                title: "小花火体力 / 全体力 / 四游戏体力 / 米游社体力 / 体力总览",
+                aliases: ["体力"],
+                desc: "原神/星铁/绝区零/崩坏3四游戏体力一键查询。"
+            },
+            {
+                category: "bh3",
+                title: "崩三充值记录 / 崩三充值查询",
+                aliases: ["充值"],
+                desc: "查询崩坏3官方自助查询充值流水（需 stoken）。"
+            },
+            {
+                category: "bh3",
+                title: "崩三水晶 / 崩三水晶统计 / 上月水晶",
+                aliases: ["水晶"],
+                desc: "查看崩坏3水晶获取与消耗统计。"
+            },
+            {
+                category: "bh3",
+                title: "切换水晶uid / 删除水晶uid",
+                aliases: ["uid"],
+                desc: "切换或删除崩坏3水晶查询绑定的账号。"
+            },
+            {
+                category: "bh3",
+                title: "崩三抽卡记录 / 崩三抽卡 / 刷新抽卡记录",
+                aliases: ["抽卡"],
+                desc: "查看崩坏3抽卡记录统计并支持刷新。"
+            },
+            {
+                category: "bh3",
+                title: "#小花火开启崩三提醒 / #小花火关闭崩三提醒",
+                aliases: ["提醒"],
+                desc: "开启/关闭崩坏3深渊、战场、乐土等定时提醒。"
+            },
+            {
+                category: "bh3",
+                title: "崩三深渊攻略 / 崩三xx深渊配队 / xx深渊阵容",
+                aliases: ["攻略"],
+                desc: "从米游社作者动态搜索深渊/超弦作业与推荐配队。"
+            },
+            {
+                category: "bh3",
+                title: "米游社资源预估 / 预估 / 盘点 / 速报 / 前瞻信息",
+                aliases: ["资源"],
+                desc: "原石/星琼/菲林/水晶等资源统计与攻略速报。"
+            },
+            {
+                category: "ys",
+                title: "xhh星铁抽卡帮助",
+                aliases: ["星铁抽卡"],
+                desc: "星穹铁道抽卡帮助与记录查询入口。"
+            },
+            {
+                category: "ys",
+                title: "xx语音",
+                aliases: ["语音"],
+                desc: "原神或者星铁的角色语音查询。"
+            },
+            {
+                category: "ys",
+                title: "清空语音缓存",
+                aliases: ["清缓存"],
+                desc: "每天凌晨自动清空语音列表图片缓存，也可手动清空。"
+            },
+            {
+                category: "ys",
+                title: "原神当前卡池 / 原神卡池",
+                aliases: ["原神卡池"],
+                desc: "查看原神当前卡池与官方公告（含UP角色封面图）。"
+            },
+            {
+                category: "ys",
+                title: "原神x.x卡池 / 原神x.x上半/下半卡池",
+                aliases: ["原神版本卡池"],
+                desc: "查看原神指定版本卡池UP角色及时间。"
+            },
+            {
+                category: "ys",
+                title: "原神xx卡池",
+                aliases: ["原神角色卡池"],
+                desc: "查询原神角色/武器历史卡池。"
+            },
+            {
+                category: "ys",
+                title: "幻想真境剧诗 / 幻想剧诗角色 / 幻想剧诗 202607",
+                aliases: ["剧诗"],
+                desc: "查看原神幻想真境剧诗当期限制元素、开幕/特邀/可用角色。"
+            },
+            {
+                category: "ys",
+                title: "原神深渊速报 / 原神6.7深渊 / 原神幻想剧诗 / 原神幽境危战",
+                aliases: ["深渊速报"],
+                desc: "查看原神深境螺旋/幻想剧诗/幽境危战版本速报图。"
+            },
+            {
+                category: "ys",
+                title: "原神卡池全 / 原神卡池历史",
+                aliases: ["原神全部卡池"],
+                desc: "查看原神全部版本卡池列表。"
+            },
+            {
+                category: "ys",
+                title: "xx卡池",
+                aliases: ["通用卡池"],
+                desc: "通用名称卡池查询，依次尝试：绝区零>崩坏3>原神。"
+            },
+            {
+                category: "ys",
+                title: "*xx卡池",
+                aliases: ["精确卡池"],
+                desc: "与原神卡池命令相同，通过版本获取记得带上“*”前缀。"
+            },
+            {
+                category: "ys",
+                title: "卡池时间",
+                aliases: ["卡池结束"],
+                desc: "获取当期原神卡池结束时间。"
+            },
+            {
+                category: "ys",
+                title: "官方当前卡池 / 原神官方卡池 / 星铁官方卡池 / 绝区零官方卡池 / 崩三官方卡池",
+                aliases: ["官方卡池"],
+                desc: "查看四款游戏米游社官方公告卡池（解析S/H UP）。"
+            },
+            {
+                category: "ys",
+                title: "刷新卡池数据 / 更新卡池数据",
+                aliases: ["刷新数据"],
+                desc: "手动刷新四游戏官方公告卡池缓存。"
+            },
+            {
+                category: "ys",
+                title: "塔罗牌",
+                aliases: ["占卜"],
+                desc: "随机抽取一张塔罗牌进行占卜娱乐。"
+            },
+            {
+                category: "ys",
+                title: "xx攻略",
+                aliases: ["角色攻略"],
+                desc: "默认可用状态，星铁角色攻略，如云璃攻略。"
+            },
+            {
+                category: "ys",
+                title: "更新xx攻略",
+                aliases: ["更新攻略"],
+                desc: "更新星铁角色攻略，遇到图片损坏可用该命令。"
+            },
+            {
+                category: "ys",
+                title: "（每日Npc委托名）",
+                aliases: ["每日委托"],
+                desc: "查询原神每日委托是否带有成就。"
+            },
+            {
+                category: "ys",
+                title: "货币战争",
+                aliases: ["星铁货币"],
+                desc: "查询星铁货币战争相关数据。"
+            },
+            {
+                category: "ys",
+                title: "#xhh星铁更新抽卡记录 / #小花火星铁更新抽卡记录",
+                aliases: ["星铁更新抽卡"],
+                desc: "获取星铁官方五星摘要并生成原创抽卡页。"
+            },
+            {
+                category: "ys",
+                title: "#xhh星铁抽卡记录 / #小花火星铁抽卡记录",
+                aliases: ["星铁抽卡记录"],
+                desc: "查看本地星铁抽卡摘要卡片。"
+            },
+            {
+                category: "ys",
+                title: "xx图鉴",
+                aliases: ["通用图鉴"],
+                desc: "可莉图鉴、火神专武图鉴、海瑟音专武图鉴等。"
+            },
+            {
+                category: "ys",
+                title: "星铁深渊速报 / 星铁4.3混沌 / 星铁4.3虚构 / 星铁4.3末日",
+                aliases: ["星铁深渊"],
+                desc: "查看星铁混沌回忆/虚构叙事/末日幻影版本速报图。"
+            },
+            {
+                category: "ys",
+                title: "绝区零xx图鉴 / 绝区零图鉴xx / ZZZxx图鉴",
+                aliases: ["绝区零图鉴"],
+                desc: "查看绝区零代理人/音擎/驱动盘/邦布图鉴，支持官方别名。"
+            },
+            {
+                category: "ys",
+                title: "绝区零xx专武图鉴 / 绝区零xx专属驱动盘图鉴",
+                aliases: ["绝区零专武"],
+                desc: "按代理人名快捷查询专属音擎、推荐驱动盘。"
+            },
+            {
+                category: "ys",
+                title: "绝区零当前卡池 / ZZZ当前卡池",
+                aliases: ["绝区零卡池"],
+                desc: "查看绝区零当前版本卡池（当前标记 v3.0）。"
+            },
+            {
+                category: "ys",
+                title: "绝区零x.x卡池 / ZZZx.x卡池",
+                aliases: ["ZZZ版本卡池"],
+                desc: "查看绝区零指定版本卡池，如绝区零3.0卡池。"
+            },
+            {
+                category: "ys",
+                title: "绝区零防卫战攻略 / 防卫战配队 / 式舆阵容",
+                aliases: ["防卫战"],
+                desc: "搜索绝区零式舆防卫战作业与推荐配队，支持手动带BOSS关键词。"
+            },
+            {
+                category: "ys",
+                title: "绝区零危局强袭战攻略 / 危局配队 / 危局xx阵容",
+                aliases: ["危局"],
+                desc: "自动识别当前危局BOSS并搜索作业与推荐配队。"
+            },
+            {
+                category: "ys",
+                title: "体力 / 小花火体力",
+                aliases: ["体力总览"],
+                desc: "原神/星铁/绝区零/崩坏3四游戏体力总览（需用户 stoken）。"
+            },
+            {
+                category: "ys",
+                title: "小花火扫码绑定",
+                aliases: ["扫码绑定"],
+                desc: "扫码绑定原神、星铁、绝区零、崩坏3账号。"
+            },
+            {
+                category: "ys",
+                title: "删除stoken",
+                aliases: ["删token"],
+                desc: "删除扫码绑定获取的 stoken（连同 xiaoyao-cvs 一并删除）。"
+            },
+            {
+                category: "ys",
+                title: "签到",
+                aliases: ["米游社签到"],
+                desc: "原神、星铁、绝区零、崩坏3的米游社签到。"
+            },
+            {
+                category: "ys",
+                title: "社区签到 / 米游社签到 / 论坛签到",
+                aliases: ["论坛签到"],
+                desc: "米游社社区每日签到（与游戏签到不同）。"
+            },
+            {
+                category: "ys",
+                title: "米游社全部签到 / 社区全部签到 / 论坛全部签到",
+                aliases: ["全部签到"],
+                desc: "尝试所有米游社社区版块签到，并完成浏览/点赞/分享任务。"
+            },
+            {
+                category: "ys",
+                title: "崩三签到 / 崩坏3签到",
+                aliases: ["崩三签到"],
+                desc: "单独执行崩坏3米游社签到（与米游社原生签到逻辑一致）。"
+            },
+            {
+                category: "ys",
+                title: "母带",
+                aliases: ["绝区零母带"],
+                desc: "查询绝区零母带信息。"
+            },
+            {
+                category: "ys",
+                title: "设置原石余额12345 / 原石余额 / 设置星琼余额12345 / 星琼余额",
+                aliases: ["余额"],
+                desc: "手动校准后按官方札记增量估算原石/星琼余额（非实时余额）。"
+            },
+            {
+                category: "bili",
+                title: "小花火B站登录",
+                aliases: ["b站登录"],
+                desc: "扫码登录绑定B站账号，不绑定B站功能都无法使用。"
+            },
+            {
+                category: "bili",
+                title: "b站账号",
+                aliases: ["账号"],
+                desc: "查看绑定的B站账号信息。"
+            },
+            {
+                category: "bili",
+                title: "刷新b站ck",
+                aliases: ["刷新ck"],
+                desc: "ck过期就刷新一下。"
+            },
+            {
+                category: "bili",
+                title: "删除b站ck",
+                aliases: ["删ck"],
+                desc: "删除绑定的B站ck。"
+            },
+            {
+                category: "bili",
+                title: "解析",
+                aliases: ["链接解析"],
+                desc: "主动解析B站卡片，一般都会自动解析。"
+            },
+            {
+                category: "bili",
+                title: "点赞，取消点赞，投币(可+投币数)，收藏，取消收藏，三连，拉黑，关注，取消拉黑，取消关注，下载封面",
+                aliases: ["互动"],
+                desc: "回复卡片或 Bot 解析出的图片即可执行对应B站互动操作。"
+            },
+            {
+                category: "bili",
+                title: "评论(+评论文本)",
+                aliases: ["评论"],
+                desc: "（回复卡片或 Bot 解析出的图片）评论视频。"
+            },
+            {
+                category: "bili",
+                title: "简介",
+                aliases: ["视频简介"],
+                desc: "（回复卡片或 Bot 解析出的图片）查看完整视频简介。"
+            },
+            {
+                category: "bili",
+                title: "下载视频",
+                aliases: ["下载"],
+                desc: "（回复卡片或 Bot 解析出的图片）超过30MB的视频就算了。"
+            },
+            {
+                category: "bili",
+                title: "展开(+序号)",
+                aliases: ["展开评论"],
+                desc: "（回复 Bot 解析出的图片）展开评论区，如：展开2。"
+            },
+            {
+                category: "bili",
+                title: "下载图片",
+                aliases: ["下载图"],
+                desc: "（回复 Bot 解析评论区出的图片）展开评论后会显示图片，可以下载。"
+            },
+            {
+                category: "bili",
+                title: "b站推送列表",
+                aliases: ["推送列表"],
+                desc: "查看本群有哪些UP主的视频推送。"
+            },
+            {
+                category: "bili",
+                title: "开启推送，关闭推送",
+                aliases: ["推送开关"],
+                desc: "（回复卡片或 Bot 解析出的图片）将该UP主未来最新视频推送到当前群聊。"
+            },
+            {
+                category: "bili",
+                title: "开启b站推送(+up主的uid)，关闭b站推送(+up主的uid)",
+                aliases: ["up推送"],
+                desc: "需要加上UP主的UID进行开启或关闭。"
+            },
+            {
+                category: "bili",
+                title: "清空b站缓存",
+                aliases: ["清b站缓存"],
+                desc: "每天凌晨会自动清空，也可手动清空。"
+            },
+            {
+                category: "device",
+                title: "小花火开启设备",
+                aliases: ["开启设备"],
+                desc: "默认开启绑定设备，开启后会重启。"
+            },
+            {
+                category: "device",
+                title: "设备帮助",
+                aliases: ["设备用法"],
+                desc: "查看设备用法说明。"
+            },
+            {
+                category: "device",
+                title: "设备(+设备信息)",
+                aliases: ["绑定设备"],
+                desc: "绑定常用设备信息。"
+            },
+            {
+                category: "device",
+                title: "删除设备",
+                aliases: ["del"],
+                desc: "删除已绑定的设备信息。"
+            },
+            {
+                category: "owner",
+                title: "小花火设置",
+                aliases: ["设置"],
+                desc: "查看小花火火的设置项和设置命令。"
+            },
+            {
+                category: "owner",
+                title: "小花火更新",
+                aliases: ["更新"],
+                desc: "更新小花火插件。"
+            },
+            {
+                category: "owner",
+                title: "小花火强制更新",
+                aliases: ["强制更新"],
+                desc: "拒绝冲突，勇敢强更。"
+            },
+            {
+                category: "owner",
+                title: "小花火更新日志",
+                aliases: ["日志"],
+                desc: "查看小花火插件更新日志。"
+            }
+        ];
+
+        const categories = {
+            bh3: { label: "崩坏3", color: "#e11d48" },
+            ys: { label: "原神 / 星铁", color: "#8b5cf6" },
+            bili: { label: "Bilibili", color: "#7c3aed" },
+            device: { label: "设备命令", color: "#22d3ee" },
+            owner: { label: "主人专用", color: "#f59e0b" }
+        };
+
+        let currentCat = "all";
+        let searchQuery = "";
+
+        const listEl = document.getElementById("commandList");
+        const searchInput = document.getElementById("searchInput");
+        const catBtns = document.querySelectorAll(".category-btn");
+        const backToTop = document.getElementById("backToTop");
+        const themeToggle = document.getElementById("themeToggle");
+
+        // 动图帧控制：?frame=N 推进动画相位
+        const frameParam = new URLSearchParams(location.search).get("frame");
+        if (frameParam !== null) {
+            document.documentElement.classList.add("anim-mode");
+            const t = -(parseInt(frameParam, 10) || 0) * 0.4 + "s";
+            document.documentElement.style.setProperty("--t", t);
+        }
+
+        // 背景星星粒子
+        const starCount = 28;
+        const starsEl = document.getElementById("stars");
+        if (starsEl) {
+            for (let i = 0; i < starCount; i++) {
+                const s = document.createElement("div");
+                s.className = "star";
+                const size = (3 + Math.random() * 5).toFixed(1);
+                s.style.width = size + "px";
+                s.style.height = size + "px";
+                s.style.left = (Math.random() * 100).toFixed(2) + "%";
+                s.style.top = (Math.random() * 100).toFixed(2) + "%";
+                s.style.animationDelay = "calc(" + (Math.random() * 1.6).toFixed(2) + "s + var(--t))";
+                starsEl.appendChild(s);
+            }
+        }
+
+        function render() {
+            listEl.innerHTML = "";
+
+            const filtered = commands.filter(cmd => {
+                const matchCat = currentCat === "all" || cmd.category === currentCat;
+                const text = (cmd.title + " " + cmd.aliases.join(" ") + " " + cmd.desc).toLowerCase();
+                const matchSearch = !searchQuery || text.includes(searchQuery.toLowerCase());
+                return matchCat && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <h3>没有找到匹配的命令</h3>
+                        <p>换个关键词试试，或切换到“全部”分类查看。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 按分类分组
+            const groups = {};
+            for (const cmd of filtered) {
+                if (!groups[cmd.category]) groups[cmd.category] = [];
+                groups[cmd.category].push(cmd);
+            }
+
+            // 保持分类顺序
+            const catOrder = ["bh3", "ys", "bili", "device", "owner"];
+            for (const cat of catOrder) {
+                if (!groups[cat]) continue;
+                const info = categories[cat];
+                const section = document.createElement("section");
+                section.innerHTML = `
+                    <h2 class="section-title">
+                        <span class="dot" style="background:${info.color}"></span>
+                        ${info.label}
+                        <span style="margin-left:auto;font-size:.85rem;color:var(--muted);font-weight:500">${groups[cat].length} 条</span>
+                    </h2>
+                    <div class="cards" id="cards-${cat}"></div>
+                `;
+                const cardsEl = section.querySelector(".cards");
+                for (const cmd of groups[cat]) {
+                    const card = document.createElement("article");
+                    card.className = "card";
+                    card.style.setProperty("--cat-color", info.color);
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="card-title">${escapeHtml(cmd.title)}</div>
+                            <span class="card-tag">${info.label}</span>
+                        </div>
+                        <div class="card-desc">${escapeHtml(cmd.desc)}</div>
+                        <div class="aliases">
+                            ${cmd.aliases.map(a => `<span class="alias">${escapeHtml(a)}</span>`).join("")}
+                        </div>
+                    `;
+                    cardsEl.appendChild(card);
+                }
+                listEl.appendChild(section);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        searchInput.addEventListener("input", e => {
+            searchQuery = e.target.value.trim();
+            render();
+        });
+
+        catBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                catBtns.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentCat = btn.dataset.cat;
+                render();
+            });
+        });
+
+        window.addEventListener("scroll", () => {
+            if (window.scrollY > 300) {
+                backToTop.classList.add("visible");
+            } else {
+                backToTop.classList.remove("visible");
+            }
+        });
+
+        backToTop.addEventListener("click", () => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+
+        themeToggle.addEventListener("click", () => {
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+            document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
+            themeToggle.textContent = isDark ? "🌙" : "☀️";
+        });
+
+        render();
+    </script>
+</body>
+</html>
