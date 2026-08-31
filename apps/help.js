@@ -17,7 +17,7 @@ export class help extends plugin {
   }
 
   async help(e) {
-    const url = 'https://yu2147.2147014323.workers.dev/';
+    const url = 'https://yuyu2147.dpdns.org/';
     await e.reply(`【小花火命令帮助】\n在线查看：${url}`);
   }
 }
