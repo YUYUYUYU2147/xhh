@@ -1,4 +1,4 @@
-import { yaml, render, pluginPriority } from '#xhh';
+import { pluginPriority } from '#xhh';
 
 export class help extends plugin {
   constructor(e) {
@@ -17,18 +17,7 @@ export class help extends plugin {
   }
 
   async help(e) {
-    let data = await yaml.get('./plugins/xhh/system/default/help.yaml');
-    if (!data) return;
-    let au = false;
-    if (e.isMaster) au = true;
-    this.img(e, data, au);
-  }
-
-  img(e, data, au) {
-    let _data_ = {
-      data,
-      au,
-    };
-    render('help/help', _data_, { e, pct: 3, ret: true });
+    const url = 'https://yu2147.2147014323.workers.dev/';
+    await e.reply(`【小花火命令帮助】\n在线查看：${url}`);
   }
 }
