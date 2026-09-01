@@ -9,7 +9,7 @@
 //   #meme帮助                     帮助
 //   #meme更新                     （主人）更新远端资源缓存
 
-import fetch, { FormData } from 'node-fetch';
+import fetch, { FormData, Blob } from 'node-fetch';
 import fs from 'fs';
 import path from 'node:path';
 import lodash from 'lodash';
@@ -550,7 +550,7 @@ export class meme extends plugin {
         const buffer = await this.fetchImageBuffer(imgUrls[i]);
         if (!buffer) continue;
         imgBuffers.push(buffer);
-        formData.append('images', buffer, { filename: `img_${i}.jpg`, contentType: 'image/jpeg' });
+        formData.append('images', new Blob([buffer], { type: 'image/jpeg' }), `img_${i}.jpg`);
       }
     }
 
