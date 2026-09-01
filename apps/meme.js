@@ -13,6 +13,8 @@ import fetch, { FormData } from 'node-fetch';
 import fs from 'fs';
 import path from 'node:path';
 import lodash from 'lodash';
+import sharp from '../node_modules/sharp/lib/index.js';
+import puppeteer from '../../../lib/puppeteer/puppeteer.js';
 import { render, config, pluginPriority, getSource } from '#xhh';
 
 const DATA_DIR = './plugins/xhh/data/memes/';
@@ -27,7 +29,7 @@ const protectList = ['lash', 'do', 'beat_up', 'little_do', 'fast_do', 'qi', 'fas
 let keyMap = {};
 let infos = {};
 let loadPromise = null;
-let lastListRender = null; // 列表图渲染缓存 {time, buffer}
+
 
 const getCfg = () => config();
 
@@ -41,6 +43,86 @@ function memeEnabled() {
 
 function escapeRegExp(str = '') {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 渲染出的 PNG 长图体积过大，NapCat 发送 base64 图片会报
+// "rich media transfer failed"。这里统一转 JPEG、限宽压体积，
+// 若高度仍过大则切割成多张发送，避免 QQ 富媒体超限
+const MAX_IMG_WIDTH = 1000;
+const MAX_IMG_BYTES = 2 * 1024 * 1024;
+const MAX_IMG_HEIGHT = 8000;
+
+async function compressImageBuf(buf, opts = {}) {
+  const maxWidth = opts.maxWidth || MAX_IMG_WIDTH;
+  const maxBytes = opts.maxBytes || MAX_IMG_BYTES;
+  let quality = opts.quality || 82;
+  const meta = await sharp(buf).metadata();
+  const width = Math.min(meta.width || maxWidth, maxWidth);
+  let out = await sharp(buf)
+    .resize({ width })
+    .flatten({ background: '#ffffff' })
+    .jpeg({ quality, mozjpeg: true })
+    .toBuffer();
+  while (out.length > maxBytes && quality > 40) {
+    quality -= 10;
+    out = await sharp(buf)
+      .resize({ width })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality, mozjpeg: true })
+      .toBuffer();
+  }
+  logger.mark(
+    `[xhh-meme] 图片压缩 ${(buf.length / 1024 / 1024).toFixed(2)}MB -> ${(out.length / 1024 / 1024).toFixed(2)}MB (${meta.width}x${meta.height} -> ${width}px, jpeg q${quality})`
+  );
+  return out;
+}
+
+// 压缩后若图片过高，切成多张（NapCat 对超高长图也会传失败）
+async function compressAndSplit(buf) {
+  const jpeg = await compressImageBuf(buf);
+  const meta = await sharp(jpeg).metadata();
+  const { width, height } = meta;
+  if (height <= MAX_IMG_HEIGHT) return [jpeg];
+  const parts = Math.ceil(height / MAX_IMG_HEIGHT);
+  const chunkH = Math.floor(height / parts);
+  const list = [];
+  for (let i = 0; i < parts; i++) {
+    const top = i * chunkH;
+    const h = i === parts - 1 ? height - top : chunkH;
+    list.push(
+      await sharp(jpeg)
+        .extract({ left: 0, top, width, height: h })
+        .jpeg({ quality: 82, mozjpeg: true })
+        .toBuffer()
+    );
+  }
+  logger.mark(`[xhh-meme] 长图 ${height}px 切割为 ${parts} 张`);
+  return list;
+}
+
+// puppeteer.render 直接返回 Buffer（bh3_profile 等已验证），拿到后压缩/切割再发送
+async function renderImg(e, path, data_, cfg = {}) {
+  const tplFile = process.cwd() + '/plugins/xhh/resources/' + path + '.html';
+  let buf;
+  try {
+    buf = await puppeteer.render('小花火/' + path, {
+      ...data_,
+      sys: { scale: 'style=transform:scale(1)' },
+      deviceScaleFactor: cfg.scale || 2,
+      ppath: data_.ppath || '../../../../../plugins/xhh/resources/',
+      tplFile: tplFile,
+      saveId: path.split('/')[path.split('/').length - 1],
+    });
+  } catch (err) {
+    logger.error(`[xhh-meme] 渲染失败 ${path}: ${err.message}`);
+    return [{ type: 'text', data: { text: '图片渲染失败，请稍后再试' } }];
+  }
+  if (!buf || !Buffer.isBuffer(buf)) {
+    logger.error(`[xhh-meme] 渲染返回异常 ${path}: ${typeof buf}`);
+    return [{ type: 'text', data: { text: '图片渲染失败，请稍后再试' } }];
+  }
+  const bufs = await compressAndSplit(buf);
+  return bufs.map(b => segment.image(b));
 }
 
 function mkdirs(dirname) {
@@ -196,7 +278,7 @@ export class meme extends plugin {
       priority: pluginPriority('meme', 50),
       rule: [
         {
-          reg: '^#?(meme(s)?|表情包)(列表|大全|总览)$',
+          reg: '^#?(meme(s)?|表情包)(列表|大全|总览)(\\s*\\d+)?$',
           fnc: 'memesList',
         },
         {
@@ -241,7 +323,7 @@ export class meme extends plugin {
     await loadData(force);
     let rules = [
       {
-        reg: '^#?(meme(s)?|表情包)(列表|大全|总览)$',
+        reg: '^#?(meme(s)?|表情包)(列表|大全|总览)(\\s*\\d+)?$',
         fnc: 'memesList',
       },
       {
@@ -292,11 +374,6 @@ export class meme extends plugin {
       await e.reply('meme 资源为空，请先发送 #meme更新 拉取资源', true);
       return true;
     }
-    // 24h 缓存
-    if (lastListRender && Date.now() - lastListRender.time < 24 * 60 * 60 * 1000) {
-      await e.reply(lastListRender.msg);
-      return true;
-    }
     const now = Date.now();
     const NEW_MS = 30 * 24 * 60 * 60 * 1000;
     const list = Object.values(infos)
@@ -311,8 +388,14 @@ export class meme extends plugin {
       }))
       .sort((a, b) => new Date(a.created) - new Date(b.created))
       .reverse();
-    const msg = await render('meme/meme', { list, total: list.length }, { e, ret: true });
-    lastListRender = { time: Date.now(), msg };
+    const PAGE_SIZE = 48;
+    const pageMatch = e.msg.match(/\d+/);
+    let page = pageMatch ? parseInt(pageMatch[0], 10) : 1;
+    const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    page = Math.max(1, Math.min(page, totalPages));
+    const pageList = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const nextPage = page < totalPages ? page + 1 : 1;
+    const msg = await renderImg(e, 'meme/meme', { list: pageList, total: list.length, page, totalPages, nextPage });
     await e.reply(msg);
     return true;
   }
@@ -361,7 +444,7 @@ export class meme extends plugin {
       return true;
     }
     const data = buildDetailData(info);
-    const msg = await render('meme/detail', data, { e, ret: true });
+    const msg = await renderImg(e, 'meme/detail', data);
     await e.reply(msg);
     return true;
   }
@@ -406,7 +489,7 @@ export class meme extends plugin {
       baseUrl: memeBaseUrl(),
       helpGroup,
     };
-    const msg = await render('meme/help', data, { e, ret: true });
+    const msg = await renderImg(e, 'meme/help', data);
     await e.reply(msg);
     return true;
   }
@@ -414,7 +497,6 @@ export class meme extends plugin {
   // ---------- 更新 ----------
   async memesUpdate(e) {
     await e.reply('xhh-meme 资源更新中…', true);
-    lastListRender = null;
     await loadData(true);
     await this.init(true);
     await e.reply(`更新完成，当前共 ${Object.keys(infos).length} 个 meme`, true);
