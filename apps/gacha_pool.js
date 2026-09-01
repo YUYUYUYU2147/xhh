@@ -1,5 +1,6 @@
 import { makeForwardMsg, render, yaml, pluginPriority } from '#xhh';
 import fs from 'fs';
+import YAML from 'yaml';
 import { bh3_gacha } from './bh3_gacha.js';
 import officialPool from '../system/gacha_pool_official.js';
 
@@ -19,7 +20,7 @@ const ZZZ_MARK_ICON = 'zzz_md/imgs/ellen.png';
 const GS_MARK_ICON = 'gs_mark/paimon.png';
 const SR_MARK_ICON = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
 const MYS_MARK_ICON = 'gacha_pool/mys.png';
-const CURRENT_VERSION = { gs: '6.7', sr: '4.4', zzz: '3.0', bh3: '9.0' };
+const CURRENT_VERSION = { gs: '7.0', sr: '4.5', zzz: '3.1', bh3: '9.0' };
 const ZZZ_VERSION_UP_NAMES = {
   '3.0上半': ['维琳娜', '叶瞬光'],
   '3.0下半': ['诺姆', '千夏'],
@@ -789,6 +790,12 @@ export class xhh_gacha_pool extends plugin {
       ({ s, a } = this.fixZzzOfficialRanks(s, a));
     }
     // 卡池立绘统一只放页面顶部右侧；单个 UP 卡片不再重复放立绘，避免画面太挤。
+    // 若官方公告没有封面图，则尝试用 UP 角色/武器本地立绘兜底。
+    let img = r.cover || r.images?.[0] || '';
+    if (!img) {
+      const names = String(s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+      img = this.getCardSplashByGame(game, names) || '';
+    }
     return {
       version: r.version || this.currentVersionByGame(game) || '-',
       title: r.title,
@@ -797,9 +804,102 @@ export class xhh_gacha_pool extends plugin {
       s,
       a,
       note: s || a ? '' : (r.url ? '查看公告原文' : ''),
-      img: r.cover || r.images?.[0] || '',
+      img,
       weapon: false
     };
+  }
+
+  // 官方公告卡池缺少 4 星时，用本地库同池数据兜底补齐；本地库也缺失时回退到硬编码兜底。
+  async patchGsOfficialCards(cards = [], gsLocalCurrent = null) {
+    if (!Array.isArray(cards) || !cards.length) return;
+    if (!gsLocalCurrent) gsLocalCurrent = await this.loadGsLocalCards('current');
+    if (gsLocalCurrent?.length) {
+      for (const card of cards) {
+        if (card.a) continue;
+        const isWpn = /武器/.test(card.title || '') || /^祈愿/.test(card.title || '');
+        const cardS = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+        if (!cardS.length) continue;
+        const localMatch = gsLocalCurrent.find(c => {
+          if (c.weapon !== isWpn || !c.s) return false;
+          const localS = c.s.split(' / ').map(v => v.trim());
+          return localS.some(n => cardS.some(cs => cs.includes(n) || n.includes(cs)));
+        });
+        if (localMatch?.a) card.a = localMatch.a;
+      }
+    }
+    await this.patchGsCardsHardcoded(cards);
+  }
+
+  // 原神四星兜底：优先从米游社官方公告自动解析（自动适配任意新版本），解析不到再回退已知版本硬编码。
+  async patchGsCardsHardcoded(cards = []) {
+    if (!Array.isArray(cards) || !cards.length) return;
+    // 1) 自动解析：官方公告正文里的四星，任意版本生效，无需维护
+    try {
+      const { records } = await officialPool.fetch('gs');
+      if (records?.length) {
+        for (const card of cards) {
+          if (card.a) continue;
+          const isWpn = /武器/.test(card.title || '') || /^祈愿/.test(card.title || '');
+          const cardS = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+          if (!cardS.length) continue;
+          const hit = records.find(r => {
+            const rS = (r.up?.s || []).map(v => String(v).trim());
+            return rS.some(n => cardS.some(cs => cs.includes(n) || n.includes(cs)));
+          });
+          if (hit?.up?.a?.length) {
+            const aList = Array.isArray(hit.up.a) ? hit.up.a : String(hit.up.a || '').split(/[\/，,、]/);
+            card.a = aList.map(v => String(v).trim()).filter(Boolean).join(' / ');
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 原神四星公告自动解析失败，回退硬编码:', err?.message || err);
+    }
+    // 2) 已知版本硬编码兜底
+    const HARDCODED = {
+      '7.0下半': {
+        '伊涅芙': ['爱诺', '伊安珊', '蓝砚'],
+        '菲林斯': ['爱诺', '伊安珊', '蓝砚'],
+        '血染荒城': ['笛剑', '西风大剑', '西风长枪', '昭心', '绝弦'],
+        '支离轮光': ['笛剑', '西风大剑', '西风长枪', '昭心', '绝弦']
+      }
+    };
+    for (const card of cards) {
+      if (card.a) continue;
+      const ver = String(card.version || '').trim();
+      if (!/7\.0[上下]半/.test(ver)) continue;
+      const verMap = HARDCODED['7.0下半'];
+      const sNames = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+      for (const s of sNames) {
+        if (verMap[s]) { card.a = verMap[s].join(' / '); break; }
+      }
+    }
+  }
+
+  // 绝区零官方公告缺少 A 级/UP 信息时，用本地卡池库当前期数据兜底补齐
+  async patchZzzOfficialCards(cards = [], zzzLocal = null) {
+    if (!Array.isArray(cards) || !cards.length) return;
+    if (!zzzLocal) zzzLocal = this.loadZzzLocalPools();
+    if (!Array.isArray(zzzLocal) || !zzzLocal.length) return;
+    const now = new Date();
+    const current = zzzLocal.filter(p => {
+      const { start, end } = this.parseTime(p);
+      return start && end && now >= start && now <= end;
+    });
+    if (!current.length) return;
+    for (const card of cards) {
+      if (card.a) continue;
+      const cardS = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+      if (!cardS.length) continue;
+      const hit = current.find(p => {
+        const sNames = String(p.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+        return sNames.some(n => cardS.some(cs => cs.includes(n) || n.includes(cs)));
+      });
+      if (hit?.a?.length) {
+        const aList = Array.isArray(hit.a) ? hit.a : String(hit.a || '').split(/[\/，,、]/);
+        card.a = aList.map(v => String(v).trim()).filter(Boolean).join(' / ');
+      }
+    }
   }
 
   getCardSplashByGame(gameName = '', names = []) {
@@ -993,9 +1093,36 @@ export class xhh_gacha_pool extends plugin {
         });
       }
     }
+    // 原神公告的 4 星写法较多样，且米游社详情接口 content 偶发缺失，通用公告解析容易漏掉 4 星。
+    // 指定“原神米游社/官方卡池”时同样优先用本地结构化卡池表，保证 5 星/4 星稳定展示（与星铁一致）。
+    if (game === 'gs') {
+      const gsLocal = await this.loadGsLocalCards('current');
+      if (gsLocal.length) {
+        // 本地 yaml 缺失四星时，用公告自动解析兜底补齐
+        await this.patchGsCardsHardcoded(gsLocal);
+        gsLocal.forEach((card, i) => {
+          card.index = i + 1;
+          card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
+        });
+        const markIcon = this.getHeaderSplashFromCards('原神', gsLocal, GS_MARK_ICON);
+        return this.renderPoolImage(e, {
+          game: meta.name,
+          title: `${meta.name}米游社官方卡池`,
+          subtitle: this.formatCurrentPoolSubtitle(gsLocal[0]?.version, gsLocal[0]?.time, '数据来源：米游社公告整理 · 本地卡池库'),
+          mode: 'official official-game',
+          markIcon,
+          markWide: !!markIcon,
+          cards: gsLocal
+        });
+      }
+    }
     const { records, error, cache } = await officialPool.fetch(game);
     if (!records.length) return e.reply(`${meta.name}米游社公告卡池数据获取失败${error ? '：' + error : ''}`);
     const cards = records.map(r => this.officialCard(r, meta.name));
+    // 原神官方公告若没解析出 4 星，用本地库同池数据兜底补齐
+    if (game === 'gs') await this.patchGsOfficialCards(cards);
+    // 绝区零官方公告若没解析出 UP 信息，用本地卡池库兜底补齐
+    else if (game === 'zzz') await this.patchZzzOfficialCards(cards);
     const markIcon = game === 'zzz'
       ? this.getZzzHeaderSplashFromCards(cards, this.getMarkIcon(meta.name))
       : await this.getHeaderSplashByGame(meta.name, records, this.getMarkIcon(meta.name));
@@ -1024,9 +1151,35 @@ export class xhh_gacha_pool extends plugin {
     if (!game) return false;
     const meta = officialPool.games[game];
     logger.mark(`[xhh][gacha_pool] 命中${meta.name}v${version}官方卡池:`, e.msg);
+    // 原神版本官方卡池同样优先本地结构化卡池表，保证 5 星/4 星稳定展示（与星铁一致）。
+    if (game === 'gs') {
+      const localCards = await this.loadGsLocalCards(version);
+      if (localCards.length) {
+        // 本地 yaml 缺失四星时，用公告自动解析兜底补齐
+        await this.patchGsCardsHardcoded(localCards);
+        localCards.forEach((card, i) => {
+          card.index = i + 1;
+          card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
+        });
+        const markIcon = this.getHeaderSplashFromCards('原神', localCards, GS_MARK_ICON);
+        return this.renderPoolImage(e, {
+          game: meta.name,
+          title: `${meta.name} v${version} 官方卡池`,
+          subtitle: '数据来源：米游社公告整理 · 本地卡池库',
+          mode: 'official official-game',
+          markIcon,
+          markWide: !!markIcon,
+          cards: localCards
+        });
+      }
+    }
     const { records, error, cache } = await officialPool.fetch(game, { version });
     if (!records.length) return e.reply(`${meta.name} v${version} 未找到米游社官方卡池公告${error ? '：' + error : ''}`);
     const cards = records.map(r => this.officialCard(r, meta.name));
+    // 原神官方公告若没解析出 4 星，用本地库同池数据兜底补齐
+    if (game === 'gs') await this.patchGsOfficialCards(cards);
+    // 绝区零官方公告若没解析出 UP 信息，用本地卡池库兜底补齐
+    else if (game === 'zzz') await this.patchZzzOfficialCards(cards);
     const markIcon = game === 'zzz'
       ? this.getZzzHeaderSplashFromCards(cards, this.getMarkIcon(meta.name))
       : await this.getHeaderSplashByGame(meta.name, records, this.getMarkIcon(meta.name));
@@ -1053,7 +1206,246 @@ export class xhh_gacha_pool extends plugin {
       const meta = officialPool.games[r.game];
       return `${meta?.name || r.game}：${r.records.length} 条${r.error ? '（' + r.error + '）' : ''}`;
     });
-    return e.reply('米游社官方卡池数据已刷新：\n' + lines.join('\n'));
+    // 刷新成功后自动同步本地卡池库，避免每个版本都要手动维护 gslogs.yaml / sr_logs.yaml。
+    const syncLines = await this.syncLocalPoolsFromOfficial(results);
+    const syncText = syncLines.length ? '\n\n【本地卡池库自动同步】\n' + syncLines.join('\n') : '';
+    return e.reply('米游社官方卡池数据已刷新：\n' + lines.join('\n') + syncText);
+  }
+
+  // —— 本地卡池库自动同步 ——
+  // 每次 #刷新卡池 拉取官方公告成功后，自动把当前版本卡池数据写入本地库并推进版本号。
+  // 官方公告解析不到关键信息时跳过（保持本地库原样，可人工修正），避免写入脏数据。
+
+  gsLocalShortName(name = '') {
+    return String(name || '')
+      .replace(/[（(][^）)]*[）)]/g, '')
+      .replace(/^.+·(?=[\u4e00-\u9fa5])/, '')
+      .replace(/[「」『』]/g, '')
+      .trim();
+  }
+
+  srLocalName(name = '') {
+    return String(name || '').replace(/[（(].*?[）)]/g, '').trim();
+  }
+
+  srLocalCone(name = '') {
+    const m = String(name || '').match(/^(.+?)[（(]([^）)]+)[）)]$/);
+    if (m) return `${m[2].split(/[·•]/)[0]}/${m[1].trim()}`;
+    return String(name || '').trim();
+  }
+
+  fmtTs(ts = 0, hhmm = '') {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const p = n => String(n).padStart(2, '0');
+    const date = `${d.getUTCFullYear()}/${p(d.getUTCMonth() + 1)}/${p(d.getUTCDate())}`;
+    return hhmm ? `${date} ${hhmm}` : date;
+  }
+
+  syncSrImagesFromOfficial(records = []) {
+    // 用官方公告列表为本地已有条目补背景图，即使正文为空也能更新图片。
+    const history = this.loadSrPoolHistory();
+    if (!Array.isArray(history) || !records.length) return false;
+    let changed = false;
+    for (const item of history) {
+      if ((item.imgs || []).filter(Boolean).length) continue;
+      const roleImg = this.getSrOfficialPoolImage(item, false, records);
+      const weaponImg = this.getSrOfficialPoolImage(item, true, records);
+      const imgs = [...new Set([roleImg, weaponImg].filter(Boolean))];
+      if (imgs.length) {
+        item.imgs = imgs;
+        changed = true;
+      }
+    }
+    if (!changed) return false;
+    try {
+      fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(history), 'utf-8');
+      return true;
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] sr_logs.yaml 背景图补写失败:', err);
+      return false;
+    }
+  }
+
+  async syncSrLocalFromOfficial(records = []) {
+    // 先用官方公告列表为所有缺图的本地条目补背景图（不受正文解析影响）。
+    const imgsSynced = this.syncSrImagesFromOfficial(records);
+
+    // 取最新版本的「活动跃迁」公告（标题带版本号，正文含完整 UP 列表）
+    const jumps = records
+      .filter(r => /活动跃迁/.test(r.title || '') && /^\d+\.\d+$/.test(r.version || ''))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const jump = jumps[0];
+    if (!jump) {
+      return imgsSynced
+        ? '星穹铁道：本地库已补背景图（未找到新版本活动跃迁公告）'
+        : '星穹铁道：官方暂无「活动跃迁」公告，本地库保持现状';
+    }
+    const version = jump.version;
+    const phase = /（其二）|（2）/.test(jump.title) ? '下半' : '上半';
+    const ver = `${version}${phase}`;
+    const history = this.loadSrPoolHistory();
+    const banner = jump.cover || (jump.images || [])[0] || '';
+    // 已是最新版本：优先直接跳过，避免正文解析异常时误报「公告正文为空」（本地库含人工修正字段）
+    if (Array.isArray(history) && history[0]?.ver === ver) {
+      // 已是最新但缺背景图时补图，不覆盖 js_five/gz_five 等手动修正字段。
+      if (banner && !(history[0].imgs || []).filter(Boolean).length) {
+        try {
+          history[0].imgs = [banner];
+          fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(history), 'utf-8');
+          return `星穹铁道：本地库已是最新 v${ver}（已补背景图）`;
+        } catch (err) {
+          logger.error('[xhh][gacha_pool] sr_logs.yaml 背景图补写失败:', err);
+        }
+      }
+      return `星穹铁道：本地库已是最新 v${ver}`; // 已同步
+    }
+    const text = jump.contentText || '';
+    if (!text) {
+      return imgsSynced
+        ? '星穹铁道：官方公告正文为空，本地库已补背景图'
+        : '星穹铁道：官方公告正文为空，跳过本地同步';
+    }
+    const jsFive = [];
+    const jsFour = [];
+    const gzFive = [];
+    const gzFour = [];
+    for (const m of text.matchAll(/限定5星角色\s*「([^」]+)」/g)) {
+      const n = this.srLocalName(m[1]);
+      if (n && !jsFive.includes(n)) jsFive.push(n);
+    }
+    for (const m of text.matchAll(/4星角色((?:\s*「[^」]+」)+)/g)) {
+      for (const n of m[1].matchAll(/「([^」]+)」/g)) {
+        const name = this.srLocalName(n[1]);
+        if (name && !jsFour.includes(name)) jsFour.push(name);
+      }
+    }
+    for (const m of text.matchAll(/限定5星光锥\s*「([^」]+)」/g)) {
+      const n = this.srLocalCone(m[1]);
+      if (n && !gzFive.includes(n)) gzFive.push(n);
+    }
+    for (const m of text.matchAll(/4星光锥((?:\s*「[^」]+」)+)/g)) {
+      for (const n of m[1].matchAll(/「([^」]+)」/g)) {
+        const name = this.srLocalCone(n[1]);
+        if (name && !gzFour.includes(name)) gzFour.push(name);
+      }
+    }
+    if (!jsFive.length) return '星穹铁道：公告未解析到 5 星 UP 角色，跳过本地同步';
+    const tm = text.match(/活动跃迁时间[为:：]?\s*(\d{4}\/\d{1,2}\/\d{1,2})[\s\S]*?[至\-~]\s*(\d{4}\/\d{1,2}\/\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
+    const time = tm ? `${tm[1]} ~ ${tm[2]}` : '';
+    const entry = { ver, time, js_five: jsFive, js_four: jsFour, gz_five: gzFive, gz_four: gzFour, imgs: banner ? [banner] : [] };
+    try {
+      const next = [entry, ...(Array.isArray(history) ? history : [])];
+      fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(next), 'utf-8');
+      if (CURRENT_VERSION.sr !== version) CURRENT_VERSION.sr = version;
+      return `星穹铁道：本地库已自动同步至 v${ver}`;
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] sr_logs.yaml 自动同步写入失败:', err);
+      return '';
+    }
+  }
+
+  async syncGsLocalFromOfficial(records = []) {
+    // 官方当前版本号：优先公告标题 → 正文「X.X版本」→ 本地 CURRENT_VERSION
+    // （原神祈愿公告标题通常不带版本号，需从正文或本地库回退）
+    const verCandidates = [];
+    for (const r of records) {
+      if (/^\d+\.\d+$/.test(r.version || '')) verCandidates.push(r.version);
+      const m = (r.contentText || '').match(/(\d+\.\d+)\s*版本/);
+      if (m) verCandidates.push(m[1]);
+    }
+    if (!verCandidates.length && /^\d+\.\d+$/.test(CURRENT_VERSION.gs || '')) verCandidates.push(CURRENT_VERSION.gs);
+    if (!verCandidates.length) return '原神：官方公告未带版本号，本地库保持现状';
+    const version = verCandidates.map(Number).sort((a, b) => b - a)[0].toFixed(1);
+    const data = this.loadGsPoolHistory();
+    if (!data?.date) return '原神：本地卡池库为空，跳过本地同步';
+    const latestMatch = Object.keys(data.date)[0]?.match(/【(\d+\.\d+)(上半|下半)】/) || [];
+    const latestVer = latestMatch[1] || '';
+    const latestPhase = latestMatch[2] || '';
+    // 即使 date 已存在，如果该版本的 imgs 数组为空或缺失，也允许重新同步补图。
+    const existingImgs = data.imgs?.[`【${version}下半】`] || data.imgs?.[`【${version}上半】`] || [];
+    const imgsComplete = existingImgs.filter(Boolean).length >= 3;
+    if (latestVer === version && latestPhase === '下半' && imgsComplete) return `原神：本地库已是最新 v${version}`; // 当前版本已同步完整
+    const phase = latestVer === version ? '下半' : '上半';
+    const ver = `${version}${phase}`;
+    const gacha = records
+      .filter(r => /概率UP/.test(r.title || '') && /「.+」/.test(r.title || ''))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (!gacha.length) return '原神：官方暂无「概率UP」公告，本地库保持现状';
+    // 只取最新发布的一批公告（同一期祈愿发布间隔很短），避免历史卡池公告干扰当期结构判断。
+    const latestTs = gacha[0].createdAt || 0;
+    const batch = gacha.filter(r => latestTs > 0 && Math.abs((r.createdAt || 0) - latestTs) < 86400000);
+    const current = batch.length ? batch : gacha;
+    const charPools = [];
+    const wpnPools = [];
+    for (const r of current) {
+      const title = r.title || '';
+      if (/集录|混池/.test(title)) continue;
+      if (/^祈愿：/.test(title)) wpnPools.push(r);
+      else charPools.push(r);
+    }
+    // 当期通常为 2 个角色池 + 1 个武器池；结构异常时跳过，避免写入脏数据
+    if (charPools.length < 1 || charPools.length > 2 || wpnPools.length !== 1) {
+      return '原神：官方公告结构异常（角色/武器池数量不符），跳过本地同步';
+    }
+    const roleLine = [];
+    const imgs = [];
+    for (const r of charPools) {
+      const m = (r.title || '').match(/祈愿：「([^」]+)」/);
+      const five = m ? this.gsLocalShortName(m[1]) : '';
+      const fours = (r.up?.a || []).map(n => this.gsLocalShortName(n)).filter(Boolean).slice(0, 3);
+      if (!five) return '';
+      roleLine.push([five, ...fours].join(','));
+      imgs.push(r.images?.[0] || r.cover || '');
+    }
+    const names = [];
+    for (const m of (wpnPools[0]?.title || '').matchAll(/「([^」]+)」/g)) {
+      const n = this.gsLocalShortName(m[1]);
+      if (n) names.push(n);
+    }
+    if (names.length < 2) return '';
+    const wpnLine = [...names, ...(wpnPools[0]?.up?.a || []).map(n => this.gsLocalShortName(n)).filter(Boolean).slice(0, 5)].join(',');
+    imgs.push(wpnPools[0]?.images?.[0] || wpnPools[0]?.cover || '');
+    // 时间：以角色池公告发布时间为卡池开启日，按 3 周估算结束（可人工修正）
+    const startTs = charPools[0]?.createdAt || Date.now();
+    const key = `【${ver}】${this.fmtTs(startTs, '11:00')}~${this.fmtTs(startTs + 21 * 86400000, '15:00')}`;
+    try {
+      const nextDate = { [key]: [...roleLine, wpnLine], ...data.date };
+      const nextImgs = { [`【${ver}】`]: imgs.filter(Boolean), ...(data.imgs || {}) };
+      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: nextImgs }), 'utf-8');
+      if (CURRENT_VERSION.gs !== version) CURRENT_VERSION.gs = version;
+      return `原神：本地库已自动同步至 v${ver}`;
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] gslogs.yaml 自动同步写入失败:', err);
+      return '';
+    }
+  }
+
+  async syncLocalPoolsFromOfficial(results = []) {
+    const lines = [];
+    for (const { game, records } of results) {
+      try {
+        if (game === 'sr' && Array.isArray(records) && records.length) {
+          const l = await this.syncSrLocalFromOfficial(records);
+          if (l) lines.push(l);
+        } else if (game === 'gs' && Array.isArray(records) && records.length) {
+          const l = await this.syncGsLocalFromOfficial(records);
+          if (l) lines.push(l);
+        }
+      } catch (err) {
+        logger.error(`[xhh][gacha_pool] 本地卡池库自动同步失败(${game}):`, err);
+      }
+    }
+    // 通用：从「X.X版本…」公告自动推进各游戏 CURRENT_VERSION（不回落）
+    for (const { game, records } of results) {
+      const cur = CURRENT_VERSION[game];
+      if (!cur || !Array.isArray(records) || !records.length) continue;
+      const vs = records.map(r => r.version).filter(v => /^\d+\.\d+$/.test(v || ''));
+      if (!vs.length) continue;
+      const maxV = vs.map(Number).sort((a, b) => b - a)[0].toFixed(1);
+      if (Number(maxV) > Number(cur)) CURRENT_VERSION[game] = maxV;
+    }
+    return lines;
   }
 
   getLocalZzzMarkIcon() {
@@ -1214,12 +1606,38 @@ ${r.summary || ''}`;
         card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
         return card;
       });
+      // 官方公告 UP 全部解析为空（米游社详情接口异常）时，改用本地卡池库当前期数据兜底。
+      if (!rawCards.some(c => c.s || c.a)) {
+        const now = new Date();
+        const localPools = (data || []).filter(p => {
+          const { start, end } = this.parseTime(p);
+          return start && end && now >= start && now <= end;
+        });
+        if (localPools.length) {
+          const sample = localPools[0];
+          const { end } = this.parseTime(sample);
+          const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
+          const localCards = this.applyZzzCardBackgrounds(localPools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
+          const markIcon = this.getZzzHeaderSplashFromCards(localCards, ZZZ_MARK_ICON);
+          return this.renderPoolImage(e, {
+            game: '绝区零',
+            title: '绝区零当前卡池',
+            subtitle: `v${sample.version} · ${this.zzzPoolTime(sample)} · 剩余约${days}天`,
+            mode: 'zzz',
+            markIcon,
+            markWide: !!markIcon,
+            cards: localCards
+          });
+        }
+      }
       const currentCards = rawCards.filter(c => String(c.version || '').startsWith(CURRENT_VERSION.zzz));
       const cards = (currentCards.length ? currentCards : rawCards).slice(0, 4).map((card, i) => {
         card.index = i + 1;
         card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
         return card;
       });
+      // 官方公告缺 A 级时用本地卡池库补齐
+      await this.patchZzzOfficialCards(cards);
       this.applyCardVersion(cards, await this.getZzzCurrentLocalVersion());
       const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
       let markWide = !!markIcon;
@@ -2101,6 +2519,7 @@ ${r.summary || ''}`;
     const clean = v => String(v || '').replace(/[「」『』\s/，,•·]/g, '');
     let best = null;
     let bestScore = -1;
+    const isCollab = /^联动/.test(item.ver || '');
     for (const r of list) {
       const imgs = [r.cover, ...(r.images || [])].filter(Boolean);
       if (!imgs.length) continue;
@@ -2109,6 +2528,8 @@ ${r.contentText || ''}
 ${r.summary || ''}`;
       const cleanText = clean(text);
       let score = 0;
+      // 联动/合作卡池优先使用带「联动」标题的公告图
+      if (isCollab && /联动/.test(r.title || '')) score += 20;
       if (version && String(r.version || '').startsWith(version)) score += 8;
       if (/活动跃迁|跃迁/.test(text)) score += 5;
       if (weapon && /光锥|流光定影|真意之汇/.test(text)) score += 3;
@@ -2149,13 +2570,15 @@ ${r.summary || ''}`;
       );
       if (isCurrent && !ver.startsWith(currentVersion) && !timeActive) continue;
       if (!isCurrent && !versionHit && !nameHit) continue;
-      const officialRoleBg = this.getSrOfficialPoolImage(item, false, officialRecords);
+      const itemImgs = (item.imgs || []).filter(Boolean);
+      const officialRoleBg = itemImgs[0] || this.getSrOfficialPoolImage(item, false, officialRecords);
       // 光锥公告图经常自带大标题文字，和卡片标题重叠；当前卡池统一使用同一期角色公告图做弱化背景。
-      const officialWeaponBg = officialRoleBg || this.getSrOfficialPoolImage(item, true, officialRecords);
+      const officialWeaponBg = officialRoleBg || itemImgs[1] || this.getSrOfficialPoolImage(item, true, officialRecords);
       const roleBg = officialRoleBg || this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
+      const isCollab = /^联动/.test(ver);
       cards.push({
         version: ver,
-        title: isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`,
+        title: isCollab ? '联动跃迁' : (isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`),
         type: '星穹铁道',
         time: timeRes.time,
         s: (item.js_five || []).join(' / '),
@@ -2165,7 +2588,7 @@ ${r.summary || ''}`;
       });
       cards.push({
         version: ver,
-        title: isCurrent ? '光锥活动跃迁' : `${ver} 光锥活动跃迁`,
+        title: isCollab ? '联动光锥跃迁' : (isCurrent ? '光锥活动跃迁' : `${ver} 光锥活动跃迁`),
         type: '星穹铁道',
         time: timeRes.time,
         s: this.clSrNames(item.gz_five || []).join(' / '),
@@ -2187,6 +2610,8 @@ ${r.summary || ''}`;
     // 当前卡池优先走本地结构化数据，避免米游社公告缓存/公告顺序导致 #原神卡池 显示过期信息。
     const localCards = await this.loadGsLocalCards('current');
     if (localCards.length) {
+      // 本地 yaml 缺失四星时，用公告自动解析兜底补齐（任意版本自动适配）
+      await this.patchGsCardsHardcoded(localCards);
       localCards.forEach((card, i) => {
         card.index = i + 1;
         card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
@@ -2213,6 +2638,8 @@ ${r.summary || ''}`;
       return card;
     });
     const gsLocalCurrent = await this.loadGsLocalCards('current');
+    // 官方公告若没解析出 4 星，用本地库同池数据兜底补齐
+    await this.patchGsOfficialCards(cards, gsLocalCurrent);
     const localCurrentVersion = gsLocalCurrent.find(c => c.version && c.version !== '-')?.version || '';
     const verFromApi = localCurrentVersion || records.find(r => r.version && r.version !== '-')?.version || '';
     this.applyCardVersion(cards, verFromApi);
@@ -2278,6 +2705,8 @@ ${r.summary || ''}`;
       card.versionTag = `#${card.index}${ver}`;
       return card;
     });
+    // 官方公告若没解析出 4 星，用本地库同池数据兜底补齐
+    await this.patchGsOfficialCards(cards);
     let markIcon = GS_MARK_ICON;
     let markWide = false;
     for (const r of records) {
@@ -2447,6 +2876,13 @@ ${r.summary || ''}`;
     return { name, icon, rarity, weapon, highlight };
   }
 
+  // 按池类型切分本地行：角色池 1五星+3四星；武器池 2五星+5四星；集录祈愿 全五星。
+  gsPoolParts(arr = [], weapon = false, mixed = false) {
+    if (weapon) return { s: arr.slice(0, 2).join(' / '), a: arr.slice(2).join(' / ') };
+    if (mixed) return { s: arr.join(' / '), a: '' };
+    return { s: arr[0] || '', a: arr.slice(1).join(' / ') };
+  }
+
   async loadGsHistorySections(type = '') {
     const data = this.loadGsPoolHistory();
     if (!data?.date) return [];
@@ -2480,55 +2916,127 @@ ${r.summary || ''}`;
 
   async loadGsLocalCards(type = '') {
     const data = this.loadGsPoolHistory();
-    if (!data?.date || !data?.imgs) return [];
+    if (!data?.date) return [];
     const query = this.normalizeGsName(type);
     const cards = [];
     const entries = Object.entries(data.date);
     const isCurrent = query === 'current';
-    for (const [dateKey, names] of entries) {
-      const ver = dateKey.match('【(.*)】')?.[1] || '';
-      if (!ver) continue;
-      const imgs = data.imgs[`【${ver}】`] || [];
+    const pushGsCard = (dateKey, names, ver, customTitle = '') => {
+      const imgs = (data.imgs || {})[`【${ver}】`] || [];
       const time = this.formatGsHistoryTime(dateKey);
-      const versionHit = !isCurrent && (ver === query || ver.startsWith(query) || ver.replace(/上半|下半/g, '') === query);
-      if (isCurrent || versionHit) {
-        names.forEach((line, i) => {
-          const arr = String(line).split(',').map(v => v.trim()).filter(Boolean);
-          const weapon = this.isGsWeaponPool(arr);
-          const mixed = this.isGsMixedPool(arr);
-          cards.push({
-            version: ver,
-            title: weapon ? '武器活动祈愿' : (mixed || i === 3 ? '集录祈愿' : '角色活动祈愿'),
-            type: '原神',
-            time,
-            s: arr.slice(0, 2).join(' / '),
-            a: arr.slice(2).join(' / '),
-            img: imgs[i] || '',
-            weapon
-          });
-        });
-        if (isCurrent) break;
-        continue;
-      }
       names.forEach((line, i) => {
         const arr = String(line).split(',').map(v => v.trim()).filter(Boolean);
-        if (arr.includes(query)) {
+        if (!arr.length) return;
+        const weapon = this.isGsWeaponPool(arr);
+        const mixed = this.isGsMixedPool(arr) || i === 3;
+        let img = imgs[i] || '';
+        if (!img) {
+          const firstName = arr.slice(0, 2).find(n => !this.getGsWeaponBase(n));
+          img = firstName ? this.getGsCharacterSplash(firstName) || this.getGsWeaponIcon(firstName) : '';
+        }
+        const parts = this.gsPoolParts(arr, weapon, mixed);
+        cards.push({
+          version: ver,
+          title: customTitle || (weapon ? '武器活动祈愿' : (mixed ? '集录祈愿' : '角色活动祈愿')),
+          type: '原神',
+          time,
+          s: parts.s,
+          a: parts.a,
+          img,
+          weapon
+        });
+      });
+    };
+    if (isCurrent) {
+      // 当前卡池：按时间区间匹配当前生效的池子；同一版本出现多条记录时，
+      // 自动优先保留四星更完整的一条，避免“只有五星没四星”的重复记录顶掉完整数据。
+      const now = new Date();
+      const parsed = entries
+        .map(([dateKey, names]) => {
+          const ver = dateKey.match('【(.*)】')?.[1] || '';
+          const { start, end } = this.parseGsDateKey(dateKey);
+          return { dateKey, names, ver, start, end };
+        })
+        .filter(v => v.ver);
+      const matched = parsed.filter(v => v.start && v.end && now >= v.start && now <= v.end);
+      const pool = matched.length ? matched : parsed.slice(0, 1);
+      const best = new Map();
+      for (const item of pool) {
+        const prev = best.get(item.ver);
+        if (!prev) { best.set(item.ver, item); continue; }
+        if (this.gsPoolFourStarCount(item.names) > this.gsPoolFourStarCount(prev.names)) best.set(item.ver, item);
+      }
+      for (const { dateKey, names, ver } of best.values()) pushGsCard(dateKey, names, ver);
+    } else {
+      for (const [dateKey, names] of entries) {
+        const ver = dateKey.match('【(.*)】')?.[1] || '';
+        if (!ver) continue;
+        const versionHit = ver === query || ver.startsWith(query) || ver.replace(/上半|下半/g, '') === query;
+        if (versionHit) {
+          pushGsCard(dateKey, names, ver);
+          continue;
+        }
+        names.forEach((line, i) => {
+          const arr = String(line).split(',').map(v => v.trim()).filter(Boolean);
+          if (!arr.includes(query)) return;
           const weapon = this.isGsWeaponPool(arr);
-          const mixed = this.isGsMixedPool(arr);
+          const mixed = this.isGsMixedPool(arr) || i === 3;
+          const imgs = (data.imgs || {})[`【${ver}】`] || [];
+          const time = this.formatGsHistoryTime(dateKey);
+          let img = imgs[i] || '';
+          if (!img) {
+            const firstName = arr.slice(0, 2).find(n => !this.getGsWeaponBase(n));
+            img = firstName ? this.getGsCharacterSplash(firstName) || this.getGsWeaponIcon(firstName) : '';
+          }
+          const parts = this.gsPoolParts(arr, weapon, mixed);
           cards.push({
             version: ver,
             title: `${query} 卡池`,
             type: weapon ? '武器祈愿' : (mixed ? '集录祈愿' : '角色祈愿'),
             time,
-            s: arr.slice(0, 2).join(' / '),
-            a: arr.slice(2).join(' / '),
-            img: imgs[i] || '',
+            s: parts.s,
+            a: parts.a,
+            img,
             weapon
           });
-        }
-      });
+        });
+      }
+    }
+    // 武器卡/兜底卡没背景图时，复用同版本第一张非武器卡的公告图，避免纯色空卡。
+    let sharedBg = '';
+    for (const card of cards) {
+      if (!card.weapon && card.img) { sharedBg = card.img; break; }
+    }
+    if (sharedBg) {
+      for (const card of cards) {
+        if (card.weapon && !card.img) card.img = sharedBg;
+      }
     }
     return cards;
+  }
+
+  parseGsDateKey(dateKey = '') {
+    const raw = String(dateKey || '').replace(/^【.*?】/, '').trim();
+    const [start, end] = raw.split('~').map(v => v?.trim()).filter(Boolean);
+    if (!start || !end) return { start: null, end: null };
+    const s = new Date(this.ensureFullTime(start, true));
+    const e = new Date(this.ensureFullTime(end, false));
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return { start: null, end: null };
+    return { start: s, end: e };
+  }
+
+  // 统计某版本条目里带四星的行数，用于同版本多条记录时选择数据更完整的一条。
+  gsPoolFourStarCount(names = []) {
+    let cnt = 0;
+    for (const line of names) {
+      const arr = String(line || '').split(',').map(v => v.trim()).filter(Boolean);
+      if (!arr.length) continue;
+      const weapon = this.isGsWeaponPool(arr);
+      const mixed = this.isGsMixedPool(arr);
+      const parts = this.gsPoolParts(arr, weapon, mixed);
+      if (parts.a) cnt++;
+    }
+    return cnt;
   }
 
   async gsAllPool(e) {

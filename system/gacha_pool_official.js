@@ -12,8 +12,10 @@ const GAME_META = {
     name: '星穹铁道',
     gid: 6,
     aliases: ['星铁', '崩铁', '星穹铁道', 'sr'],
-    keywords: /(活动跃迁|角色活动跃迁|光锥活动跃迁|跃迁)/,
-    exclude: /(活动说明|双倍|问题|修复|更新说明)/
+    keywords: /(活动跃迁|角色活动跃迁|光锥活动跃迁|联动跃迁|联动公告|跃迁)/,
+    // 「联动跃迁说明」这类公告虽然标题含「说明」，但本质是卡池公告，需要保留。
+    // 「跃迁记录统计上线」等工具类公告带「跃迁」关键词但不是卡池公告，需要排除。
+    exclude: /(活动说明|双倍|问题|修复|更新说明|记录统计|统计上线)/
   },
   zzz: {
     name: '绝区零',
@@ -123,6 +125,8 @@ class OfficialGachaPool {
       .replace(/[（(].*?[）)]/g, '')
       .replace(/^(限定|常驻)?[SA]\s*级/, '')
       .replace(/^\d星/, '')
+      // 去掉「称号·名字」里的称号前缀，如「轰鸣雷鸣波·伊涅芙」→「伊涅芙」
+      .replace(/^.+·(?=[\u4e00-\u9fa5])/, '')
       .trim();
   }
 
@@ -133,7 +137,7 @@ class OfficialGachaPool {
 
   extractQuotedNames(text = '') {
     const ret = [];
-    const re = /[「\[]([^」\]\n]+)[」\]]/g;
+    const re = /[「『\[]([^」』\]\n]+)[」』\]]/g;
     let m;
     while ((m = re.exec(text))) this.pushName(ret, m[1]);
     return ret;
@@ -141,12 +145,25 @@ class OfficialGachaPool {
 
   extractRankNames(text = '', rank = '5', categories = []) {
     const ret = [];
+    const rankMap = { 4: '(?:4|四)', 5: '(?:5|五)', S: 'S', A: 'A' };
+    const rankPart = rankMap[rank] || rank;
     const cat = categories.length ? `(?:${categories.join('|')})` : '[\\u4e00-\\u9fa5A-Za-z]*';
     // 取“5星角色/限定S级代理人/4星光锥”后，到“概率/获取概率/跃迁/祈愿/调频/。”之前的名字段。
-    const re = new RegExp(`(?:限定)?${rank}(?:星|级)${cat}([\\s\\S]{0,220}?)(?:以及|的?(?:祈愿|跃迁|调频)?(?:获取)?概率|概率|将|，|。)`, 'g');
+    const re = new RegExp(`(?:限定)?${rankPart}(?:星|级)${cat}([\\s\\S]{0,260}?)(?:以及|的?(?:祈愿|跃迁|调频)?(?:获取)?概率|概率|将|，|。)`, 'g');
     let m;
     while ((m = re.exec(text))) {
-      for (const name of this.extractQuotedNames(m[1])) this.pushName(ret, name);
+      const names = this.extractQuotedNames(m[1]);
+      if (names.length) {
+        for (const name of names) this.pushName(ret, name);
+      } else {
+        // 无引号包裹时按顿号/逗号拆分，取合理的候选名。
+        for (const c of String(m[1]).split(/[,，、]/)) {
+          const clean = c.replace(/[（(].*?[）)]/g, '').trim();
+          if (/^[\u4e00-\u9fa5A-Za-z0-9·・•]{2,12}$/.test(clean) && !/^(概率|获取|祈愿|跃迁|调频|限时|大幅|活动|奖励|以及|和)$/.test(clean)) {
+            this.pushName(ret, clean);
+          }
+        }
+      }
     }
     return ret;
   }
@@ -160,47 +177,87 @@ class OfficialGachaPool {
       .join('。') || plain;
     const s = [];
     const a = [];
-    if (game === 'gs') {
-      for (const v of this.extractRankNames(activeText, '5', ['角色', '武器'])) this.pushName(s, v);
-      for (const v of this.extractRankNames(activeText, '4', ['角色', '武器'])) this.pushName(a, v);
-    } else if (game === 'sr') {
-      for (const v of this.extractRankNames(activeText, '5', ['角色', '光锥'])) this.pushName(s, v);
-      for (const v of this.extractRankNames(activeText, '4', ['角色', '光锥'])) this.pushName(a, v);
-    } else if (game === 'zzz') {
-      for (const v of this.extractRankNames(activeText, 'S', ['代理人', '音擎'])) this.pushName(s, v);
-      for (const v of this.extractRankNames(activeText, 'A', ['代理人', '音擎'])) this.pushName(a, v);
-    } else if (game === 'bh3') {
-      for (const v of this.extractRankNames(activeText, 'S', ['角色', '女武神', '人偶', '协同者', '武器', '圣痕'])) this.pushName(s, v);
-      for (const v of this.extractRankNames(activeText, 'A', ['角色', '女武神', '人偶', '协同者', '武器', '圣痕'])) this.pushName(a, v);
-      // 崩三补给公告的写法较散，至少把“角色补给/装备补给”里显眼的限定名抓出来。
-      if (!s.length) {
-        const m = plain.match(/(?:角色补给|扩充补给|装备补给|精准补给)[\s\S]{0,80}?[「『]([^」』]+)[」』]/);
-        if (m) this.pushName(s, m[1]);
+    const parseSource = (source) => {
+      if (game === 'gs') {
+        for (const v of this.extractRankNames(source, '5', ['角色', '武器'])) this.pushName(s, v);
+        for (const v of this.extractRankNames(source, '4', ['角色', '武器'])) this.pushName(a, v);
+      } else if (game === 'sr') {
+        for (const v of this.extractRankNames(source, '5', ['角色', '光锥'])) this.pushName(s, v);
+        for (const v of this.extractRankNames(source, '4', ['角色', '光锥'])) this.pushName(a, v);
+      } else if (game === 'zzz') {
+        for (const v of this.extractRankNames(source, 'S', ['代理人', '音擎'])) this.pushName(s, v);
+        for (const v of this.extractRankNames(source, 'A', ['代理人', '音擎'])) this.pushName(a, v);
+      } else if (game === 'bh3') {
+        for (const v of this.extractRankNames(source, 'S', ['角色', '女武神', '人偶', '协同者', '武器', '圣痕'])) this.pushName(s, v);
+        for (const v of this.extractRankNames(source, 'A', ['角色', '女武神', '人偶', '协同者', '武器', '圣痕'])) this.pushName(a, v);
       }
+    };
+    parseSource(activeText);
+    // 过滤后的概率行没解析全时，再用完整正文兜底一次。
+    if (activeText !== plain && (!s.length || !a.length)) parseSource(plain);
+    // 原神/星铁 4 星写法多样（如「4星角色「A」「B」「C」的祈愿获取概率大幅提升」），
+    // 上面的正则若漏掉 4 星，直接抓“4星角色/4星武器”所在行内的全部引号名兜底。
+    if ((game === 'gs' || game === 'sr') && !a.length) {
+      const line = String(plain).match(/(?:4|四)星(?:角色|武器)[^\n]{0,120}/)?.[0] || '';
+      for (const n of this.extractQuotedNames(line)) this.pushName(a, n);
+    }
+    // 崩三补给公告的写法较散，至少把“角色补给/装备补给”里显眼的限定名抓出来。
+    if (game === 'bh3' && !s.length) {
+      const m = plain.match(/(?:角色补给|扩充补给|装备补给|精准补给)[\s\S]{0,80}?[「『]([^」』]+)[」』]/);
+      if (m) this.pushName(s, m[1]);
     }
     return { s: s.slice(0, 6), a: a.slice(0, 8) };
   }
 
   async enrichRecords(game, records = []) {
-    const ret = [];
-    for (const record of records) {
-      try {
-        const full = await this.requestPostFull(game, record.postId);
-        const content = full?.content || full?.structured_content || record.summary || '';
-        const up = this.parseUpInfo(game, content);
-        ret.push({
-          ...record,
-          contentText: this.htmlToText(content).slice(0, 500),
-          up,
-          images: full?.images?.length ? full.images : record.images,
-          cover: full?.cover || record.cover || full?.images?.[0] || record.images?.[0] || ''
-        });
-      } catch (err) {
-        logger.warn(`[xhh][gacha_pool] ${GAME_META[game]?.name || game} 公告UP解析失败:`, record.title, err);
-        ret.push({ ...record, up: this.parseUpInfo(game, record.summary || record.title || '') });
+    const ret = new Array(records.length);
+    const CONCURRENCY = 6;
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < records.length) {
+        const idx = cursor++;
+        const record = records[idx];
+        try {
+          const full = await this.requestPostFull(game, record.postId);
+          const content = full?.content || full?.structured_content || record.summary || '';
+          const up = this.parseUpInfo(game, content);
+          let images = full?.images?.length ? full.images : record.images;
+          let cover = full?.cover || record.cover || full?.images?.[0] || record.images?.[0] || '';
+          // 部分游戏（原神/星铁）详情接口的 images 字段为空，但正文 HTML 里有公告 banner 图。
+          if (!images?.length) {
+            const raw = String(content || '');
+            const fromContent = [];
+            const re = /<img[^>]+src=["']([^"']+)["']/gi;
+            let m;
+            while ((m = re.exec(raw))) {
+              const url = m[1];
+              if (/\.(png|jpe?g|webp|gif)(\?|$)/i.test(url) && !fromContent.includes(url)) fromContent.push(url);
+            }
+            if (fromContent.length) {
+              images = fromContent;
+              if (!cover) cover = fromContent[0];
+            }
+          }
+          ret[idx] = {
+            ...record,
+            contentText: this.htmlToText(content).slice(0, 3000),
+            up,
+            images,
+            cover
+          };
+        } catch (err) {
+          logger.warn(`[xhh][gacha_pool] ${GAME_META[game]?.name || game} 公告UP解析失败:`, record.title, err);
+          // 详情接口失败时也保留正文文本，避免下游把 contentText 误判为“公告正文为空”
+          ret[idx] = {
+            ...record,
+            up: this.parseUpInfo(game, record.summary || record.title || ''),
+            contentText: this.htmlToText(record.summary || '')
+          };
+        }
       }
-    }
-    return ret;
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, records.length) }, worker));
+    return ret.filter(Boolean);
   }
 
   toRecord(game, item = {}) {
@@ -242,7 +299,8 @@ class OfficialGachaPool {
       .filter(v => {
         const title = v.title || '';
         if (!meta.keywords.test(title)) return false;
-        if (meta.exclude.test(title)) return false;
+        // 标题本身已命中「跃迁」类关键词时，即使含「说明」也保留（如联动跃迁说明）。
+        if (meta.exclude.test(title) && !/(跃迁|补给)/.test(title)) return false;
         if (ver && !title.includes(ver)) return false;
         return true;
       })

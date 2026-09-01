@@ -1,4 +1,16 @@
 date:
+  【7.0下半】2026/08/27 11:00~2026/09/17 15:00:
+    - 伊涅芙
+    - 菲林斯
+    - 血染荒城,支离轮光
+  【7.0下半】2026/08/26 11:00~2026/09/16 15:00:
+    - 伊涅芙,爱诺,伊安珊,蓝砚
+    - 菲林斯,爱诺,伊安珊,蓝砚
+    - 血染荒城,支离轮光,笛剑,西风大剑,西风长枪,昭心,绝弦
+  【7.0上半】2026/08/12 18:00~2026/08/26 11:59:
+    - 阿蕾奇诺,阿罗夏,砂糖,琳妮特
+    - 奥黛塔,阿罗夏,砂糖,琳妮特
+    - 白湖冬羽,赤月之形,西风剑,钟剑,匣里灭辰,祭礼残章,弓藏
   【6.7下半】2026/07/22 18:00~2026/08/12 14:59:
     - 哥伦比娅,雅珂达,欧洛伦,赛索斯
     - 雷电将军,雅珂达,欧洛伦,赛索斯
@@ -372,6 +384,10 @@ date:
     - 温迪,芭芭拉,菲谢尔,香菱
     - 阿莫斯之弓,风鹰剑,笛剑,流浪乐章,钟剑,绝弦,西风长枪
 imgs:
+  【7.0下半】:
+    - https://upload-bbs.miyoushe.com/upload/2026/08/26/75276539/f05f0c83996d9f7ae4dc344e2ad174b9_1321741600324147896.png
+    - https://upload-bbs.miyoushe.com/upload/2026/08/26/75276539/90249423cbaf190a0bf1b4b4c39c0efe_2233654929823629498.png
+    - https://upload-bbs.miyoushe.com/upload/2026/08/26/75276539/61aa67c3fbb770889d06e939edd5b7a7_405214246463602381.png
   【6.7下半】:
     - https://upload-bbs.miyoushe.com/upload/2026/07/15/75276539/2195efc130c9e9c12af018400894a261_8640473528673144421.jpg
     - https://upload-bbs.miyoushe.com/upload/2026/07/15/75276539/aa8878e8f53c541227f10e1513562403_5580763993811504575.jpg
@@ -381,10 +397,10 @@ imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/06/25/75276539/edf78075dc5619a25d1c84dc6efd7cb6_8631965106110322452.jpg
     - https://upload-bbs.miyoushe.com/upload/2026/06/25/75276539/25fdc14016acd3448d1412ff12750da1_4415295330151486848.jpg
   【6.4上半】:
-   - https://act-upload.mihoyo.com/wiki-user-upload/2026/02/24/154622675/0cd5dd538b494f87e9b94b18ad0cf37e_3837592819301784450.jpg
-   - https://act-upload.mihoyo.com/wiki-user-upload/2026/02/24/154622675/43d3d88603e56f4907162f4fba103156_1035504587680237571.jpg
-   - https://act-upload.mihoyo.com/wiki-user-upload/2026/02/24/154622675/5e47437413e9910bb294f45d2f25e7d1_8885597955205841293.jpg
-   - ./plugins/xhh/resources/混池/混池5.jpg
+    - https://act-upload.mihoyo.com/wiki-user-upload/2026/02/24/154622675/0cd5dd538b494f87e9b94b18ad0cf37e_3837592819301784450.jpg
+    - https://act-upload.mihoyo.com/wiki-user-upload/2026/02/24/154622675/43d3d88603e56f4907162f4fba103156_1035504587680237571.jpg
+    - https://act-upload.mihoyo.com/wiki-user-upload/2026/02/24/154622675/5e47437413e9910bb294f45d2f25e7d1_8885597955205841293.jpg
+    - ./plugins/xhh/resources/混池/混池5.jpg
   【6.3下半】:
     - https://act-upload.mihoyo.com/wiki-user-upload/2026/01/12/154622675/0454fd050554f3e840557193e66bd487_7253956933893895757.jpg
     - https://act-upload.mihoyo.com/wiki-user-upload/2026/01/12/154622675/befc5a31b28810ad3282bda46eac200a_4814768210698674665.jpg
@@ -744,29 +760,3 @@ imgs:
   【1.0上半】:
     - https://uploadstatic.mihoyo.com/ys-obc/2021/05/16/15568211/0b08a802c5297a86cb718787541f279a_7255231285761022743.png
     - https://uploadstatic.mihoyo.com/ys-obc/2021/05/16/15568211/c15602e8181f8a7553b4e71f644af07a_8997972907639963579.jpeg
-ver:
-  '1': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/84ea003c565d717ed534392e33793d28_7693356461609549518.png
-  '2': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/669b44c2eb5898dd1b615d431a07eab9_7523306048395045780.png
-  '3': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/b925a8a5201f1bf2e2ade82b8319706c_5007103613452317490.png
-  '1.1': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/d1e239e9aa9310e14ac0f1f1660486e2_8606209319685035511.png
-  '1.2': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/708c35f1b1501151c6d6a9ff1d9af8fa_4291653275861711732.png
-  '1.3': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/ba7c0d517ecdc729ac43cadced277935_9121672107510298900.png
-  '1.4': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/46156c487c05a792e6c2cde1b9e80139_8587861061449630499.png
-  '1.5': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/976b7c35df4a78d4a17ce9f3645ddb6b_9176193013537770468.png
-  '1.6': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/456bff5596318ecffdb04fd2b592a91f_906090514177143470.png
-  '2.1': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/c2a6e3e35ea75cc146a878ff0bbec8b2_2975821424905214998.png
-  '2.2': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/7c839238f4cf942d5925ac50a5167814_6608452892836016293.png
-  '2.3': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/5b93520a4beed9cb4ead74375347bfcd_6430316078844804482.png
-  '2.4': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/aaf4c38b7575af65f67e5c865b907345_4924254907515516235.png
-  '2.5': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/e76e717468f6002d20fb7a7506f1a230_4000095966512298329.png
-  '2.6': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/583b8362569edc5c6c02c773b2df2ed8_7820549130198263375.png
-  '2.7': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/497fff89276468cc69f8f673bbb7e47a_1095332572155210992.png
-  '2.8': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/fa900db880ef4743e3b5962defe9cd7e_8893396652439189337.png
-  '3.1': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/15ca126b3b4b4b1be61dd653b95fc8dd_822032629487742110.png
-  '3.2': https://upload-bbs.miyoushe.com/upload/2023/07/04/289918413/5b671049ba8fd82a4c4ad5260600749f_8020535514610788499.png
-  '3.3': https://upload-bbs.miyoushe.com/upload/2023/07/05/289918413/74d49ff4404565a12d2cb7ca84ef88db_4325713863971021469.png
-  '3.4': https://upload-bbs.miyoushe.com/upload/2023/07/05/289918413/2673634286e65dbfb564f9fb12c317ef_2854391995740961122.png
-  '3.5': https://upload-bbs.miyoushe.com/upload/2023/07/05/289918413/a1628e620e85ab3ed0bd3371e43b3ebd_2852662329817872521.png
-  '3.6': https://upload-bbs.miyoushe.com/upload/2023/07/05/289918413/97eb24046018e2f03db745c83868b254_2762276306416813651.png
-  '3.7': https://upload-bbs.miyoushe.com/upload/2023/07/05/289918413/633d9ccb22cc975ba1ffa140b24fff5c_8628071770599693413.png
-  '3.8': https://upload-bbs.miyoushe.com/upload/2023/08/02/289918413/99d15e8ce831ca5a14bf0872dcd5166e_2055822486748322100.png
