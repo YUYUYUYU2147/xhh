@@ -1410,11 +1410,13 @@ export class xhh_gacha_pool extends plugin {
     const startTs = charPools[0]?.createdAt || Date.now();
     const key = `【${ver}】${this.fmtTs(startTs, '11:00')}~${this.fmtTs(startTs + 21 * 86400000, '15:00')}`;
     try {
-      const nextDate = { [key]: [...roleLine, wpnLine], ...data.date };
+      // 同一版本已有记录时保留原条目，避免 key 时间估算不一致导致同一版本重复叠加。
+      const sameVerKey = Object.keys(data.date).find(k => k.startsWith(`【${ver}】`));
+      const nextDate = sameVerKey ? data.date : { [key]: [...roleLine, wpnLine], ...data.date };
       const nextImgs = { [`【${ver}】`]: imgs.filter(Boolean), ...(data.imgs || {}) };
       fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: nextImgs }), 'utf-8');
       if (CURRENT_VERSION.gs !== version) CURRENT_VERSION.gs = version;
-      return `原神：本地库已自动同步至 v${ver}`;
+      return sameVerKey ? `原神：本地库已含 v${ver} 记录，跳过重复写入` : `原神：本地库已自动同步至 v${ver}`;
     } catch (err) {
       logger.error('[xhh][gacha_pool] gslogs.yaml 自动同步写入失败:', err);
       return '';
@@ -2528,8 +2530,14 @@ ${r.contentText || ''}
 ${r.summary || ''}`;
       const cleanText = clean(text);
       let score = 0;
-      // 联动/合作卡池优先使用带「联动」标题的公告图
-      if (isCollab && /联动/.test(r.title || '')) score += 20;
+      // 联动/合作卡池优先使用带「联动」标题的卡池公告图。
+      // 「联动跃迁说明」这类标题本质是卡池公告（正文含完整 UP 列表），不应被当作普通「活动说明」减分；
+      // 只有既带「说明」又不含卡池词（跃迁/祈愿/频段/补给）的公告图才排除。
+      if (isCollab && /联动/.test(r.title || '')) {
+        score += (/说明/.test(r.title || '') && !/跃迁|祈愿|频段|补给/.test(r.title || '')) ? -30 : 20;
+        // 标题直接带「跃迁」的是卡池公告本体，再额外加分，压过同期的「联动更新公告」。
+        if (/跃迁/.test(r.title || '')) score += 5;
+      }
       if (version && String(r.version || '').startsWith(version)) score += 8;
       if (/活动跃迁|跃迁/.test(text)) score += 5;
       if (weapon && /光锥|流光定影|真意之汇/.test(text)) score += 3;
@@ -2541,8 +2549,11 @@ ${r.summary || ''}`;
       }
     }
     if (!best || bestScore <= 0) return '';
-    // 取官方公告图片作为卡片背景；有多张时角色卡优先前段，光锥卡优先后段。
-    return weapon ? (best.imgs[1] || best.imgs[0]) : best.imgs[0];
+    const imgs = best.imgs.filter((v, i, a) => a.indexOf(v) === i);
+    // 联动公告详情接口的 cover 即横幅图（如「Fate[UBW] 联动跃迁说明」的 690x320 横图），
+    // 直接取首图；正文第一张（images[0]）反而是竖版封面小图（132x172），不能取。
+    if (isCollab) return imgs[0];
+    return weapon ? (imgs[1] || imgs[0]) : imgs[0];
   }
 
   async loadSrLocalCards(type = '', officialRecords = []) {
@@ -2571,11 +2582,13 @@ ${r.summary || ''}`;
       if (isCurrent && !ver.startsWith(currentVersion) && !timeActive) continue;
       if (!isCurrent && !versionHit && !nameHit) continue;
       const itemImgs = (item.imgs || []).filter(Boolean);
-      const officialRoleBg = itemImgs[0] || this.getSrOfficialPoolImage(item, false, officialRecords);
+      const isCollab = /^联动/.test(ver);
+      // 联动/普通卡池统一优先使用官方公告图做背景：cover 与公告正文大图均为 690x320 横图，
+      // 适合铺满卡片；只有官方图缺失时才退到本地角色 splash，都没有则留空由模板显示纯渐变。
+      const officialRoleBg = itemImgs[0] || this.getSrOfficialPoolImage(item, false, officialRecords) || '';
       // 光锥公告图经常自带大标题文字，和卡片标题重叠；当前卡池统一使用同一期角色公告图做弱化背景。
       const officialWeaponBg = officialRoleBg || itemImgs[1] || this.getSrOfficialPoolImage(item, true, officialRecords);
       const roleBg = officialRoleBg || this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
-      const isCollab = /^联动/.test(ver);
       cards.push({
         version: ver,
         title: isCollab ? '联动跃迁' : (isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`),
