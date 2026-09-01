@@ -275,7 +275,12 @@ export class meme extends plugin {
           fnc: 'memes',
         });
       });
-    this.rule = rules;
+    // TRSS-Yunzai 的 loader 只在插件加载时把字符串 reg 转为 RegExp，
+    // 动态替换 this.rule 后需手动转换，否则 v.reg.test 会报错
+    this.rule = rules.map(r => ({
+      ...r,
+      reg: r.reg instanceof RegExp ? r.reg : new RegExp(r.reg),
+    }));
     logger.mark(`[xhh-meme] 资源加载完成，共 ${Object.keys(infos).length} 个 meme`);
   }
 
