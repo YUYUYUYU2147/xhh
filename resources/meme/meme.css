@@ -14,13 +14,14 @@ body {
   font-family: 'yuan', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   width: 640px;
   transform-origin: 0 0;
+  color: #2a1828;
 }
 
 .container {
   width: 640px;
   padding: 24px 20px 16px;
-  background: linear-gradient(160deg, #1e1b2e 0%, #2a1f3d 45%, #1c2333 100%);
-  color: #e8e6f0;
+  background: linear-gradient(160deg, #fff5f7 0%, #f7f0ff 45%, #fffaf2 100%);
+  color: #2a1828;
   position: relative;
   overflow: hidden;
 }
@@ -33,14 +34,42 @@ body {
   width: 260px;
   height: 260px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(138, 100, 255, 0.35) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.2) 0%, transparent 70%);
   pointer-events: none;
 }
 
+/* 底部渐变遮罩，让底部文字不被立绘干扰 */
+.container::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(to top, rgba(255, 250, 251, 0.96), rgba(255, 245, 247, 0.65), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 小花火背景立绘（水平居中） */
+.bg-character {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -35px;
+  height: 420px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  filter: drop-shadow(0 18px 40px rgba(190, 24, 93, 0.3));
+}
+
 .header {
+  position: relative;
+  z-index: 1;
   text-align: center;
   padding: 6px 0 14px;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.18);
+  border-bottom: 1px dashed rgba(190, 24, 93, 0.18);
   margin-bottom: 16px;
 }
 
@@ -48,25 +77,26 @@ body {
   font-size: 30px;
   font-weight: bold;
   letter-spacing: 2px;
-  background: linear-gradient(90deg, #ffd66b, #ff9a6b, #b48cff);
+  background: linear-gradient(90deg, #f472b6, #e11d48, #8b5cf6);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 24px rgba(255, 160, 100, 0.25);
 }
 
 .sub {
   margin-top: 6px;
   font-size: 13px;
-  color: #9d97b8;
+  color: #9a7c8c;
 }
 
 .sub b {
-  color: #ffd66b;
+  color: #e11d48;
   font-weight: normal;
 }
 
 .grid {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -77,21 +107,22 @@ body {
   width: 142px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(225, 29, 72, 0.12);
+  box-shadow: 0 6px 16px rgba(190, 24, 93, 0.08);
   transition: all 0.2s;
   position: relative;
 }
 
 .card.is-new {
-  background: linear-gradient(135deg, rgba(255, 180, 90, 0.14), rgba(255, 255, 255, 0.05));
-  border-color: rgba(255, 190, 100, 0.45);
+  background: linear-gradient(135deg, rgba(255, 180, 90, 0.18), rgba(255, 255, 255, 0.8));
+  border-color: rgba(251, 146, 60, 0.45);
 }
 
 .card-name {
   font-size: 16px;
   font-weight: bold;
-  color: #f2efff;
+  color: #2a1828;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -100,7 +131,7 @@ body {
 .card-alias {
   margin-top: 2px;
   font-size: 11px;
-  color: #8d87ab;
+  color: #9a7c8c;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -118,8 +149,8 @@ body {
   line-height: 1;
   padding: 3px 6px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #b9b2d4;
+  background: rgba(225, 29, 72, 0.08);
+  color: #c2567a;
 }
 
 .tag-new {
@@ -134,22 +165,32 @@ body {
 }
 
 .tip {
+  position: relative;
+  z-index: 1;
   font-size: 12px;
-  color: #8d87ab;
+  color: #7a5e6e;
   text-align: center;
-  padding: 8px 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.14);
+  margin-top: 10px;
+  padding: 10px 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(225, 29, 72, 0.1);
 }
 
 .tip b {
-  color: #b48cff;
+  color: #e11d48;
   font-weight: normal;
 }
 
 .footer {
+  position: relative;
+  z-index: 1;
   text-align: center;
   font-size: 14px;
-  color: #6f6a8a;
-  padding-top: 4px;
+  color: #9a7c8c;
+  margin-top: 6px;
+  padding: 8px 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
   letter-spacing: 2px;
 }

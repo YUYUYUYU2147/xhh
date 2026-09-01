@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="{{ppath}}meme/help.css" />
+</head>
+
+<body {{sys.scale}}>
+  <div class="container">
+    <!-- 背景装饰 -->
+    <div class="aurora"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <img class="bg-character" src="{{ppath}}help/sparkle.png" alt="小花火" />
+
+    <!-- 标题栏（meme-plugin 风格 head-box） -->
+    <div class="info-box">
+      <div class="head-box">
+        <div class="title">Meme 表情包帮助</div>
+        <div class="label">命令帮助 · 指令速查 · 已收录 {{total}} 个表情</div>
+      </div>
+      <img class="head-character" src="{{ppath}}help/sparkle.png" alt="小花火" />
+    </div>
+
+    <!-- 分组表格 -->
+    {{each helpGroup group}}
+    <div class="cont-box" style="--gc:{{group.color}}">
+      <div class="help-group">{{group.group}}</div>
+      <div class="help-table">
+        {{each group.list help}}
+        <div class="tr">
+          <div class="td">
+            <span class="help-icon">{{help.icon}}</span>
+            <strong class="help-title">{{help.title}}</strong>
+            <span class="help-desc">{{help.desc}}</span>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/each}}
+
+    <div class="logo">from 小花火</div>
+  </div>
+</body>
+
+</html>

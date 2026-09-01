@@ -361,20 +361,48 @@ export class meme extends plugin {
     return true;
   }
 
-  // ---------- 帮助 ----------
+  // ---------- 帮助（渲染图片，meme-plugin 分组表格格式） ----------
   async memesHelp(e) {
     if (!memeEnabled()) return false;
-    await e.reply(
-      '【xhh-Meme 表情包帮助】\n' +
-      '#meme列表：查看全部表情\n' +
-      '#meme搜索+关键词：搜索表情\n' +
-      '#meme详情+关键词：在线查询表情详情\n' +
-      '#<表情名>：制作表情（可回复图片/带文字，如 #摸 好兄弟）\n' +
-      '#<表情名>详情：查看该表情参数\n' +
-      '#随机meme：随机一个表情\n' +
-      '#meme更新：更新资源（主人）',
-      e.isGroup
-    );
+    const total = Math.max(Object.keys(infos).length, Object.keys(keyMap).length);
+    const helpGroup = [
+      {
+        group: '查询类',
+        color: '#ff5d8f',
+        list: [
+          { icon: '🔍', title: '#meme列表', desc: '查看全部表情（渲染图片）' },
+          { icon: '🔎', title: '#meme搜索 <词>', desc: '快速搜索，如 #meme搜索 摸' },
+          { icon: '📋', title: '#meme详情 <词>', desc: '在线查询表情详情' },
+          { icon: '🎲', title: '#随机meme', desc: '随机一个表情并制作' },
+        ],
+      },
+      {
+        group: '制作类',
+        color: '#8b5cf6',
+        list: [
+          { icon: '🖼️', title: '#<表情名>', desc: '制作表情，如 #摸 好兄弟' },
+          { icon: 'ℹ️', title: '#<表情名>详情', desc: '查看该表情参数' },
+          { icon: '📎', title: '回复图片 + #<名>', desc: '指定图片对象制作' },
+          { icon: '🎛️', title: '参数', desc: '部分表情支持，如 #摸 圆' },
+        ],
+      },
+      {
+        group: '管理类',
+        color: '#f59e0b',
+        list: [
+          { icon: '🔄', title: '#meme更新', desc: '刷新远端资源缓存（仅主人）' },
+          { icon: '❓', title: '#meme帮助', desc: '显示本帮助图' },
+          { icon: '🧩', title: '锅巴面板', desc: '开关 / CD / 服务地址 / 主人保护' },
+        ],
+      },
+    ];
+    const data = {
+      total: total || 0,
+      baseUrl: memeBaseUrl(),
+      helpGroup,
+    };
+    const msg = await render('meme/help', data, { e, ret: true });
+    await e.reply(msg);
     return true;
   }
 
