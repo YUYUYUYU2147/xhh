@@ -1,0 +1,672 @@
+// xhh-meme：在线查询/制作 meme 表情包
+// 数据源：yunzai-meme 服务（默认为派蒙使用的 misaka20001-memegenerator.hf.space）
+// 功能：
+//   #meme列表 / #表情包列表        查看全部 meme（渲染图片）
+//   #meme搜索<关键词>              搜索 meme
+//   #meme详情<关键词>              在线查询 meme 详情（渲染图片）
+//   #<关键词> 或 #<关键词>详情     制作表情 / 查询该表情详情
+//   #随机meme                     随机一个 meme
+//   #meme帮助                     帮助
+//   #meme更新                     （主人）更新远端资源缓存
+
+import fetch, { FormData } from 'node-fetch';
+import fs from 'fs';
+import path from 'node:path';
+import lodash from 'lodash';
+import { render, config, pluginPriority, getSource } from '#xhh';
+
+const DATA_DIR = './plugins/xhh/data/memes/';
+const INFOS_FILE = DATA_DIR + 'infos.json';
+const KEYMAP_FILE = DATA_DIR + 'keyMap.json';
+
+const DEFAULT_BASE_URL = 'http://113.31.103.19:50835';
+
+// 主人类表情保护（制作对象是主人时，换成发送者本人头像）
+const protectList = ['lash', 'do', 'beat_up', 'little_do', 'fast_do', 'qi', 'fast_qi'];
+
+let keyMap = {};
+let infos = {};
+let loadPromise = null;
+let lastListRender = null; // 列表图渲染缓存 {time, buffer}
+
+const getCfg = () => config();
+
+function memeBaseUrl() {
+  return getCfg().meme_baseUrl || DEFAULT_BASE_URL;
+}
+
+function memeEnabled() {
+  return getCfg().meme !== false;
+}
+
+function escapeRegExp(str = '') {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function mkdirs(dirname) {
+  if (fs.existsSync(dirname)) return true;
+  if (mkdirs(path.dirname(dirname))) {
+    fs.mkdirSync(dirname);
+    return true;
+  }
+}
+
+function safeJson(response) {
+  if (!response || response.status !== 200) return null;
+  const ct = response.headers.get('content-type') || '';
+  if (!ct.toLowerCase().includes('json')) return null;
+  try {
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchJsonWithRetry(url, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url);
+      const data = await safeJson(res);
+      if (data) return data;
+      logger.warn(`[xhh-meme] 拉取 ${url} 返回非预期内容 (第${i + 1}次)`);
+    } catch (e) {
+      logger.warn(`[xhh-meme] 拉取 ${url} 失败 (第${i + 1}次): ${e.message}`);
+    }
+    if (i < retries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+  }
+  return null;
+}
+
+function readJsonFile(file) {
+  try {
+    if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch (e) {
+    logger.warn(`[xhh-meme] 本地缓存 ${file} 读取失败，已忽略: ${e.message}`);
+    try { fs.unlinkSync(file); } catch { }
+  }
+  return {};
+}
+
+async function loadData(force = false) {
+  if (!force && Object.keys(keyMap).length && Object.keys(infos).length) return;
+  if (loadPromise) return loadPromise;
+  loadPromise = (async () => {
+    mkdirs(DATA_DIR);
+    if (!force) {
+      infos = readJsonFile(INFOS_FILE);
+      keyMap = readJsonFile(KEYMAP_FILE);
+    } else {
+      infos = {};
+      keyMap = {};
+    }
+    const base = memeBaseUrl();
+    if (!base) {
+      logger.warn('[xhh-meme] meme_baseUrl 未配置');
+      return;
+    }
+    try {
+      if (Object.keys(infos).length === 0) {
+        const data = await fetchJsonWithRetry(`${base}/memes/static/infos.json`);
+        if (data && Object.keys(data).length) {
+          infos = data;
+          fs.writeFileSync(INFOS_FILE, JSON.stringify(infos));
+        }
+      }
+      if (Object.keys(keyMap).length === 0) {
+        const data = await fetchJsonWithRetry(`${base}/memes/static/keyMap.json`);
+        if (data && Object.keys(data).length) {
+          keyMap = data;
+          fs.writeFileSync(KEYMAP_FILE, JSON.stringify(keyMap));
+        }
+      }
+      // 静态资源获取失败时，走逐条查询兜底（并发分批，避免串行过慢）
+      if (Object.keys(infos).length === 0 || Object.keys(keyMap).length === 0) {
+        logger.mark('[xhh-meme] 静态资源拉取失败，尝试逐条在线查询');
+        const keys = await fetchJsonWithRetry(`${base}/memes/keys`);
+        if (Array.isArray(keys) && keys.length) {
+          const keyMapTmp = {};
+          const infosTmp = {};
+          const CONCURRENCY = 12;
+          for (let i = 0; i < keys.length; i += CONCURRENCY) {
+            const batch = keys.slice(i, i + CONCURRENCY);
+            const results = await Promise.all(batch.map(async key => {
+              const info = await fetchJsonWithRetry(`${base}/memes/${key}/info`, 1);
+              return { key, info };
+            }));
+            for (const { key, info } of results) {
+              if (info && Array.isArray(info.keywords)) {
+                info.keywords.forEach(kw => { keyMapTmp[kw] = key; });
+                infosTmp[key] = info;
+              }
+            }
+            logger.mark(`[xhh-meme] 正在拉取表情信息 ${Math.min(i + CONCURRENCY, keys.length)}/${keys.length}`);
+          }
+          if (Object.keys(infosTmp).length) infos = infosTmp;
+          if (Object.keys(keyMapTmp).length) keyMap = keyMapTmp;
+          fs.writeFileSync(KEYMAP_FILE, JSON.stringify(keyMap));
+          fs.writeFileSync(INFOS_FILE, JSON.stringify(infos));
+        }
+      }
+    } catch (err) {
+      logger.warn(`[xhh-meme] 远端资源拉取失败，插件仍可加载: ${err.message}`);
+    }
+  })();
+  try {
+    await loadPromise;
+  } finally {
+    loadPromise = null;
+  }
+}
+
+/**
+ * 在线查询单个 meme 详情：
+ * 本地缓存有则直接用，否则实时请求远端 /memes/{key}/info 并回写缓存
+ */
+async function queryMemeInfo(key) {
+  if (infos[key]) return infos[key];
+  const base = memeBaseUrl();
+  try {
+    const data = await fetchJsonWithRetry(`${base}/memes/${key}/info`, 2);
+    if (data && data.key) {
+      infos[key] = data;
+      fs.writeFileSync(INFOS_FILE, JSON.stringify(infos));
+      return data;
+    }
+  } catch (err) {
+    logger.warn(`[xhh-meme] 在线查询 ${key} 详情失败: ${err.message}`);
+  }
+  return null;
+}
+
+// 根据消息文本匹配最长关键词，返回 {keyword, key}
+function matchKeyword(msg) {
+  const cleaned = String(msg).trim().replace(/^#/, '');
+  const matching = Object.keys(keyMap).filter(k => cleaned.startsWith(k));
+  if (!matching.length) return null;
+  matching.sort((a, b) => b.length - a.length);
+  return { keyword: matching[0], key: keyMap[matching[0]] };
+}
+
+export class meme extends plugin {
+  constructor() {
+    let option = {
+      name: '[小花火]Meme表情包',
+      dsc: 'meme表情包制作/在线查询详情',
+      event: 'message',
+      priority: pluginPriority('meme', 50),
+      rule: [
+        {
+          reg: '^#?(meme(s)?|表情包)(列表|大全|总览)$',
+          fnc: 'memesList',
+        },
+        {
+          reg: '^#?(meme(s)?|表情包)搜索',
+          fnc: 'memesSearch',
+        },
+        {
+          reg: '^#?(meme(s)?|表情包)(详情|查询|介绍)',
+          fnc: 'memesDetail',
+        },
+        {
+          reg: '^#?(meme(s)?|表情包)帮助',
+          fnc: 'memesHelp',
+        },
+        {
+          reg: '^#?(meme(s)?|表情包)更新',
+          fnc: 'memesUpdate',
+          permission: 'master',
+        },
+        {
+          reg: '^#?随机(meme(s)?|表情包)',
+          fnc: 'randomMemes',
+        },
+      ],
+    };
+    super(option);
+
+    this.task = {
+      cron: '0 3 * * * *',
+      name: '[小花火]meme资源自动更新',
+      fnc: () => this.init(true),
+      log: false,
+    };
+
+    // 异步加载资源，完成后注册动态关键词规则
+    this.init().catch(err => {
+      logger.warn(`[xhh-meme] 初始化失败: ${err.message}`);
+    });
+  }
+
+  async init(force = false) {
+    await loadData(force);
+    let rules = [
+      {
+        reg: '^#?(meme(s)?|表情包)(列表|大全|总览)$',
+        fnc: 'memesList',
+      },
+      {
+        reg: '^#?(meme(s)?|表情包)搜索',
+        fnc: 'memesSearch',
+      },
+      {
+        reg: '^#?(meme(s)?|表情包)(详情|查询|介绍)',
+        fnc: 'memesDetail',
+      },
+      {
+        reg: '^#?(meme(s)?|表情包)帮助',
+        fnc: 'memesHelp',
+      },
+      {
+        reg: '^#?(meme(s)?|表情包)更新',
+        fnc: 'memesUpdate',
+        permission: 'master',
+      },
+      {
+        reg: '^#?随机(meme(s)?|表情包)',
+        fnc: 'randomMemes',
+      },
+    ];
+    // 动态关键词规则：最长关键词优先，先排长的避免短词抢先匹配
+    Object.keys(keyMap)
+      .sort((a, b) => b.length - a.length)
+      .forEach(key => {
+        rules.push({
+          reg: `^\\s*#?${escapeRegExp(key)}`,
+          fnc: 'memes',
+        });
+      });
+    this.rule = rules;
+    logger.mark(`[xhh-meme] 资源加载完成，共 ${Object.keys(infos).length} 个 meme`);
+  }
+
+  // ---------- 列表 ----------
+  async memesList(e) {
+    if (!memeEnabled()) return false;
+    await loadData();
+    if (!Object.keys(infos).length) {
+      await e.reply('meme 资源为空，请先发送 #meme更新 拉取资源', true);
+      return true;
+    }
+    // 24h 缓存
+    if (lastListRender && Date.now() - lastListRender.time < 24 * 60 * 60 * 1000) {
+      await e.reply(lastListRender.msg);
+      return true;
+    }
+    const now = Date.now();
+    const NEW_MS = 30 * 24 * 60 * 60 * 1000;
+    const list = Object.values(infos)
+      .map(info => ({
+        key: info.key,
+        name: (info.keywords && info.keywords[0]) || info.key,
+        aliases: (info.keywords || []).slice(1, 4).join('/'),
+        created: info.date_created || 0,
+        isNew: now - new Date(info.date_created || 0).getTime() < NEW_MS,
+        maxImages: info.params_type?.max_images ?? 0,
+        minTexts: info.params_type?.min_texts ?? 0,
+      }))
+      .sort((a, b) => new Date(a.created) - new Date(b.created))
+      .reverse();
+    const msg = await render('meme/meme', { list, total: list.length }, { e, ret: true });
+    lastListRender = { time: Date.now(), msg };
+    await e.reply(msg);
+    return true;
+  }
+
+  // ---------- 搜索 ----------
+  async memesSearch(e) {
+    if (!memeEnabled()) return false;
+    await loadData();
+    const search = e.msg.replace(/^#?(meme(s)?|表情包)搜索/, '').trim();
+    if (!search) {
+      await e.reply('要搜什么？例如：#meme搜索 摸', true);
+      return true;
+    }
+    const hits = Object.keys(keyMap).filter(k => k.includes(search));
+    if (!hits.length) {
+      await e.reply(`没有找到包含「${search}」的 meme`, true);
+      return true;
+    }
+    const lines = hits.slice(0, 30).map((k, i) => `${i + 1}. ${k} → ${keyMap[k]}`);
+    const tip = hits.length > 30 ? `\n...等共 ${hits.length} 个` : '';
+    await e.reply(`【meme搜索：${search}】共 ${hits.length} 个\n${lines.join('\n')}${tip}\n发送「#meme详情<名称>」查看详情`, e.isGroup);
+    return true;
+  }
+
+  // ---------- 详情（在线查询） ----------
+  async memesDetail(e) {
+    if (!memeEnabled()) return false;
+    await loadData();
+    const search = e.msg.replace(/^#?(meme(s)?|表情包)(详情|查询|介绍)/, '').trim();
+    if (!search) {
+      await e.reply('要查询哪个表情？例如：#meme详情 摸', true);
+      return true;
+    }
+    const matched = matchKeyword(search);
+    if (!matched) {
+      await e.reply(`没有找到「${search}」对应的 meme`, true);
+      return true;
+    }
+    return this.memeDetail(e, matched.key);
+  }
+
+  async memeDetail(e, key) {
+    const info = await queryMemeInfo(key);
+    if (!info) {
+      await e.reply(`查询「${key}」详情失败，请稍后再试或发送 #meme更新 刷新资源`, true);
+      return true;
+    }
+    const data = buildDetailData(info);
+    const msg = await render('meme/detail', data, { e, ret: true });
+    await e.reply(msg);
+    return true;
+  }
+
+  // ---------- 帮助 ----------
+  async memesHelp(e) {
+    if (!memeEnabled()) return false;
+    await e.reply(
+      '【xhh-Meme 表情包帮助】\n' +
+      '#meme列表：查看全部表情\n' +
+      '#meme搜索+关键词：搜索表情\n' +
+      '#meme详情+关键词：在线查询表情详情\n' +
+      '#<表情名>：制作表情（可回复图片/带文字，如 #摸 好兄弟）\n' +
+      '#<表情名>详情：查看该表情参数\n' +
+      '#随机meme：随机一个表情\n' +
+      '#meme更新：更新资源（主人）',
+      e.isGroup
+    );
+    return true;
+  }
+
+  // ---------- 更新 ----------
+  async memesUpdate(e) {
+    await e.reply('xhh-meme 资源更新中…', true);
+    lastListRender = null;
+    await loadData(true);
+    await this.init(true);
+    await e.reply(`更新完成，当前共 ${Object.keys(infos).length} 个 meme`, true);
+    return true;
+  }
+
+  // ---------- 随机 ----------
+  async randomMemes(e) {
+    if (!memeEnabled()) return false;
+    await loadData();
+    const keys = Object.keys(infos).filter(
+      key => infos[key]?.params_type?.min_images === 1 && infos[key]?.params_type?.min_texts === 0
+    );
+    if (!keys.length) {
+      await e.reply('meme 资源为空，请先 #meme更新', true);
+      return true;
+    }
+    const key = keys[lodash.random(0, keys.length - 1)];
+    e.msg = infos[key].keywords?.[0] || key;
+    return this.memes(e);
+  }
+
+  // ---------- 制作 / 详情 ----------
+  async memes(e) {
+    if (!memeEnabled()) return false;
+    const matched = matchKeyword(e.msg);
+    if (!matched) return false;
+    const { key, keyword } = matched;
+
+    // 详情
+    const rest = String(e.msg).trim().replace(/^#/, '').replace(keyword, '').trim();
+    if (rest === '详情' || rest === '帮助' || rest === '参数') {
+      return this.memeDetail(e, key);
+    }
+
+    // 冷却
+    if (await this.checkCD(e)) return true;
+
+    const info = infos[key] || (await queryMemeInfo(key));
+    if (!info?.params_type) return false;
+    const params = info.params_type;
+
+    const formData = fetch.FormData ? new fetch.FormData() : new FormData();
+    const replyMsg = getCfg().meme_reply !== false;
+    const imgBuffers = [];
+
+    // ---- 收集图片 ----
+    if (params.max_images > 0) {
+      const imgUrls = await this.collectImages(e, key);
+      for (let i = 0; i < imgUrls.length; i++) {
+        const buffer = await this.fetchImageBuffer(imgUrls[i]);
+        if (!buffer) continue;
+        imgBuffers.push(buffer);
+        formData.append('images', buffer, { filename: `img_${i}.jpg`, contentType: 'image/jpeg' });
+      }
+    }
+
+    // ---- 收集文字 ----
+    let text = rest.replace(/#/g, '').trim();
+    if (params.max_texts === 0) text = '';
+    if (!text && params.min_texts > 0) {
+      text = e.sender.card || e.sender.nickname || '';
+    }
+    const texts = text ? text.split('/').slice(0, params.max_texts || text.split('/').length) : [];
+    if (texts.length < params.min_texts) {
+      await e.reply(`字数不够！至少需要 ${params.min_texts} 段文字，用 / 隔开`, true);
+      return true;
+    }
+    texts.forEach(t => formData.append('texts', t));
+
+    // 制作参数
+    const argsStr = handleArgs(key, rest.split('#')[1] || '', e);
+    if (argsStr) formData.append('args', argsStr);
+
+    const maxMB = getCfg().meme_maxFileSize ?? 10;
+    if (imgBuffers.some(b => b.length >= maxMB * 1024 * 1024)) {
+      await e.reply(`图片大小超出限制，最多支持 ${maxMB}MB`, true);
+      return true;
+    }
+
+    logger.info(`[xhh-meme] 制作 ${key}: images=${imgBuffers.length} texts=${JSON.stringify(texts)}`);
+
+    let response;
+    try {
+      response = await fetch(`${memeBaseUrl()}/memes/${key}/`, { method: 'POST', body: formData });
+    } catch (err) {
+      logger.error(`[xhh-meme] 请求失败: ${err.message}`);
+      await e.reply(`表情制作失败: ${err.message}`, true);
+      return true;
+    }
+    if (response.status > 299) {
+      const errText = await response.text();
+      logger.error(`[xhh-meme] ${key} 制作失败: ${errText}`);
+      await e.reply(`表情制作失败: ${String(errText).slice(0, 120)}`, true);
+      return true;
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    await e.reply(segment.image('base64://' + buffer.toString('base64')), replyMsg);
+    return true;
+  }
+
+  // 冷却
+  async checkCD(e) {
+    const cd = Number(getCfg().meme_CD) || 0;
+    if (cd <= 0) return false;
+    const uid = e.user_id;
+    const gid = e.group_id || e.user_id;
+    try {
+      const last = await redis.get(`xhh:meme_cd:${gid}:${uid}`);
+      if (last) {
+        await e.reply(`操作太频繁了，休息一下吧`, true);
+        return true;
+      }
+      await redis.set(`xhh:meme_cd:${gid}:${uid}`, 1, { EX: cd });
+    } catch { }
+    return false;
+  }
+
+  // 收集图片：回复 → 同发图片 → 艾特头像 → 发送者头像
+  async collectImages(e, key) {
+    const params = infos[key]?.params_type || {};
+    let imgUrls = [];
+    try {
+      const source = await getSource(e);
+      if (source?.message) {
+        for (const val of source.message) {
+          if (val.type === 'image' && val.url) imgUrls.push(val.url);
+        }
+      }
+    } catch { }
+    if (!imgUrls.length && e.img?.length) imgUrls.push(...e.img);
+    if (!imgUrls.length) {
+      const ats = e.message.filter(m => m.type === 'at');
+      if (ats.length) {
+        imgUrls = ats.map(at => `https://q1.qlogo.cn/g?b=qq&s=160&nk=${at.qq}`);
+      }
+    }
+    const avatar = await getAvatar(e);
+    if (!imgUrls.length) imgUrls = [avatar];
+    if (imgUrls.length < params.min_images && !imgUrls.includes(avatar)) {
+      imgUrls = [avatar, ...imgUrls];
+    }
+    // 主人保护
+    if (protectList.includes(key) && getCfg().meme_masterProtectDo) {
+      imgUrls = await this.masterProtect(e, imgUrls);
+    }
+    return imgUrls.slice(0, Math.max(1, params.max_images || 1));
+  }
+
+  async masterProtect(e, imgUrls) {
+    try {
+      const masters = await getMasterQQ();
+      const me = await getAvatar(e);
+      const protectedIdx = imgUrls.findIndex(url => {
+        const m = url.match(/nk=(\d+)/);
+        return m && masters.map(q => String(q)).includes(m[1]);
+      });
+      if (protectedIdx > -1) imgUrls[protectedIdx] = me;
+    } catch { }
+    return imgUrls;
+  }
+
+  async fetchImageBuffer(url) {
+    try {
+      if (url.startsWith('data:') || url.startsWith('base64://')) {
+        const b64 = url.replace(/^data:[^;]+;base64,/, '').replace(/^base64:\/\//, '');
+        return Buffer.from(b64, 'base64');
+      }
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      logger.warn(`[xhh-meme] 图片下载失败: ${err.message}`);
+      return null;
+    }
+  }
+}
+
+// ================= 工具函数 =================
+
+function buildDetailData(info) {
+  const params = info.params_type || {};
+  const keywords = info.keywords || [];
+  const base = memeBaseUrl();
+
+  // 参数说明文本
+  const argTexts = [];
+  const argsType = params.args_type;
+  if (argsType?.parser_options?.length) {
+    const props = argsType.args_model?.properties || {};
+    const options = argsType.parser_options || [];
+    for (const prop in props) {
+      if (prop === 'user_infos') continue;
+      const propInfo = props[prop];
+      let description = propInfo.description || '';
+      const option = options.find(
+        opt => opt.dest === prop || (opt.args && opt.args.some(a => a.name === prop))
+      );
+      if (option?.help_text) description = option.help_text;
+      let line = `${prop}`;
+      if (description) line += `：${description}`;
+      if (propInfo.enum) {
+        const names = options
+          .filter(opt => opt.action?.type === 0 && opt.action?.value && opt.dest === prop)
+          .flatMap(opt => opt.names.filter(n => !n.startsWith('--')));
+        const uniq = [...new Set(names)];
+        if (uniq.length) line += `（可选：${uniq.join('、')}）`;
+      } else if (propInfo.type === 'integer' || propInfo.type === 'number') {
+        if (propInfo.minimum !== undefined && propInfo.maximum !== undefined) {
+          line += `（范围：${propInfo.minimum}~${propInfo.maximum}）`;
+        }
+      }
+      argTexts.push(line);
+    }
+  }
+
+  // 使用示例
+  let usage = `#${keywords[0] || info.key}`;
+  if (params.min_images > 0) usage += ' [图片]';
+  if (params.min_texts > 0) usage += ` ${(params.default_texts || ['文字']).join('/')}`;
+
+  return {
+    key: info.key,
+    name: keywords[0] || info.key,
+    aliases: keywords.join('、'),
+    preview: `${base}/memes/${info.key}/preview`,
+    minImages: params.min_images ?? 0,
+    maxImages: params.max_images ?? 0,
+    minTexts: params.min_texts ?? 0,
+    maxTexts: params.max_texts ?? 0,
+    defaultTexts: (params.default_texts || []).join('/') || '无',
+    argsTexts: argTexts,
+    usage,
+    dateCreated: formatDate(info.date_created),
+    dateModified: formatDate(info.date_modified),
+  };
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '未知';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function handleArgs(key, args, e) {
+  if (!args) return '';
+  const params = infos[key]?.params_type;
+  if (!params?.args_type?.args_model) return '';
+  const argsObj = { user_infos: [{ name: e.sender.card || e.sender.nickname || '', gender: e.sender.sex || 'unknown' }] };
+  const props = params.args_type.args_model.properties || {};
+  const options = params.args_type.parser_options || [];
+  for (const prop in props) {
+    if (prop === 'user_infos') continue;
+    const propInfo = props[prop];
+    const related = options.filter(opt => opt.dest === prop || (opt.args && opt.args.some(a => a.name === prop)));
+    if (propInfo.enum && related.length) {
+      const valueMap = {};
+      related.forEach(opt => {
+        if (opt.action?.type === 0) {
+          opt.names.forEach(name => {
+            const v = name.replace(/^-+/, '');
+            valueMap[v] = opt.action.value;
+          });
+        }
+      });
+      argsObj[prop] = valueMap[args.trim()] ?? propInfo.default;
+    } else if (propInfo.type === 'integer' || propInfo.type === 'number') {
+      if (/^\d+$/.test(args.trim())) argsObj[prop] = parseInt(args.trim());
+    }
+  }
+  return JSON.stringify(argsObj);
+}
+
+async function getMasterQQ() {
+  try {
+    return (await import('../../../lib/config/config.js')).default.masterQQ;
+  } catch {
+    return [];
+  }
+}
+
+async function getAvatar(e) {
+  try {
+    if (typeof e.getAvatarUrl === 'function') return await e.getAvatarUrl(0);
+  } catch { }
+  return `https://q1.qlogo.cn/g?b=qq&s=0&nk=${e.user_id}`;
+}

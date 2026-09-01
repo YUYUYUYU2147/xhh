@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="{{ppath}}meme/detail.css" />
+</head>
+
+<body {{sys.scale}}>
+  <div class="container">
+    <div class="header">
+      <div class="title">{{name}}</div>
+      <div class="key">meme key：{{key}}</div>
+    </div>
+
+    <div class="preview-wrap">
+      <img class="preview" src="{{preview}}" onerror="this.style.display='none'" />
+      <div class="preview-tip">效果预览</div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">关键词</div>
+      <div class="aliases">{{aliases}}</div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">参数要求</div>
+      <div class="params-grid">
+        <div class="p-item">
+          <span class="p-label">图片</span>
+          <span class="p-value">{{minImages}} ~ {{maxImages}} 张</span>
+        </div>
+        <div class="p-item">
+          <span class="p-label">文字</span>
+          <span class="p-value">{{minTexts}} ~ {{maxTexts}} 段</span>
+        </div>
+        <div class="p-item">
+          <span class="p-label">默认文字</span>
+          <span class="p-value">{{defaultTexts}}</span>
+        </div>
+      </div>
+      {{if argsTexts && argsTexts.length}}
+      <div class="args-title">支持参数</div>
+      <div class="args-list">
+        {{each argsTexts t}}
+        <div class="args-item">{{t}}</div>
+        {{/each}}
+      </div>
+      {{/if}}
+    </div>
+
+    <div class="section">
+      <div class="sec-title">使用示例</div>
+      <div class="usage">{{usage}}</div>
+    </div>
+
+    <div class="footer">
+      <span>创建：{{dateCreated}}</span>
+      <span>更新：{{dateModified}}</span>
+      <span class="logo">from 小花火</span>
+    </div>
+  </div>
+</body>
+
+</html>

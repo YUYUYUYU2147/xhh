@@ -145,6 +145,22 @@ abyss_report_repos: |-
 abyss_report_gs_version: ''
 abyss_report_sr_version: ''
 
+#Meme表情包设置
+#meme表情包总开关：true开，false关
+meme: true
+#meme表情制作服务地址（yunzai-meme，无需改动）
+meme_baseUrl: http://113.31.103.19:50835
+#制作表情时是否引用回复：true是，false否
+meme_reply: true
+#是否必须带#前缀触发：true是，false否
+meme_forceSharp: true
+#制作表情冷却时间：填数字（单位：秒，0为无冷却）
+meme_CD: 0
+#制作时图片大小限制：填数字（单位：MB）
+meme_maxFileSize: 10
+#主人保护：制作主人时使用发送者本人头像：true开，false关
+meme_masterProtectDo: true
+
 #插件优先级（修改后需重启）
 tl_priority: -99
 sign_priority: -26
@@ -180,3 +196,4 @@ huobi_priority: 123
 role_combat_priority: 100
 zzz_md_priority: 100
 currency_balance_priority: 100
+meme_priority: 50

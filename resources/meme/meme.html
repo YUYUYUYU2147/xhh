@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="{{ppath}}meme/meme.css" />
+</head>
+
+<body {{sys.scale}}>
+  <div class="container">
+    <div class="header">
+      <div class="title">😜 Meme 表情包</div>
+      <div class="sub">共 {{total}} 个 · 发送 <b>#表情名</b> 制作 · <b>#表情名详情</b> 在线查询</div>
+    </div>
+    <div class="grid">
+      {{each list item}}
+      <div class="card {{item.isNew ? 'is-new' : ''}}">
+        <div class="card-name">{{item.name}}</div>
+        {{if item.aliases}}
+        <div class="card-alias">{{item.aliases}}</div>
+        {{/if}}
+        <div class="card-meta">
+          {{if item.isNew}}<span class="tag tag-new">NEW</span>{{/if}}
+          <span class="tag">{{item.maxImages}}图</span>
+          <span class="tag">{{item.minTexts}}文</span>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+    <div class="tip">发送 <b>#meme搜索+关键词</b> 快速查找 · <b>#meme更新</b> 刷新资源</div>
+    <div class="footer">from 小花火</div>
+  </div>
+</body>
+
+</html>

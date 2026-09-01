@@ -683,6 +683,55 @@ export const supportGuoba = () => ({
       priorityInput('role_combat_priority', '剧诗可用角色(role_combat)', 100),
       priorityInput('zzz_md_priority', '绝区零母带(zzz_md)', 100),
       priorityInput('currency_balance_priority', '货币统计(currency_balance)', 100),
+      priorityInput('meme_priority', 'Meme表情(meme)', 50),
+      {
+        component: 'Divider',
+        label: 'Meme表情包',
+      },
+      {
+        field: 'meme',
+        label: 'Meme表情包总开关',
+        helpMessage: '开启后可制作/查询 meme 表情包',
+        component: 'Switch',
+      },
+      {
+        field: 'meme_baseUrl',
+        label: 'Meme服务地址',
+        helpMessage: 'yunzai-meme 服务地址，一般无需修改',
+        component: 'Input',
+      },
+      {
+        field: 'meme_reply',
+        label: '制作时引用回复',
+        helpMessage: '发送制作结果时是否引用原消息',
+        component: 'Switch',
+      },
+      {
+        field: 'meme_forceSharp',
+        label: '必须带#前缀',
+        helpMessage: '开启后不带 # 前缀不触发 meme 制作',
+        component: 'Switch',
+      },
+      {
+        field: 'meme_CD',
+        label: '制作冷却CD',
+        helpMessage: '单位：秒，0 表示无冷却',
+        component: 'InputNumber',
+        componentProps: { min: 0, max: 3600, step: 1 },
+      },
+      {
+        field: 'meme_maxFileSize',
+        label: '图片大小限制',
+        helpMessage: '制作时单张图片最大 MB 数',
+        component: 'InputNumber',
+        componentProps: { min: 1, max: 100, step: 1 },
+      },
+      {
+        field: 'meme_masterProtectDo',
+        label: '主人保护',
+        helpMessage: '制作对象是主人时改用发送者本人头像',
+        component: 'Switch',
+      },
       {
         component: 'Divider',
         label: '其他',
@@ -822,6 +871,14 @@ export const supportGuoba = () => ({
         abyss_report_gs_version: cfg.abyss_report_gs_version || '',
         abyss_report_sr_version: cfg.abyss_report_sr_version || '',
         abyss_report_priority: cfg.abyss_report_priority ?? 100,
+        meme: cfg.meme !== false,
+        meme_baseUrl: cfg.meme_baseUrl || 'http://113.31.103.19:50835',
+        meme_reply: cfg.meme_reply !== false,
+        meme_forceSharp: cfg.meme_forceSharp !== false,
+        meme_CD: cfg.meme_CD ?? 0,
+        meme_maxFileSize: cfg.meme_maxFileSize ?? 10,
+        meme_masterProtectDo: cfg.meme_masterProtectDo !== false,
+        meme_priority: cfg.meme_priority ?? 50,
       }
     },
     setConfigData(data, { Result }) {
@@ -852,6 +909,10 @@ export const supportGuoba = () => ({
         by: data.by,
         xbgd: data.xbgd,
         cover: data.cover,
+        meme: data.meme,
+        meme_reply: data.meme_reply,
+        meme_forceSharp: data.meme_forceSharp,
+        meme_masterProtectDo: data.meme_masterProtectDo,
       }
       for (const [k, v] of Object.entries(boolMap)) {
         const target = ['forwardMsg', 'bh3', 'by', 'xbgd', 'cover'].includes(k) ? 'other.yaml' : 'config.yaml'
@@ -869,6 +930,8 @@ export const supportGuoba = () => ({
         b_img_num: data.b_img_num,
         manual_gt_port: data.manual_gt_port,
         manual_gt_timeout: data.manual_gt_timeout,
+        meme_CD: data.meme_CD,
+        meme_maxFileSize: data.meme_maxFileSize,
       }
       for (const [k, v] of Object.entries(numMap)) {
         if (v != null) yaml.set(_path + 'config.yaml', k, Number(v))
@@ -878,6 +941,8 @@ export const supportGuoba = () => ({
       if (data.gacha_header_art_source) yaml.set(_path + 'config.yaml', 'gacha_header_art_source', data.gacha_header_art_source === 'official' ? 'official' : 'custom')
       if (data.gacha_up_icon_source) yaml.set(_path + 'config.yaml', 'gacha_up_icon_source', data.gacha_up_icon_source === 'official' ? 'official' : 'custom')
       yaml.set(_path + 'config.yaml', 'manual_gt_public_url', String(data.manual_gt_public_url || '').trim())
+      const memeBaseUrl = String(data.meme_baseUrl || '').trim()
+      if (memeBaseUrl) yaml.set(_path + 'config.yaml', 'meme_baseUrl', memeBaseUrl)
 
       yaml.set(_path + 'sign.yaml', 'zd_sign', Number(data.zd_sign) ?? 0)
       yaml.set(_path + 'sign.yaml', 'sbai', !!data.sbai)
@@ -936,6 +1001,7 @@ export const supportGuoba = () => ({
         'video_priority', 'voice_priority', 'update_priority', 'config_priority', 'tlp_priority',
         'help_priority', 'picture_priority', 'npc_wt_priority', 'huobi_priority',
         'role_combat_priority', 'zzz_md_priority', 'currency_balance_priority',
+        'meme_priority',
       ]
       for (const f of priorityFields) {
         if (data[f] != null) yaml.set(_path + 'config.yaml', f, Number(data[f]))
