@@ -248,7 +248,8 @@ function buildTowerRoom(room = {}, idx = 0) {
 
 function pickCurrentTower(list = {}) {
   const now = moment();
-  const items = Object.entries(list).map(([id, v]) => ({ id: Number(id), ...v }));
+  // id >= 20000 为测试服/占位条目，正式服深渊只取 < 20000
+  const items = Object.entries(list).map(([id, v]) => ({ id: Number(id), ...v })).filter(v => Number(v.id) < 20000);
   // nanoka tower.json 使用 begin/end 字段；兼容 live_begin/live_end 两种命名。
   return items.find(v => (v.live_begin || v.begin) && (v.live_end || v.end) && now.isBetween(moment(v.live_begin || v.begin), moment(v.live_end || v.end), undefined, '[]'))
     || items.sort((a, b) => b.id - a.id)[0]
@@ -1047,8 +1048,6 @@ async function loadGsTower(opts = {}) {
   const manifest = await fetchJson(MANIFEST_URL, 6000);
   const nv = manifest?.gi?.latest || '7.0.53';
   const live = String(manifest?.gi?.live || '');
-  // 指定了历史版本且与当前 live 版本不一致时，Nanoka 塔数据无法按版本回查，返回 null 走仓库图片下载
-  if (opts.version && live && versionBase(opts.version) !== versionBase(live)) return null;
   const list = await fetchJson(`https://static.nanoka.cc/gi/${nv}/tower.json`, 8000);
   const rows = Object.entries(list || {})
     .map(([id, v]) => ({ id: Number(id), ...v }))
@@ -1056,11 +1055,21 @@ async function loadGsTower(opts = {}) {
     .sort((a, b) => Date.parse(a.live_begin || a.begin || '') - Date.parse(b.live_begin || b.begin || ''));
   let active = pickCurrentTower(list);
   let tip = '';
+  // 指定版本：优先用正式服 ID 映射定位对应版本数据（如 7.1 -> ID 123）
+  if (opts.version) {
+    const reqId = gsTowerVersionToId(opts.version);
+    const target = reqId != null ? rows.find(v => v.id === reqId) : null;
+    if (target) {
+      active = target;
+    } else {
+      tip = `暂无 ${opts.version} 版本数据，已显示数据库最新 ${live || opts.version} 版本`;
+    }
+  }
   if (opts.prev && active) {
     const idx = rows.findIndex(v => v.id === active.id);
     const prevRow = idx > 0 ? rows[idx - 1] : null;
     if (prevRow) active = prevRow;
-    else tip = '这已是收录范围内最早的一期深境螺旋';
+    else tip = tip || '这已是收录范围内最早的一期深境螺旋';
   }
   if (!active?.id) return null;
   const data = await fetchJson(`https://static.nanoka.cc/gi/${nv}/zh/tower/${active.id}.json`, 8000);
@@ -1069,10 +1078,17 @@ async function loadGsTower(opts = {}) {
   const rooms = Object.entries(floor.room || {}).map(([idx, room]) => buildTowerRoom(room, idx)).sort((a, b) => Number(a.idx) - Number(b.idx));
   const hpMatch = (floor.buff || []).join(' ').match(/怪物血量提升(\d+)%/);
   const hpPct = hpMatch ? Number(hpMatch[1]) + 100 : '';
+  const versionLabel = opts.version || gsTowerIdToVersion(active.id) || live || '';
+  // begin/end 为占位（跨度不足 2 天）时，period 置空，仅用版本号展示
+  const begin = active.live_begin || active.begin || '';
+  const end = active.live_end || active.end || '';
+  const spanDays = (Date.parse(end) - Date.parse(begin)) / 86400000;
+  const period = (begin && end && spanDays >= 2) ? `${begin} ~ ${end}` : '';
   return {
     version: nv,
     id: active.id,
-    period: `${active.live_begin || active.begin || ''} ~ ${active.live_end || active.end || ''}`,
+    versionLabel,
+    period,
     tip,
     leyline: {
       name: data?.leyline?.name || active.zh || active.en || '深境螺旋',
@@ -1092,31 +1108,86 @@ async function loadGsTower(opts = {}) {
   };
 }
 
+// 原神深境螺旋/幻想真境剧诗 正式服 ID ↔ 版本号 映射（参考 https://gi.nanoka.cc/tower/）
+// 6.x 起始 ID 118（对应 6.4），7.x 起始 ID 122（对应 7.0）；6.7 之后没有 6.8/6.9，直接跳到 7.0
+const GS_TOWER_VER_ID = {
+  '6.4': 118, '6.5': 119, '6.6': 120, '6.7': 121,
+  '7.0': 122, '7.1': 123,
+};
+const GS_TOWER_ID_VER = Object.fromEntries(Object.entries(GS_TOWER_VER_ID).map(([k, v]) => [v, k]));
+const GS_TOWER_MIN_ID = Math.min(...Object.values(GS_TOWER_VER_ID));
+
+function gsTowerVersionToId(version) {
+  return GS_TOWER_VER_ID[String(version)] ?? null;
+}
+
+function gsTowerIdToVersion(id) {
+  return GS_TOWER_ID_VER[id] ?? null;
+}
+
+// ID+1=下一版本，ID-1=上一版本（6.7→7.0 直跳，无 6.8/6.9）
+function gsTowerOffsetVersion(version, offset) {
+  const id = gsTowerVersionToId(version);
+  if (id == null) return null;
+  return gsTowerIdToVersion(id + offset);
+}
+
 async function listRepoImageNumbers(type) {
   const key = `${type}:${repoList().join('|')}`;
   if (repoImageCache.has(key)) return repoImageCache.get(key);
   const set = new Set();
+  // 同时匹配 X.Y 格式（6.7, 6.7A）和纯 ID 格式（121, 123A）
+  const re = /\b(?:([1-9]\d*\.\d{1,2}[A-Za-z]?)|([1-9]\d{2,3}[A-Z]?))\.png\b/g;
   for (const repo of repoList()) {
     const url = rawRepoToTreeUrl(repo, type);
     try {
       const html = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 xhh' } }).then(r => r.text());
-      for (const match of html.matchAll(/\b([1-9]\d*\.\d{1,2}[A-Za-z]?)\.png\b/g)) {
-        set.add(match[1]);
+      for (const match of html.matchAll(re)) {
+        set.add(match[1] || match[2]);
       }
     } catch (err) {
       logger.warn(`[xhh][abyss_report] 仓库目录读取失败 ${url}: ${err.message}`);
     }
   }
-  const list = [...set].sort((a, b) => versionBase(b) - versionBase(a) || String(a).localeCompare(String(b)));
+  // 排序：先按"是否为 ID 命名"分组（ID 靠后），组内按 versionBase / ID 数值降序
+  const list = [...set].sort((a, b) => {
+    const aIsVer = String(a).includes('.');
+    const bIsVer = String(b).includes('.');
+    if (aIsVer !== bIsVer) return aIsVer ? -1 : 1;
+    if (aIsVer) {
+      const diff = versionBase(b) - versionBase(a);
+      return diff !== 0 ? diff : String(a).localeCompare(String(b));
+    }
+    return Number(b) - Number(a) || String(a).localeCompare(String(b));
+  });
   repoImageCache.set(key, list);
   return list;
 }
 
 async function fallbackImageNumbers(game, version, type) {
   if (game !== 'gs') return null;
+  const list = await listRepoImageNumbers(type);
+  if (!list.length) return null;
+
+  // 优先按正式服 ID 递减找（处理 6.7→7.0 直跳，无 6.8/6.9）
+  const reqId = gsTowerVersionToId(version);
+  if (reqId != null) {
+    for (let id = reqId; id >= GS_TOWER_MIN_ID; id--) {
+      const ver = gsTowerIdToVersion(id);
+      if (!ver) continue;
+      // 收集所有匹配的文件名：版本号命名（6.7, 6.7A, 6.7B）和 ID 命名（121, 121A）
+      const nums = list.filter(num => {
+        if (String(num).match(/^([1-9]\d*\.\d{1,2})/)?.[1] === ver) return true;
+        if (String(num) === String(id)) return true;
+        return false;
+      });
+      if (nums.length) return { version: ver, numbers: nums };
+    }
+  }
+
+  // 兜底：旧逻辑（按 versionBase 找 ≤ 请求版本的最大），处理未收录的新大版本
   const reqBase = versionBase(version);
   if (reqBase < 0) return null;
-  const list = await listRepoImageNumbers(type);
   const latest = list.find(num => versionBase(num) <= reqBase);
   if (!latest) return null;
   const base = String(latest).match(/^([1-9]\d*\.\d{1,2})/)?.[1] || latest;
@@ -1244,8 +1315,10 @@ export class abyss_report extends plugin {
           }, { e, pct: 1 }), 1.8);
           return e.reply(img);
         }
+        return e.reply(`暂无 原神 ${version} 深境螺旋数据，已回退到数据库仍无可用数据，请稍后再试。`, true, { recallMsg: 60 });
       } catch (err) {
         logger.warn(`[xhh][abyss_report] tower 数据渲染失败: ${err.message}`);
+        return e.reply(`原神深境螺旋数据获取失败，请稍后再试。`, true, { recallMsg: 60 });
       }
     }
     if (req.game === 'sr' || req.game === 'zzz') {
