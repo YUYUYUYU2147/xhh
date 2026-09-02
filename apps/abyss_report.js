@@ -458,6 +458,18 @@ const SR_DMG_COLOR = {
   虚数: '#e8c258',
 };
 
+// 星铁七元素图标：Mar-7th/StarRailRes 官方资源（jsDelivr CDN 镜像）
+// 雷元素文件名为 Thunder，与 SR_DMG_LABEL 中的 Lightning/Thunder 统一映射
+const SR_ELEMENT_ICON = {
+  物理: 'https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/icon/element/Physical.png',
+  火: 'https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/icon/element/Fire.png',
+  冰: 'https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/icon/element/Ice.png',
+  雷: 'https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/icon/element/Thunder.png',
+  风: 'https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/icon/element/Wind.png',
+  量子: 'https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/icon/element/Quantum.png',
+  虚数: 'https://cdn.jsdelivr.net/gh/Mar-7th/StarRailRes@master/icon/element/Imaginary.png',
+};
+
 function srCleanText(text = '', params) {
   let s = String(text || '').replace(/\\n/g, ' ');
   s = s.replace(/<color=#?[0-9a-fA-F]{6,8}>/gi, '').replace(/<\/color>/gi, '');
@@ -481,7 +493,8 @@ function srWeakList(keys = []) {
   for (const key of keys || []) {
     const name = SR_DMG_LABEL[key] || '';
     if (!name) continue;
-    out.push({ name, color: SR_DMG_COLOR[name] || '#ffffff' });
+    const color = SR_DMG_COLOR[name] || '#ffffff';
+    out.push({ name, color, icon: SR_ELEMENT_ICON[name] || '' });
   }
   return out;
 }
@@ -675,11 +688,11 @@ async function loadSrNanoka(reqType, opts = {}) {
     const nodes = rows.map(row => {
       const star = starRows.find(s => Number(s.pre_id) === Number(row.id));
       const sides = [
-        { label: star ? '上' : '上半', ...srSide(row.event_id_list1, row.damage_type1, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
-        { label: star ? '中' : '下半', ...srSide(row.event_id_list2, row.damage_type2, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
+        { label: star ? '上' : '上半', star: !!star, ...srSide(row.event_id_list1, row.damage_type1, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
+        { label: star ? '中' : '下半', star: !!star, ...srSide(row.event_id_list2, row.damage_type2, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
       ];
       if (star) {
-        sides.push({ label: '星启', ...srSide(star.event_id_list, star.damage_type, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) });
+        sides.push({ label: '下', star: true, ...srSide(star.event_id_list, star.damage_type, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) });
       }
       return { title: srCleanText(row.name), goals: srChallengeTexts(row.challenge), sides };
     });
@@ -719,15 +732,17 @@ async function loadSrNanoka(reqType, opts = {}) {
     const nodes = levels.map(lv => {
       const star = starLevels.find(s => Number(s.pre_id) === Number(lv.id));
       const sides = [
-        { label: star ? '上' : '上半', ...srSide(lv.event_id_list1, lv.damage_type1, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
-        { label: star ? '中' : '下半', ...srSide(lv.event_id_list2, lv.damage_type2, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
+        { label: star ? '上' : '上半', star: !!star, ...srSide(lv.event_id_list1, lv.damage_type1, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
+        { label: star ? '中' : '下半', star: !!star, ...srSide(lv.event_id_list2, lv.damage_type2, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
       ];
       if (star) {
-        sides.push({ label: '星启', ...srSide(star.event_id_list, star.damage_type, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) });
+        sides.push({ label: '下', star: true, ...srSide(star.event_id_list, star.damage_type, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) });
       }
+      // 星启模式：使用星启节点自己的 challenge（分数/挑战条件），否则用主节点
+      const goalSource = (star && Array.isArray(star.challenge) && star.challenge.length) ? star.challenge : lv.challenge;
       return {
         title: srCleanText(lv.name || '') || '关卡',
-        goals: srChallengeTexts(lv.challenge),
+        goals: srChallengeTexts(goalSource),
         sides,
       };
     });
@@ -769,15 +784,17 @@ async function loadSrNanoka(reqType, opts = {}) {
     const nodes = levels.map((lv, idx) => {
       const star = starLevels.find(s => Number(s.pre_id) === Number(lv.id));
       const sides = [
-        { label: star ? '上' : '上半', ...srSide(lv.event_id_list1, lv.damage_type1, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
-        { label: star ? '中' : '下半', ...srSide(lv.event_id_list2, lv.damage_type2, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
+        { label: star ? '上' : '上半', star: !!star, ...srSide(lv.event_id_list1, lv.damage_type1, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
+        { label: star ? '中' : '下半', star: !!star, ...srSide(lv.event_id_list2, lv.damage_type2, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) },
       ];
       if (star) {
-        sides.push({ label: '星启', ...srSide(star.event_id_list, star.damage_type, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) });
+        sides.push({ label: '下', star: true, ...srSide(star.event_id_list, star.damage_type, hsrMonsterMap, hsrMonsterChildMap, [], srRefs) });
       }
+      // 星启模式：使用星启节点自己的 challenge，否则用主节点
+      const goalSource = (star && Array.isArray(star.challenge) && star.challenge.length) ? star.challenge : lv.challenge;
       return {
         title: srCleanText(lv.name || '') || (fallback ? `${fallback}·难度 ${idx + 1}` : `难度 ${idx + 1}`),
-        goals: srChallengeTexts(lv.challenge),
+        goals: srChallengeTexts(goalSource),
         sides,
       };
     });
@@ -833,6 +850,20 @@ const ZZZ_ELEMENT_COLOR = {
   风: '#72e3c3',
 };
 
+// ZZZ 六元素官方图标：gachabase.net 官方资源直链（cdn.gachabase.net，无需 token）
+const ZZZ_ELEMENT_ICON = {
+  物理: 'https://cdn.gachabase.net/zzz/assets/3a1691eb594ebc4a15029e0c52bdbedf.png',
+  火: 'https://cdn.gachabase.net/zzz/assets/e110cb79353b1dd78b7b816f152e9e7c.png',
+  冰: 'https://cdn.gachabase.net/zzz/assets/ef764d3d8c48a4eb57ce3f39fa013d49.png',
+  电: 'https://cdn.gachabase.net/zzz/assets/09a41aa7b7037ff1566289aabf888b3c.png',
+  风: 'https://cdn.gachabase.net/zzz/assets/8096776d00b473d1551fb2eacdc9b91a.png',
+  以太: 'https://cdn.gachabase.net/zzz/assets/a504a8c66926faa4ac46716adf7f3264.png',
+};
+
+function zzzElementIconUrl(name) {
+  return ZZZ_ELEMENT_ICON[name] || '';
+}
+
 function zzzIconUrl(image = '') {
   const m = String(image).match(/([^\\/]+)\.(?:png|webp|jpg|jpeg)$/i);
   if (!m) return '';
@@ -843,22 +874,38 @@ function zzzWeaknessList(weaknessObj = {}) {
   return Object.entries(weaknessObj)
     .map(([code, label]) => {
       const name = String(label).replace(/属性$/, '');
-      return { code, name, color: ZZZ_ELEMENT_COLOR[name] || '#ffffff' };
+      return {
+        code,
+        name,
+        color: ZZZ_ELEMENT_COLOR[name] || '#ffffff',
+        icon: zzzElementIconUrl(name),
+      };
     })
     .filter(v => v.name);
 }
 
 function zzzMonsterCard(mon = {}) {
   const icon = zzzIconUrl(mon.image);
-  const elementText = Object.entries(mon.element || {})
-    .filter(([_, v]) => v === 1)
-    .map(([k]) => ZZZ_ELEMENT_LABEL[k] || k)
-    .filter(Boolean);
+  const buildElementList = (filterVal) => Object.entries(mon.element || {})
+    .filter(([_, v]) => v === filterVal)
+    .map(([k]) => {
+      const name = ZZZ_ELEMENT_LABEL[k] || k;
+      return {
+        name,
+        code: k,
+        color: ZZZ_ELEMENT_COLOR[name] || '#ffffff',
+        icon: zzzElementIconUrl(name),
+      };
+    })
+    .filter(v => v.name);
+  const elementText = buildElementList(1);
+  const resistText = buildElementList(-1);
   const stats = mon.stats || {};
   return {
     name: mon.name || '未知敌人',
     icon,
     elementText,
+    resistText,
     statsText: `HP ${formatNum(stats.hp)} · ATK ${formatNum(stats.attack)} · DEF ${formatNum(stats.defence)} · 眩晕 ${formatNum(stats.stun)}`,
     shortStat: `HP ${formatNum(stats.hp)} · ATK ${formatNum(stats.attack)}`,
   };
@@ -956,22 +1003,38 @@ async function loadZzzNanoka(reqType, opts = {}) {
 
   if (reqType === '危局强袭战') {
     const modes = Array.isArray(detail?.modes) ? detail.modes : [];
-    const items = modes.map((mode, idx) => {
-      const zone = Object.values(mode.zone || {})[0] || {};
-      const room = Object.values(zone.layer_room || {})[0] || {};
-      const monster = Object.values(room.monster_list || {})[0] || {};
-      const boss = zzzMonsterCard(monster);
-      const buffs = Object.values(zone.layer_buff || {}).map(v => v.title || v.desc).filter(Boolean).map(stripHtml);
-      const selectable = Object.values(zone.selectable_buff || {}).map(v => v.title || v.desc).filter(Boolean).map(stripHtml);
-      return {
-        title: zone.name || `节点 ${idx + 1}`,
-        meta: `Lv.${zone.monster_level || ''}`,
-        rankGoals: `S ${formatNum(zone.s_rank_goal)} · A ${formatNum(zone.a_rank_goal)} · B ${formatNum(zone.b_rank_goal)}`,
-        boss,
-        buffs,
-        selectable,
-      };
-    });
+    const collectBuffs = (obj) => Object.values(obj || {})
+      .map(v => ({ title: stripHtml(v.title || ''), desc: stripHtml(v.desc || '') }))
+      .filter(v => v.title || v.desc);
+    const modeLabel = (t) => t === 1002 ? '困难' : t === 1001 ? '普通' : '';
+    const items = [];
+    let seq = 0;
+    for (const mode of modes) {
+      const modeName = modeLabel(mode.zone_type);
+      for (const zone of Object.values(mode.zone || {})) {
+        const room = Object.values(zone.layer_room || {})[0] || {};
+        const monster = Object.values(room.monster_list || {})[0] || {};
+        const boss = zzzMonsterCard(monster);
+        const weakness = zzzWeaknessList(room.monster_weakness);
+        // 自身元素和弱点重复时不再重复展示（如基塔布鲁自身风/弱点风）
+        if (weakness.length && boss.elementText?.length) {
+          const weakNames = new Set(weakness.map(w => w.name));
+          boss.elementText = boss.elementText.filter(el => !weakNames.has(el.name));
+        }
+        const buffs = collectBuffs(zone.layer_buff);
+        const selectable = collectBuffs(zone.selectable_buff);
+        items.push({
+          title: (modeName ? `[${modeName}] ` : '') + (zone.name || `节点 ${seq + 1}`),
+          meta: `Lv.${zone.monster_level || ''}`,
+          rankGoals: `S ${formatNum(zone.s_rank_goal)} · A ${formatNum(zone.a_rank_goal)} · B ${formatNum(zone.b_rank_goal)}`,
+          boss,
+          weakness,
+          buffs,
+          selectable,
+        });
+        seq += 1;
+      }
+    }
     return { version: nv, id, title: '危局强袭战', period, tip, gameKey: 'zzz', mode: 'boss', items };
   }
 

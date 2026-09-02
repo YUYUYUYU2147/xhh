@@ -66,7 +66,7 @@
               {{if side.level}}<span class="side-level">Lv.{{side.level}}</span>{{/if}}
               <div class="weak">
                 {{if side.weakness && side.weakness.length}}
-                  {{each side.weakness w}}<span class="weak-chip" style="background:{{w.color}}">{{w.name}}</span>{{/each}}
+                  {{each side.weakness w}}<span class="weak-chip" style="background:{{w.color}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}<span class="weak-text">{{w.name}}</span></span>{{/each}}
                 {{else}}
                   <span class="weak-chip dim">无弱点</span>
                 {{/if}}
@@ -81,7 +81,7 @@
                   <div class="m-name">{{if m.name}}{{m.name}}{{else}}{{m}}{{/if}}{{if m.count > 1}} <span class="m-count">×{{m.count}}</span>{{/if}}</div>
                   {{if m.weak && m.weak.length}}
                   <div class="m-weak">
-                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}">{{w.name[0]}}</span>{{/each}}
+                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}" title="{{w.name}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove();this.parentNode.textContent='{{w.name[0]}}'" />{{else}}{{w.name[0]}}{{/if}}</span>{{/each}}
                   </div>
                   {{/if}}
                   {{if m.stats}}
@@ -98,9 +98,9 @@
               {{if (!side.waves || side.waves.length === 0) && !side.invasion}}<div class="waves-empty">—</div>{{/if}}
             </div>
             {{if side.invasion}}
-            <div class="invasion">
+            <div class="invasion {{if side.star}}invasion-star{{/if}}">
               <div class="invasion-head">
-                <span class="invasion-badge">污染{{side.invasion.level}}级</span>
+                <span class="invasion-badge">{{if side.star}}星启模式 · {{/if}}污染{{side.invasion.level}}级</span>
               </div>
               {{if side.invasion.desc}}<div class="invasion-desc">{{side.invasion.desc}}</div>{{/if}}
               {{if side.invasion.monsters && side.invasion.monsters.length}}
@@ -111,7 +111,7 @@
                   <div class="m-name">{{m.name}}{{if m.count > 1}} <span class="m-count">×{{m.count}}</span>{{/if}}</div>
                   {{if m.weak && m.weak.length}}
                   <div class="m-weak">
-                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}">{{w.name[0]}}</span>{{/each}}
+                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}" title="{{w.name}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove();this.parentNode.textContent='{{w.name[0]}}'" />{{else}}{{w.name[0]}}{{/if}}</span>{{/each}}
                   </div>
                   {{/if}}
                 </div>
