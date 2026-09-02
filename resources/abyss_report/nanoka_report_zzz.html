@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="{{ppath}}abyss_report/nanoka_report_zzz.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page">
+  <main class="card">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">{{gameShort}}</div>
+        <h1>{{title}}</h1>
+        <p>{{gameName}} · {{period}}</p>
+      </div>
+      <div class="seal">ID {{id}}</div>
+    </header>
+
+    {{if mode === 'shiyu'}}
+      {{each nodes node}}
+      <section class="node">
+        <div class="node-head">
+          <div class="node-title">{{node.title}}</div>
+          <div class="node-meta">{{node.meta}}</div>
+        </div>
+        <div class="rooms">
+          {{each node.rooms room}}
+          <div class="room">
+            <div class="room-head">
+              <div class="room-title">{{room.title}}</div>
+              <div class="room-meta">{{room.meta}}</div>
+              <div class="weaknesses">
+                {{if room.weakness && room.weakness.length}}
+                  {{each room.weakness w}}
+                  <span class="weakness" style="background:{{w.color}}">{{w.name}}</span>
+                  {{/each}}
+                {{else}}
+                  <span class="weakness none">弱点未标注</span>
+                {{/if}}
+              </div>
+            </div>
+            {{if room.buff}}<div class="room-buff">{{room.buff}}</div>{{/if}}
+            <div class="monsters">
+              {{each room.monsters mon}}
+              <div class="monster">
+                <div class="m-icon-wrap">
+                  <img class="m-icon" src="{{mon.icon}}" onerror="this.style.display='none'" />
+                </div>
+                <div class="m-info">
+                  <div class="m-name">{{mon.name}}</div>
+                  <div class="m-elems">
+                    {{if mon.elementText && mon.elementText.length}}
+                      {{each mon.elementText el}}
+                      <span class="m-elem">{{el}}</span>
+                      {{/each}}
+                    {{/if}}
+                  </div>
+                  <div class="m-stat">{{mon.statsText}}</div>
+                </div>
+              </div>
+              {{/each}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </section>
+      {{/each}}
+    {{/if}}
+
+    {{if mode === 'boss'}}
+      {{each items item}}
+      <section class="node boss-node">
+        <div class="node-head">
+          <div class="node-title">{{item.title}}</div>
+          <div class="node-meta">{{item.meta}} · {{item.rankGoals}}</div>
+        </div>
+        <div class="boss-row">
+          <div class="m-icon-wrap boss-wrap">
+            <img class="m-icon boss-icon" src="{{item.boss.icon}}" onerror="this.style.display='none'" />
+          </div>
+          <div class="m-info">
+            <div class="m-name boss-name">{{item.boss.name}}</div>
+            <div class="m-elems">
+              {{if item.boss.elementText && item.boss.elementText.length}}
+                {{each item.boss.elementText el}}
+                <span class="m-elem">{{el}}</span>
+                {{/each}}
+              {{/if}}
+            </div>
+            <div class="m-stat">{{item.boss.statsText}}</div>
+          </div>
+        </div>
+        {{if item.buffs && item.buffs.length}}
+        <div class="buff-list">
+          <div class="list-title">环境机制</div>
+          {{each item.buffs b}}<div class="buff-item">{{b}}</div>{{/each}}
+        </div>
+        {{/if}}
+        {{if item.selectable && item.selectable.length}}
+        <div class="buff-list">
+          <div class="list-title">可选增益</div>
+          {{each item.selectable s}}<div class="buff-item">{{s}}</div>{{/each}}
+        </div>
+        {{/if}}
+      </section>
+      {{/each}}
+    {{/if}}
+
+    <footer>数据来源：Nanoka · 获取时间 {{generatedAt}} · from 小花火</footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="{{ppath}}abyss_report/nanoka_report.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page">
+  <main class="card">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">{{gameShort}}</div>
+        <h1>{{title}}</h1>
+        <p>{{gameName}} · {{period}}</p>
+      </div>
+      <div class="seal">ID {{id}}</div>
+    </header>
+
+    {{each sections sec}}
+    <section class="section">
+      <div class="section-head">
+        <div class="section-title">{{sec.title}}</div>
+        {{if sec.subtitle}}<div class="section-sub">{{sec.subtitle}}</div>{{/if}}
+      </div>
+      {{if sec.text}}<div class="section-text">{{sec.text}}</div>{{/if}}
+      {{if sec.cards && sec.cards.length}}
+      <div class="card-grid">
+        {{each sec.cards item}}
+        <div class="item-card">
+          <div class="item-top">
+            {{if item.badge}}<div class="item-badge" style="background:{{item.color}}">{{item.badge}}</div>{{/if}}
+            <div class="item-name">{{item.title}}</div>
+          </div>
+          {{if item.meta}}<div class="item-meta">{{item.meta}}</div>{{/if}}
+          {{if item.desc}}<div class="item-desc">{{item.desc}}</div>{{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+    </section>
+    {{/each}}
+
+    <footer>数据来源：Nanoka · 获取时间 {{generatedAt}} · from 小花火</footer>
+  </main>
+</div>
+</body>
+</html>

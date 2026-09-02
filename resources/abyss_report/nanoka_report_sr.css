@@ -1,0 +1,66 @@
+*{box-sizing:border-box}
+body{margin:0;min-width:1240px;font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;color:#fff;background:#0b1226;transform-origin:top left}
+.page{width:1240px;padding:24px;background:radial-gradient(circle at 18% 6%,#ffd9771c,transparent 26%),radial-gradient(circle at 86% 6%,#8f9bff1f,transparent 24%),linear-gradient(135deg,#0a1022,#121a36 50%,#201530);overflow:hidden}
+.card{padding:26px;border-radius:28px;border:1px solid #ffffff24;background:linear-gradient(180deg,#ffffff12,#ffffff07);box-shadow:0 24px 80px #0008;backdrop-filter:blur(8px)}
+.hero{height:152px;border-radius:24px;padding:26px 28px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(120deg,#131c3dcc,#1b2a55b3 55%,#3c2a4faa);border:1px solid #ffd97740;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-70px;top:-80px;width:270px;height:270px;border-radius:50%;background:#ffd9770d}
+.eyebrow{font-size:19px;color:#ffd977;letter-spacing:3px;opacity:.95}
+.hero h1{font-size:54px;line-height:1;margin:10px 0 8px}
+.hero p{margin:0;font-size:20px;color:#c6cdea}
+.seal{position:relative;z-index:1;min-width:104px;height:104px;border-radius:24px;padding:14px 16px;background:#101735;border:1px solid #ffd97745;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#ffe9b8;box-shadow:inset 0 0 18px #ffd97712}
+.intro{margin-top:20px;padding:16px 20px;border-radius:16px;background:linear-gradient(90deg,#ffd97714,#ffd97705);border:1px solid #ffd97730;font-size:17px;line-height:1.7;color:#f4ecda;white-space:pre-line}
+.goals{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.goals-label{font-size:16px;font-weight:800;color:#ffd977;margin-right:4px}
+.goal{padding:6px 14px;border-radius:10px;background:#ffd977;color:#171d33;font-size:15px;font-weight:800}
+.groups{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:22px}
+.group{padding:16px 18px;border-radius:18px;background:#0b10222e;border:1px solid #ffffff1c}
+.group-title{font-size:19px;font-weight:800;color:#ffd977;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.group-title:before{content:"";width:8px;height:18px;border-radius:3px;background:linear-gradient(180deg,#ffd977,#c9a44a);display:inline-block}
+.buff-item{padding:10px 12px;border-radius:12px;background:#ffffff0d;border:1px solid #ffffff12;margin-bottom:8px}
+.buff-item:last-child{margin-bottom:0}
+.buff-name{font-size:15px;font-weight:800;color:#ffe9b8;margin-bottom:4px}
+.buff-desc{font-size:13.5px;line-height:1.55;color:#d5dbf0;white-space:pre-line}
+.nodes{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:22px}
+.node{padding:16px 18px;border-radius:18px;background:#0b10222e;border:1px solid #ffffff1c;overflow:hidden}
+.node-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #ffffff16;padding-bottom:10px;margin-bottom:10px}
+.node-title{font-size:22px;font-weight:800;color:#fff;line-height:1.25}
+.goal-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.goal-chip{padding:3px 9px;border-radius:8px;background:#ffd97722;border:1px solid #ffd97755;color:#ffe9b8;font-size:12.5px;font-weight:700}
+.rules{margin-bottom:10px}
+.rule{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.5;color:#d5dbf0;padding:6px 10px;border-radius:10px;background:#e8c25812;margin-bottom:6px}
+.rule-name{flex:none;padding:1px 8px;border-radius:6px;background:#e8c258;color:#171d33;font-weight:800;font-size:12.5px;margin-top:1px}
+.sides{display:flex;flex-direction:column;gap:10px}
+.side{border-radius:14px;padding:10px 12px;background:#ffffff0a;border:1px solid #ffffff14}
+.side-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.side-label{padding:3px 10px;border-radius:8px;background:#ffd977;color:#171d33;font-size:13px;font-weight:800}
+.side:nth-child(2) .side-label{background:#8f9bff;color:#0e1430}
+.side-level{font-size:13px;color:#c6cdea;font-weight:700}
+.weak{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.weak-chip{padding:3px 11px;border-radius:9px;font-size:13.5px;font-weight:800;color:#0c1020;letter-spacing:1px}
+.weak-chip.dim{background:#ffffff22;color:#8f97b8;font-weight:600}
+.waves{display:flex;flex-direction:column;gap:8px}
+.wave{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.monster{display:flex;flex-direction:column;align-items:center;width:110px;padding:8px 6px;border-radius:12px;background:#00000030;border:1px solid #ffffff14;color:#e7ebff;text-align:center}
+.m-ico{width:54px;height:54px;border-radius:10px;object-fit:cover;background:#ffffff12;flex:none}
+.m-name{font-size:12.5px;font-weight:700;color:#fff;margin:6px 0 4px;line-height:1.25;max-height:2.6em;overflow:hidden}
+.m-count{font-size:11.5px;color:#ffd977;font-weight:800}
+.m-weak{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:4px}
+.weak-dot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0c1020}
+.m-stats{width:100%;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#c6cdea;margin-top:2px}
+.m-stat{display:flex;justify-content:space-between;align-items:center;padding:0 2px}
+.m-stat-label{opacity:.75}
+.m-stat-val{font-weight:700;color:#fff}
+.m-stat-count{font-size:10px;color:#ffd977}
+.mode-peak .nodes{grid-template-columns:repeat(3,1fr);gap:12px}
+.mode-peak .node{padding:14px 15px}
+.waves-empty{font-size:13px;color:#8f97b8;padding:2px 0}
+.invasion{margin-top:10px;padding:10px 12px;border-radius:12px;background:#f9731614;border:1px solid #f9731666}
+.invasion-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.invasion-badge{padding:3px 10px;border-radius:8px;background:#f97316;color:#fff;font-size:13px;font-weight:800;letter-spacing:1px}
+.invasion-desc{font-size:12.5px;line-height:1.6;color:#fed7aa}
+.invasion-monsters{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.invasion-monsters .monster{width:96px;padding:6px 4px;border-color:#f9731655}
+.boss-node{grid-column:1/-1;background:linear-gradient(180deg,#ffd97714,#0b10222e);border:1px solid #ffd97755}
+.boss-node .node-title{color:#ffe9b8}
+.side:nth-child(3) .side-label{background:#a855f7;color:#fff}
+footer{text-align:center;margin-top:22px;color:#9aa3c6;font-size:16px}

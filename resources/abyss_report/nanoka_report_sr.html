@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="{{ppath}}abyss_report/nanoka_report_sr.css" />
+</head>
+<body {{sys.scale}} class="mode-{{mode}}">
+<div class="page">
+  <main class="card">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">{{gameShort}}</div>
+        <h1>{{title}}</h1>
+        <p>{{gameName}} · {{period}}</p>
+      </div>
+      <div class="seal">ID {{id}}</div>
+    </header>
+
+    {{if intro}}
+    <div class="intro">{{intro}}</div>
+    {{/if}}
+
+    {{if goals && goals.length}}
+    <div class="goals">
+      <span class="goals-label">评级目标</span>
+      {{each goals g}}<span class="goal">{{g}}</span>{{/each}}
+    </div>
+    {{/if}}
+
+    {{if groups && groups.length}}
+    <div class="groups">
+      {{each groups group}}
+      <div class="group">
+        <div class="group-title">{{group.title}}</div>
+        {{each group.items item}}
+        <div class="buff-item">
+          {{if item.name}}<div class="buff-name">{{item.name}}</div>{{/if}}
+          <div class="buff-desc">{{item.desc}}</div>
+        </div>
+        {{/each}}
+      </div>
+      {{/each}}
+    </div>
+    {{/if}}
+
+    {{if nodes && nodes.length}}
+    <div class="nodes">
+      {{each nodes node}}
+      <section class="node {{if node.boss}}boss-node{{/if}}">
+        <div class="node-head">
+          <div class="node-title">{{node.title}}</div>
+          {{if node.goals && node.goals.length}}
+          <div class="goal-chips">{{each node.goals g}}<span class="goal-chip">{{g}}</span>{{/each}}</div>
+          {{/if}}
+        </div>
+        {{if node.rules && node.rules.length}}
+        <div class="rules">
+          {{each node.rules r}}<div class="rule"><span class="rule-name">{{r.name}}</span><span class="rule-desc">{{r.desc}}</span></div>{{/each}}
+        </div>
+        {{/if}}
+        <div class="sides">
+          {{each node.sides side}}
+          <div class="side">
+            <div class="side-head">
+              {{if side.label}}<span class="side-label">{{side.label}}</span>{{/if}}
+              {{if side.level}}<span class="side-level">Lv.{{side.level}}</span>{{/if}}
+              <div class="weak">
+                {{if side.weakness && side.weakness.length}}
+                  {{each side.weakness w}}<span class="weak-chip" style="background:{{w.color}}">{{w.name}}</span>{{/each}}
+                {{else}}
+                  <span class="weak-chip dim">无弱点</span>
+                {{/if}}
+              </div>
+            </div>
+            <div class="waves">
+              {{each side.waves wave}}
+              <div class="wave">
+                {{each wave m}}
+                <div class="monster">
+                  {{if m.icon}}<img class="m-ico" src="{{m.icon}}" alt="" onerror="this.style.display='none'" />{{/if}}
+                  <div class="m-name">{{if m.name}}{{m.name}}{{else}}{{m}}{{/if}}{{if m.count > 1}} <span class="m-count">×{{m.count}}</span>{{/if}}</div>
+                  {{if m.weak && m.weak.length}}
+                  <div class="m-weak">
+                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}">{{w.name[0]}}</span>{{/each}}
+                  </div>
+                  {{/if}}
+                  {{if m.stats}}
+                  <div class="m-stats">
+                    <div class="m-stat"><span class="m-stat-label">HP</span><span class="m-stat-val">{{m.stats.hp}}</span>{{if m.count > 1}} <span class="m-stat-count">×{{m.count}}</span>{{/if}}</div>
+                    <div class="m-stat"><span class="m-stat-label">SPD</span><span class="m-stat-val">{{m.stats.speed}}</span></div>
+                    <div class="m-stat"><span class="m-stat-label">Tough</span><span class="m-stat-val">{{m.stats.toughness}}</span></div>
+                  </div>
+                  {{/if}}
+                </div>
+                {{/each}}
+              </div>
+              {{/each}}
+              {{if (!side.waves || side.waves.length === 0) && !side.invasion}}<div class="waves-empty">—</div>{{/if}}
+            </div>
+            {{if side.invasion}}
+            <div class="invasion">
+              <div class="invasion-head">
+                <span class="invasion-badge">污染{{side.invasion.level}}级</span>
+              </div>
+              {{if side.invasion.desc}}<div class="invasion-desc">{{side.invasion.desc}}</div>{{/if}}
+              {{if side.invasion.monsters && side.invasion.monsters.length}}
+              <div class="invasion-monsters">
+                {{each side.invasion.monsters m}}
+                <div class="monster">
+                  {{if m.icon}}<img class="m-ico" src="{{m.icon}}" alt="" onerror="this.style.display='none'" />{{/if}}
+                  <div class="m-name">{{m.name}}{{if m.count > 1}} <span class="m-count">×{{m.count}}</span>{{/if}}</div>
+                  {{if m.weak && m.weak.length}}
+                  <div class="m-weak">
+                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}">{{w.name[0]}}</span>{{/each}}
+                  </div>
+                  {{/if}}
+                </div>
+                {{/each}}
+              </div>
+              {{/if}}
+            </div>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+      </section>
+      {{/each}}
+    </div>
+    {{/if}}
+
+    <footer>数据来源：Nanoka · 获取时间 {{generatedAt}} · from 小花火</footer>
+  </main>
+</div>
+</body>
+</html>

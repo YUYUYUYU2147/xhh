@@ -11,10 +11,11 @@ async function render(path, data_, cfg) {
   }
   return e.runtime.render('小花火', path, data_, {
     retType: cfg.ret ? 'default' : 'base64',
+    fullPage: cfg.fullPage !== false,
     beforeRender({ data }) {
       return {
         sys: {
-          scale: `style=transform:scale(${cfg.pct || (config().img_quality / 100) * 2.4 || 2.4 * 0.8})`,
+          scale: `style=zoom:${cfg.pct || (config().img_quality / 100) * 2.4 || 2.4 * 0.8}`,
         },
         ...data_,
         ppath: data_.ppath || '../../../../../plugins/xhh/resources/',

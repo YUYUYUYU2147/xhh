@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="{{ppath}}abyss_report/tower_report.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page">
+  <header class="hero">
+    <div class="hero-main">
+      <h1>深境螺旋</h1>
+      <div class="period">正式期间：{{period}}</div>
+    </div>
+    <div class="id-pill">
+      <b>ID {{id}}</b>
+      <span>{{leyline.name}}</span>
+    </div>
+  </header>
+
+  <section class="blessing-card">
+    <div class="blessing-icon">
+      <img src="{{leyline.iconUrl}}" alt="" />
+    </div>
+    <div class="blessing-body">
+      <div class="blessing-name">{{leyline.name}}</div>
+      <div class="blessing-desc">{{leyline.desc}}</div>
+    </div>
+  </section>
+
+  <section class="floor-header">
+    <h2>第{{floorNum}}层</h2>
+    <span class="floor-meta">{{rooms.length}} Rooms · HP {{hpPct}}%</span>
+  </section>
+
+  <section class="panel">
+    <h3 class="panel-title">挑战条件</h3>
+    <div class="cond-list">
+      {{each rooms room}}
+      <div class="cond-room">
+        <div class="cond-room-head">第{{floorNum}}层-{{room.idx}} · 时间条件 · Lv.{{room.level}}</div>
+        <div class="cond-items">
+          {{each room.conds c}}
+          <span>{{c.label}}：{{c.value}}</span>
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3 class="panel-title">关卡效果</h3>
+    <div class="buff-list">
+      {{each floorBuffs buff idx}}
+      <div class="buff-row">
+        <i class="buff-num">{{idx + 1}}</i>
+        <div class="buff-text">
+          <b>第{{floorNum}}层 Buff {{idx + 1}}</b>
+          <p>{{buff}}</p>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+    <div class="half-buffs">
+      <div class="half-buff">
+        <b>上半</b>
+        <p>{{firstHalfBuff || '—'}}</p>
+      </div>
+      <div class="half-buff">
+        <b>下半</b>
+        <p>{{secondHalfBuff || '—'}}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel enemies">
+    <h3 class="panel-title">敌人波次</h3>
+    {{each rooms room}}
+    <div class="room-card">
+      <div class="room-title">第{{floorNum}}层-{{room.idx}} <span>Lv.{{room.level}}</span></div>
+      <div class="room-grid">
+        <div class="room-half">
+          <div class="half-title">上半 · 敌人波次 #1</div>
+          <div class="monsters">
+            {{each room.first m}}
+            <div class="monster">
+              <div class="monster-icon">
+                {{if m.icon}}<img src="{{m.icon}}" alt="" />{{else}}<span style="background:{{m.color}}">{{m.abbr}}</span>{{/if}}
+              </div>
+              <div class="monster-info">
+                <div class="monster-name">{{m.name}}</div>
+                <div class="monster-level">{{m.level}}</div>
+                <div class="monster-hp">HP {{m.hp}}</div>
+              </div>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        <div class="room-half">
+          <div class="half-title">下半 · 敌人波次 #1</div>
+          <div class="monsters">
+            {{each room.second m}}
+            <div class="monster">
+              <div class="monster-icon">
+                {{if m.icon}}<img src="{{m.icon}}" alt="" />{{else}}<span style="background:{{m.color}}">{{m.abbr}}</span>{{/if}}
+              </div>
+              <div class="monster-info">
+                <div class="monster-name">{{m.name}}</div>
+                <div class="monster-level">{{m.level}}</div>
+                <div class="monster-hp">HP {{m.hp}}</div>
+              </div>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+      </div>
+    </div>
+    {{/each}}
+  </section>
+
+  <footer>数据来源：Nanoka · 获取时间 {{generatedAt}} · from 小花火</footer>
+</div>
+</body>
+</html>

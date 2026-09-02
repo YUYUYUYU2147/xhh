@@ -102,7 +102,7 @@ export const supportGuoba = () => ({
         component: 'Switch',
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '塔罗牌',
       },
       {
@@ -117,7 +117,7 @@ export const supportGuoba = () => ({
         componentProps: { min: 1, max: 99, step: 1 },
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '游戏攻略',
       },
       {
@@ -154,7 +154,7 @@ export const supportGuoba = () => ({
         },
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '签到设置',
       },
       {
@@ -220,7 +220,7 @@ export const supportGuoba = () => ({
         componentProps: { min: 30, max: 600, step: 10 },
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '米游社',
       },
       {
@@ -278,7 +278,7 @@ export const supportGuoba = () => ({
         componentProps: { min: 0, max: 3600, step: 10 },
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: 'B站设置',
       },
       {
@@ -339,7 +339,7 @@ export const supportGuoba = () => ({
         component: 'Switch',
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '卡池/图鉴外观',
       },
       {
@@ -367,7 +367,7 @@ export const supportGuoba = () => ({
         },
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '崩坏3扩展',
       },
       {
@@ -420,7 +420,7 @@ export const supportGuoba = () => ({
         component: 'InputTextArea',
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '活动到期提醒',
       },
       {
@@ -490,7 +490,7 @@ export const supportGuoba = () => ({
         component: 'InputTextArea',
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '崩坏3攻略源',
       },
       {
@@ -518,7 +518,7 @@ export const supportGuoba = () => ({
         component: 'InputTextArea',
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '绝区零攻略源',
       },
       {
@@ -534,7 +534,7 @@ export const supportGuoba = () => ({
         component: 'InputTextArea',
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '原神/星铁深渊速报',
       },
       {
@@ -556,7 +556,37 @@ export const supportGuoba = () => ({
         component: 'Input',
       },
       {
-        component: 'Divider',
+        field: 'abyss_report_sr_fiction_levels',
+        label: '星铁虚构叙事关卡筛选',
+        helpMessage: '留空显示全部；用数字1-5指定要显示的关卡序号，如 3,4 只显示其三、其四',
+        component: 'Input',
+      },
+      {
+        field: 'abyss_report_sr_maze_levels',
+        label: '星铁混沌回忆难度筛选',
+        helpMessage: '留空显示全部；用数字1-12指定要显示的难度，如 11,12 只显示第十一、十二层',
+        component: 'Input',
+      },
+      {
+        field: 'abyss_report_sr_doom_levels',
+        label: '星铁末日幻影难度筛选',
+        helpMessage: '留空显示全部；用数字1-5指定要显示的难度，如 3,4 只显示难度三、四',
+        component: 'Input',
+      },
+      {
+        field: 'abyss_report_zzz_shiyu_stages',
+        label: '绝区零式舆防卫战关卡筛选',
+        helpMessage: '留空显示全部；按 stage_num 筛选，如 4,5 只显示第四防线和节点5',
+        component: 'Input',
+      },
+      {
+        field: 'abyss_report_sr_invasion',
+        label: '星铁深渊星启模式',
+        helpMessage: '显示混沌回忆/虚构叙事/末日幻影最高难度的星启模式（污染入侵）区块',
+        component: 'Switch',
+      },
+      {
+        component: 'SOFT_GROUP_BEGIN',
         label: '插件优先级（修改后需重启Bot）',
       },
       {
@@ -683,11 +713,11 @@ export const supportGuoba = () => ({
       priorityInput('role_combat_priority', '剧诗可用角色(role_combat)', 100),
       priorityInput('zzz_md_priority', '绝区零母带(zzz_md)', 100),
       priorityInput('currency_balance_priority', '货币统计(currency_balance)', 100),
-      priorityInput('meme_priority', 'Meme表情(meme)', 50),
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: 'Meme表情包',
       },
+      priorityInput('meme_priority', 'Meme表情(meme)', 50),
       {
         field: 'meme',
         label: 'Meme表情包总开关',
@@ -733,7 +763,7 @@ export const supportGuoba = () => ({
         component: 'Switch',
       },
       {
-        component: 'Divider',
+        component: 'SOFT_GROUP_BEGIN',
         label: '其他',
       },
       {
@@ -870,6 +900,11 @@ export const supportGuoba = () => ({
         abyss_report_repos: cfg.abyss_report_repos || 'https://cnb.cool/JIUXJIU/Abyss/-/git/raw/main\nhttps://cnb.cool/JIUXJIU/AbyssBeta/-/git/raw/main',
         abyss_report_gs_version: cfg.abyss_report_gs_version || '',
         abyss_report_sr_version: cfg.abyss_report_sr_version || '',
+        abyss_report_sr_fiction_levels: cfg.abyss_report_sr_fiction_levels || '3,4',
+        abyss_report_sr_maze_levels: cfg.abyss_report_sr_maze_levels || '11,12',
+        abyss_report_sr_doom_levels: cfg.abyss_report_sr_doom_levels || '3,4',
+        abyss_report_zzz_shiyu_stages: cfg.abyss_report_zzz_shiyu_stages || '4,5',
+        abyss_report_sr_invasion: cfg.abyss_report_sr_invasion !== false,
         abyss_report_priority: cfg.abyss_report_priority ?? 100,
         meme: cfg.meme !== false,
         meme_baseUrl: cfg.meme_baseUrl || 'http://113.31.103.19:50835',
@@ -913,6 +948,7 @@ export const supportGuoba = () => ({
         meme_reply: data.meme_reply,
         meme_forceSharp: data.meme_forceSharp,
         meme_masterProtectDo: data.meme_masterProtectDo,
+        abyss_report_sr_invasion: data.abyss_report_sr_invasion,
       }
       for (const [k, v] of Object.entries(boolMap)) {
         const target = ['forwardMsg', 'bh3', 'by', 'xbgd', 'cover'].includes(k) ? 'other.yaml' : 'config.yaml'
@@ -990,6 +1026,10 @@ export const supportGuoba = () => ({
       yaml.set(_path + 'config.yaml', 'abyss_report_repos', String(data.abyss_report_repos || '').trim())
       yaml.set(_path + 'config.yaml', 'abyss_report_gs_version', String(data.abyss_report_gs_version || '').trim())
       yaml.set(_path + 'config.yaml', 'abyss_report_sr_version', String(data.abyss_report_sr_version || '').trim())
+      yaml.set(_path + 'config.yaml', 'abyss_report_sr_fiction_levels', String(data.abyss_report_sr_fiction_levels || '').trim())
+      yaml.set(_path + 'config.yaml', 'abyss_report_sr_maze_levels', String(data.abyss_report_sr_maze_levels || '').trim())
+      yaml.set(_path + 'config.yaml', 'abyss_report_sr_doom_levels', String(data.abyss_report_sr_doom_levels || '').trim())
+      yaml.set(_path + 'config.yaml', 'abyss_report_zzz_shiyu_stages', String(data.abyss_report_zzz_shiyu_stages || '').trim())
 
       const priorityFields = [
         'tl_priority', 'sign_priority', 'user_priority', 'wiki_priority',

@@ -349,11 +349,15 @@ export class meme extends plugin {
       },
     ];
     // 动态关键词规则：最长关键词优先，先排长的避免短词抢先匹配
+    // 强制 # 前缀开启时，规则要求消息必须以 # 开头，否则不带 # 不会触发
+    const forceSharp = getCfg().meme_forceSharp !== false;
     Object.keys(keyMap)
       .sort((a, b) => b.length - a.length)
       .forEach(key => {
         rules.push({
-          reg: `^\\s*#?${escapeRegExp(key)}`,
+          reg: forceSharp
+            ? new RegExp(`^\\s*#${escapeRegExp(key)}`)
+            : new RegExp(`^\\s*#?${escapeRegExp(key)}`),
           fnc: 'memes',
         });
       });
@@ -515,7 +519,8 @@ export class meme extends plugin {
       return true;
     }
     const key = keys[lodash.random(0, keys.length - 1)];
-    e.msg = infos[key].keywords?.[0] || key;
+    // 随机制作属于主动功能，加 # 前缀以通过强制前缀校验
+    e.msg = '#' + (infos[key].keywords?.[0] || key);
     return this.memes(e);
   }
 
@@ -524,6 +529,12 @@ export class meme extends plugin {
     if (!memeEnabled()) return false;
     const matched = matchKeyword(e.msg);
     if (!matched) return false;
+
+    // 强制 # 前缀：开启后不带 # 不触发 meme 制作
+    if (getCfg().meme_forceSharp !== false && !String(e.msg).trim().startsWith('#')) {
+      return false;
+    }
+
     const { key, keyword } = matched;
 
     // 详情
