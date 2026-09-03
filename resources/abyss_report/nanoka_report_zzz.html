@@ -44,7 +44,7 @@
               <div class="weaknesses">
                 {{if room.weakness && room.weakness.length}}
                   {{each room.weakness w}}
-                  <span class="weakness" style="background:{{w.color}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}{{w.name}}</span>
+                  <span class="weakness">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}{{w.name}}</span>
                   {{/each}}
                 {{else}}
                   <span class="weakness none">弱点未标注</span>
@@ -62,13 +62,13 @@
                   <div class="m-elems">
                     {{if mon.elementText && mon.elementText.length}}
                       {{each mon.elementText el}}
-                      <span class="m-elem" style="background:{{el.color}}">{{if el.icon}}<img class="m-elem-icon" src="{{el.icon}}" alt="{{el.name}}" onerror="this.remove()" />{{/if}}{{el.name}}</span>
+                      <span class="m-elem">{{if el.icon}}<img class="m-elem-icon" src="{{el.icon}}" alt="{{el.name}}" onerror="this.remove()" />{{/if}}{{el.name}}</span>
                       {{/each}}
                     {{/if}}
                     {{if mon.resistText && mon.resistText.length}}
                       <span class="weak-label resist-label">抗性</span>
                       {{each mon.resistText r}}
-                      <span class="m-elem resist-elem" style="background:{{r.color}}">{{if r.icon}}<img class="m-elem-icon" src="{{r.icon}}" alt="{{r.name}}" onerror="this.remove()" />{{/if}}{{r.name}}</span>
+                      <span class="m-elem resist-elem">{{if r.icon}}<img class="m-elem-icon" src="{{r.icon}}" alt="{{r.name}}" onerror="this.remove()" />{{/if}}{{r.name}}</span>
                       {{/each}}
                     {{/if}}
                   </div>
@@ -100,19 +100,19 @@
             <div class="m-elems">
               {{if item.boss.elementText && item.boss.elementText.length}}
                 {{each item.boss.elementText el}}
-                <span class="m-elem" style="background:{{el.color}}">{{if el.icon}}<img class="m-elem-icon" src="{{el.icon}}" alt="{{el.name}}" onerror="this.remove()" />{{/if}}{{el.name}}</span>
+                <span class="m-elem">{{if el.icon}}<img class="m-elem-icon" src="{{el.icon}}" alt="{{el.name}}" onerror="this.remove()" />{{/if}}{{el.name}}</span>
                 {{/each}}
               {{/if}}
               {{if item.weakness && item.weakness.length}}
                 <span class="weak-label">弱点</span>
                 {{each item.weakness w}}
-                <span class="m-elem" style="background:{{w.color}}">{{if w.icon}}<img class="m-elem-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}{{w.name}}</span>
+                <span class="m-elem">{{if w.icon}}<img class="m-elem-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}{{w.name}}</span>
                 {{/each}}
               {{/if}}
               {{if item.boss.resistText && item.boss.resistText.length}}
                 <span class="weak-label resist-label">抗性</span>
                 {{each item.boss.resistText r}}
-                <span class="m-elem resist-elem" style="background:{{r.color}}">{{if r.icon}}<img class="m-elem-icon" src="{{r.icon}}" alt="{{r.name}}" onerror="this.remove()" />{{/if}}{{r.name}}</span>
+                <span class="m-elem resist-elem">{{if r.icon}}<img class="m-elem-icon" src="{{r.icon}}" alt="{{r.name}}" onerror="this.remove()" />{{/if}}{{r.name}}</span>
                 {{/each}}
               {{/if}}
             </div>

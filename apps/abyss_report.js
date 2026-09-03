@@ -1045,7 +1045,7 @@ async function loadZzzNanoka(reqType, opts = {}) {
         const monsters = Object.values(room.monster_list || {}).map(v => zzzMonsterCard(v));
         const weakness = zzzWeaknessList(room.monster_weakness);
         return {
-          title: room.name || `房间 ${ridx + 1}`,
+          title: `房间 ${ridx + 1}`,
           meta: `Lv.${zone.monster_level || ''} · ${room.waves_num || 1} Wave`,
           weakness,
           monsters,
@@ -1061,6 +1061,7 @@ async function loadZzzNanoka(reqType, opts = {}) {
       } else {
         rooms = buildRoom(zone);
       }
+      rooms = rooms.map((room, idx) => ({ ...room, title: `房间 ${idx + 1}` }));
       return {
         title: zone.name || `节点 ${zone.stage_num || ''}`,
         meta: `Lv.${zone.monster_level || ''}`,
