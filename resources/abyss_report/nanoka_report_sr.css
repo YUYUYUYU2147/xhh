@@ -36,18 +36,19 @@ body{margin:0;min-width:1240px;font-family:"Noto Sans CJK SC","Microsoft YaHei",
 .side:nth-child(2) .side-label{background:#8f9bff;color:#0e1430}
 .side-level{font-size:13px;color:#c6cdea;font-weight:700}
 .weak{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
-.weak-chip{padding:3px 11px;border-radius:9px;font-size:13.5px;font-weight:800;color:#0c1020;letter-spacing:1px;display:inline-flex;align-items:center;gap:4px}
-.weak-chip.dim{background:#ffffff22;color:#8f97b8;font-weight:600}
-.weak-icon{width:14px;height:14px;display:inline-block;vertical-align:middle;flex:none}
+.weak-chip{padding:3px 8px;border-radius:8px;font-size:13px;font-weight:800;color:#e9edff;letter-spacing:.5px;display:inline-flex;align-items:center;gap:4px;background:transparent}
+.weak-chip.dim{background:transparent;color:#8f97b8;font-weight:600;padding:3px 8px;font-size:13px}
+.weak-icon{width:14px;height:14px;display:inline-block;vertical-align:middle;flex:none;border-radius:50%;object-fit:contain}
 .waves{display:flex;flex-direction:column;gap:8px}
 .wave{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
 .monster{display:flex;flex-direction:column;align-items:center;width:110px;padding:8px 6px;border-radius:12px;background:#00000030;border:1px solid #ffffff14;color:#e7ebff;text-align:center}
 .m-ico{width:54px;height:54px;border-radius:10px;object-fit:cover;background:#ffffff12;flex:none}
 .m-name{font-size:12.5px;font-weight:700;color:#fff;margin:6px 0 4px;line-height:1.25;max-height:2.6em;overflow:hidden}
 .m-count{font-size:11.5px;color:#ffd977;font-weight:800}
-.m-weak{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:4px}
-.weak-dot{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#0c1020;overflow:hidden}
-.weak-dot .weak-icon{width:12px;height:12px;display:block;margin:0}
+.m-weak{display:flex;gap:1px;flex-wrap:nowrap;white-space:nowrap;justify-content:center;margin-bottom:4px;width:100%}
+.weak-dot{padding:1px 0;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:1px;font-size:10px;font-weight:800;color:#e9edff;background:transparent;min-width:0}
+.weak-dot .weak-icon{width:11px;height:11px;display:block;margin:0;border-radius:50%;object-fit:contain;flex:none}
+.weak-text{line-height:1;font-weight:900;text-shadow:0 1px 2px #000,0 0 2px #000}
 .m-stats{width:100%;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#c6cdea;margin-top:2px}
 .m-stat{display:flex;justify-content:space-between;align-items:center;padding:0 2px}
 .m-stat-label{opacity:.75}

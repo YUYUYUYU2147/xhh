@@ -23,6 +23,18 @@
           <div class="node-title">{{node.title}}</div>
           <div class="node-meta">{{node.meta}}</div>
         </div>
+        {{if node.buffs && node.buffs.length}}
+        <div class="buff-list">
+          <div class="list-title">关卡增益</div>
+          {{each node.buffs b}}<div class="buff-item">{{if b.title}}<div class="buff-name">{{b.title}}</div>{{/if}}{{if b.desc}}<div class="buff-desc">{{b.desc}}</div>{{/if}}</div>{{/each}}
+        </div>
+        {{/if}}
+        {{if node.selectable && node.selectable.length}}
+        <div class="buff-list">
+          <div class="list-title">可选增益</div>
+          {{each node.selectable s}}<div class="buff-item">{{if s.title}}<div class="buff-name">{{s.title}}</div>{{/if}}{{if s.desc}}<div class="buff-desc">{{s.desc}}</div>{{/if}}</div>{{/each}}
+        </div>
+        {{/if}}
         <div class="rooms">
           {{each node.rooms room}}
           <div class="room">
@@ -39,17 +51,6 @@
                 {{/if}}
               </div>
             </div>
-            {{if room.buffs && room.buffs.length}}
-            <div class="room-buffs">
-              <div class="room-buffs-title">本房间增益</div>
-              {{each room.buffs b}}
-              <div class="room-buff">
-                {{if b.title}}<b>{{b.title}}</b>{{/if}}
-                {{if b.desc}}<span>{{b.desc}}</span>{{/if}}
-              </div>
-              {{/each}}
-            </div>
-            {{/if}}
             <div class="monsters">
               {{each room.monsters mon}}
               <div class="monster">

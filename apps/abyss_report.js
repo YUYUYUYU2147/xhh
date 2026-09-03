@@ -314,22 +314,54 @@ function resolveMapId(map = {}, live = '', reqType = '', opts = {}) {
     return { id: map[curKey].at(-1), label: `当前版本 ${curKey}`, tip: `${reqType} 已是最早收录的一期，没有更早数据` };
   }
 
+  if (opts.next) {
+    const i = keys.indexOf(curKey);
+    const nk = i > 0 ? keys[i - 1] : null;
+    if (nk && map[nk]?.length) {
+      return { id: map[nk].at(-1), label: `版本 ${nk}（下一期）` };
+    }
+    return { id: map[curKey].at(-1), label: `当前版本 ${curKey}`, tip: `${reqType} 暂无下一期数据` };
+  }
+
   return { id: map[curKey].at(-1), label: `当前版本 ${curKey}` };
 }
 
-// 无版本映射的玩法（虚构叙事 / 末日幻影）：按收录期号序列选择当期或上一期。
+// 无版本映射的玩法（虚构叙事 / 末日幻影）：按收录期号序列选择当期、上一期或下一期。
 // 依据列表条目是否已命名（zh/en 等字段）判断已发布，跳过预留占位 id（例如末日幻影最新的占位期）。
 function pickSeqEntry(detailBase, list, reqType, opts, live = '') {
   const named = Object.entries(list || {})
-    .map(([id, v]) => ({ id: Number(id), ok: !!(v && (v.zh || v.en || v.ko || v.ja)) }))
+    .map(([id, v]) => ({
+      id: Number(id),
+      value: v,
+      ok: !!(v && (v.zh || v.en || v.ko || v.ja)),
+    }))
     .filter(x => Number.isFinite(x.id) && x.ok)
-    .sort((a, b) => b.id - a.id);
-  const cur = named[0]?.id;
-  const prev = named[1]?.id;
-  if (cur == null) return { tip: `${reqType} 暂无可用期数据` };
+    .sort((a, b) => {
+      const at = Date.parse(a.value?.live_begin || a.value?.begin || '') || 0;
+      const bt = Date.parse(b.value?.live_begin || b.value?.begin || '') || 0;
+      return bt - at || b.id - a.id;
+    });
+  if (!named.length) return { tip: `${reqType} 暂无可用期数据` };
+
+  // 有明确起止时间时按当前时间定位，避免把已发布的下一期误判为当期；
+  // 无时间字段时沿用 Nanoka 的期号降序，第一条视为最新可查期。
+  const now = moment();
+  let curIndex = named.findIndex(x => {
+    const begin = x.value?.live_begin || x.value?.begin;
+    const end = x.value?.live_end || x.value?.end;
+    return begin && end && now.isBetween(moment(begin), moment(end), undefined, '[]');
+  });
+  if (curIndex < 0) curIndex = 0;
+  const cur = named[curIndex].id;
   if (opts.prev) {
-    if (prev == null) return { id: cur, label: `当前版本 ${live}`, tip: `${reqType} 已是最早收录的一期，没有更早数据` };
-    return { id: prev, label: `上一期（当前 #${cur} → #${prev}）` };
+    const target = named[curIndex + 1];
+    if (!target) return { id: cur, label: `当前版本 ${live}`, tip: `${reqType} 已是最早收录的一期，没有更早数据` };
+    return { id: target.id, label: `上一期（当前 #${cur} → #${target.id}）` };
+  }
+  if (opts.next) {
+    const target = named[curIndex - 1];
+    if (!target) return { id: cur, label: `当前版本 ${live}`, tip: `${reqType} 暂无下一期数据` };
+    return { id: target.id, label: `下一期（当前 #${cur} → #${target.id}）` };
   }
   return { id: cur, label: `当前版本 ${live}` };
 }
@@ -389,7 +421,7 @@ function srMonsterInfo(id, map, childMap) {
   const key = String(id);
   const entry = map?.[key];
   const child = childMap?.[key];
-  const weak = srWeakList(entry?.weak || []);
+  const weak = srWeakList(entry?.weak || child?.weak || []);
   if (entry?.zh || entry?.en || child?.name) {
     return {
       name: entry?.zh || entry?.en || child?.name || key,
@@ -587,7 +619,12 @@ async function loadSrNanoka(reqType, opts = {}) {
     Object.entries(hsrMonsterMap).forEach(([pid, entry]) => {
       const name = entry?.zh || entry?.en || pid;
       (entry?.child || []).forEach(cid => {
-        hsrMonsterChildMap[String(cid)] = { name, icon: entry?.icon || '' };
+        hsrMonsterChildMap[String(cid)] = {
+          name,
+          icon: entry?.icon || '',
+          // Nanoka 的关卡里经常只给 child ID，弱点实际挂在父级怪物上。
+          weak: entry?.weak || [],
+        };
       });
     });
   } catch (err) {
@@ -1086,8 +1123,13 @@ async function loadGsTower(opts = {}) {
   const list = await fetchJson(`https://static.nanoka.cc/gi/${nv}/tower.json`, 8000);
   const rows = Object.entries(list || {})
     .map(([id, v]) => ({ id: Number(id), ...v }))
-    .filter(v => Number.isFinite(v.id) && (v.begin || v.live_begin || v.zh || v.en))
-    .sort((a, b) => Date.parse(a.live_begin || a.begin || '') - Date.parse(b.live_begin || b.begin || ''));
+    // 20000 以上是数据库预留/测试条目，不能参与上一期、下一期计算。
+    .filter(v => Number.isFinite(v.id) && v.id < 20000 && (v.begin || v.live_begin || v.zh || v.en))
+    .sort((a, b) => {
+      const at = Date.parse(a.live_begin || a.begin || '') || 0;
+      const bt = Date.parse(b.live_begin || b.begin || '') || 0;
+      return at - bt || a.id - b.id;
+    });
   let active = pickCurrentTower(list);
   let tip = '';
   // 指定版本：优先用正式服 ID 映射定位对应版本数据（如 7.1 -> ID 123）
@@ -1105,6 +1147,12 @@ async function loadGsTower(opts = {}) {
     const prevRow = idx > 0 ? rows[idx - 1] : null;
     if (prevRow) active = prevRow;
     else tip = tip || '这已是收录范围内最早的一期深境螺旋';
+  }
+  if (opts.next && active) {
+    const idx = rows.findIndex(v => v.id === active.id);
+    const nextRow = idx >= 0 ? rows[idx + 1] : null;
+    if (nextRow) active = nextRow;
+    else tip = tip || '原神深境螺旋暂无下一期数据';
   }
   if (!active?.id) return null;
   const data = await fetchJson(`https://static.nanoka.cc/gi/${nv}/zh/tower/${active.id}.json`, 8000);
@@ -1340,7 +1388,7 @@ export class abyss_report extends plugin {
     const version = req.version || await currentVersion(req.game);
     if (req.game === 'gs' && req.type === '深境螺旋') {
       try {
-        const tower = await loadGsTower({ prev: req.prev, version: req.version });
+        const tower = await loadGsTower({ prev: req.prev, next: req.next, version: req.version });
         if (tower?.rooms?.length) {
           if (tower.tip) await e.reply(tower.tip, true, { recallMsg: 90 });
           const img = await scaleImage(await render('abyss_report/tower_report', {

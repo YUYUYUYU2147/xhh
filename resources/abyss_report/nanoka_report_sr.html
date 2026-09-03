@@ -66,7 +66,7 @@
               {{if side.level}}<span class="side-level">Lv.{{side.level}}</span>{{/if}}
               <div class="weak">
                 {{if side.weakness && side.weakness.length}}
-                  {{each side.weakness w}}<span class="weak-chip" style="background:{{w.color}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}<span class="weak-text">{{w.name}}</span></span>{{/each}}
+                  {{each side.weakness w}}<span class="weak-chip">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}<span class="weak-text" style="color:{{w.color}}">{{w.name}}</span></span>{{/each}}
                 {{else}}
                   <span class="weak-chip dim">无弱点</span>
                 {{/if}}
@@ -80,8 +80,8 @@
                   {{if m.icon}}<img class="m-ico" src="{{m.icon}}" alt="" onerror="this.style.display='none'" />{{/if}}
                   <div class="m-name">{{if m.name}}{{m.name}}{{else}}{{m}}{{/if}}{{if m.count > 1}} <span class="m-count">×{{m.count}}</span>{{/if}}</div>
                   {{if m.weak && m.weak.length}}
-                  <div class="m-weak">
-                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}" title="{{w.name}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove();this.parentNode.textContent='{{w.name[0]}}'" />{{else}}{{w.name[0]}}{{/if}}</span>{{/each}}
+                    <div class="m-weak">
+                    {{each m.weak w}}<span class="weak-dot" title="{{w.name}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}<span class="weak-text" style="color:{{w.color}}">{{w.name}}</span></span>{{/each}}
                   </div>
                   {{/if}}
                   {{if m.stats}}
@@ -111,7 +111,7 @@
                   <div class="m-name">{{m.name}}{{if m.count > 1}} <span class="m-count">×{{m.count}}</span>{{/if}}</div>
                   {{if m.weak && m.weak.length}}
                   <div class="m-weak">
-                    {{each m.weak w}}<span class="weak-dot" style="background:{{w.color}}" title="{{w.name}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove();this.parentNode.textContent='{{w.name[0]}}'" />{{else}}{{w.name[0]}}{{/if}}</span>{{/each}}
+                    {{each m.weak w}}<span class="weak-dot" title="{{w.name}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}<span class="weak-text" style="color:{{w.color}}">{{w.name}}</span></span>{{/each}}
                   </div>
                   {{/if}}
                 </div>

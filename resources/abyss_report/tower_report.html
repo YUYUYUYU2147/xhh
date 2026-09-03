@@ -9,7 +9,7 @@
   <header class="hero">
     <div class="hero-main">
       <h1>深境螺旋</h1>
-      <div class="period">正式期间：{{period}}</div>
+      <div class="period">{{if versionLabel}}版本 {{versionLabel}}{{/if}}{{if period}} · 正式期间：{{period}}{{/if}}</div>
     </div>
     <div class="id-pill">
       <b>ID {{id}}</b>
