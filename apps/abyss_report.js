@@ -3,7 +3,7 @@ import path from 'node:path';
 import fetch from 'node-fetch';
 import _ from 'lodash';
 import moment from 'moment';
-import { render, config, pluginPriority } from '#xhh';
+import { render, config, pluginPriority, makeForwardMsg } from '#xhh';
 import sharp from '../node_modules/sharp/lib/index.js';
 
 const MANIFEST_URL = 'https://static.nanoka.cc/manifest.json';
@@ -96,7 +96,9 @@ async function scaleImage(input, scale) {
     logger.warn(`[xhh][abyss_report] scaleImage 失败: ${err.message}`);
     return input;
   }
-}
+  }
+
+
 
 async function fetchJson(url, timeout = 8000) {
   const controller = new AbortController();
@@ -162,7 +164,8 @@ function parseMsg(msg = '') {
       }
     }
   }
-  return { game, version, prev, next, type };
+  const all = /全部|所有|全期|全部期/i.test(raw);
+  return { game, version, prev, next, type, all };
 }
 
 function imageNumbers(game, version, type) {
@@ -593,7 +596,7 @@ function srSide(stages = [], weakness = [], monsterMap, monsterChildMap, bossIds
     }
     invasion = {
       level: stage.invasion.level,
-      desc: stripHtml(stage.invasion.desc || ''),
+      desc: stripHtml(stage.invasion.desc || '').replace(/\\n/g, '\n'),
       monsters,
     };
   }
@@ -909,6 +912,12 @@ function zzzIconUrl(image = '') {
   return `https://static.nanoka.cc/assets/zzz/${m[1]}.webp`;
 }
 
+// 绝区零数据中部分增益 title 为内部占位符（如 "69014407_Title"），无正式名称，渲染时隐藏只留描述
+function zzzCleanBuffTitle(title) {
+  const t = stripHtml(title || '');
+  return /^\d+_Title$/.test(t) ? '' : t;
+}
+
 function zzzWeaknessList(weaknessObj = {}) {
   return Object.entries(weaknessObj)
     .map(([code, label]) => {
@@ -950,6 +959,24 @@ function zzzMonsterCard(mon = {}) {
   };
 }
 
+// 获取 zzz 指定玩法当前版本的全部期 id 列表（用于"全部期"模式）。reqType: '式舆防卫战' | '危局强袭战'
+async function zzzAllPeriodIds(reqType, versionOverride) {
+  try {
+    const manifest = await fetchJson(MANIFEST_URL, 6000);
+    const nv = manifest?.zzz?.latest || '3.2.12+18601660';
+    const live = versionOverride || manifest?.zzz?.live || '3.1';
+    const mapPath = reqType === '式舆防卫战'
+      ? `https://static.nanoka.cc/zzz/${nv}/zh/shiyu/version.json`
+      : `https://static.nanoka.cc/zzz/${nv}/zh/boss/version.json`;
+    const map = await fetchJson(mapPath, 8000);
+    const arr = map?.[live];
+    if (Array.isArray(arr) && arr.length) return arr.map(Number);
+  } catch (err) {
+    logger.warn(`[xhh][abyss_report] ${reqType} 期索引获取失败: ${err.message}`);
+  }
+  return null;
+}
+
 async function loadZzzNanoka(reqType, opts = {}) {
   const manifest = await fetchJson(MANIFEST_URL, 6000);
   const nv = manifest?.zzz?.latest || '3.2.12+18601660';
@@ -964,6 +991,10 @@ async function loadZzzNanoka(reqType, opts = {}) {
   let label = '';
   let tip = '';
   let map = null;
+  if (opts.id != null) {
+    id = Number(opts.id);
+    label = label || `第 ${id} 期`;
+  }
   if (cfg.map) {
     try {
       map = await fetchJson(cfg.map, 8000);
@@ -973,7 +1004,7 @@ async function loadZzzNanoka(reqType, opts = {}) {
   }
   const list = await fetchJson(cfg.list, 8000);
   // 下一期：优先按 live_begin 时间推进；危局等列表的未发布期次没有 live 时间，退回按 id 顺延
-  if (opts.next) {
+  if (opts.next && id == null) {
     const allItems = Object.entries(list || {})
       .map(([k, v]) => ({ id: Number(k), ...v }))
       .filter(v => Number.isFinite(v.id))
@@ -1019,6 +1050,10 @@ async function loadZzzNanoka(reqType, opts = {}) {
     if (opts.version && !tip) tip = `${reqType} ${opts.version} 暂无版本索引，已显示当期`;
   }
   if (!id) return null;
+  // version.json 记录的期次 id（如 69044）可能与实际详情 id（如 690441）位数不一致，以 list 为准补位
+  if (id != null && list && !list[String(id)] && list[String(id) + '1']) {
+    id = Number(String(id) + '1');
+  }
   const detail = await fetchJson(`${cfg.detail}/${id}.json`, 8000);
   const sections = [];
   let period = label || (detail?.begin_time || detail?.end_time ? `${detail.begin_time || ''} ~ ${detail.end_time || ''}` : `当前版本 ${live}`);
@@ -1037,7 +1072,7 @@ async function loadZzzNanoka(reqType, opts = {}) {
     }
 
     const collectBuffs = (obj) => Object.values(obj || {})
-      .map(v => ({ title: stripHtml(v.title || ''), desc: stripHtml(v.desc || '') }))
+      .map(v => ({ title: zzzCleanBuffTitle(v.title), desc: stripHtml(v.desc || '') }))
       .filter(v => v.title || v.desc);
 
     const buildRoom = (zone) => {
@@ -1062,10 +1097,24 @@ async function loadZzzNanoka(reqType, opts = {}) {
         rooms = buildRoom(zone);
       }
       rooms = rooms.map((room, idx) => ({ ...room, title: `房间 ${idx + 1}` }));
+      // 增益房间归属：有 child 时，按各房间 layer_buff 与父层 layer_buff 的 key 交集判断
+      const roomBuffKeySets = zone.child?.length
+        ? zone.child.map(childId => new Set(Object.keys(zoneMap[String(childId)]?.layer_buff || {})))
+        : null;
+      const buffs = Object.entries(zone.layer_buff || {}).map(([key, v]) => {
+        const item = collectBuffs({ [key]: v })[0];
+        if (!item) return null;
+        if (roomBuffKeySets) {
+          const idxs = roomBuffKeySets.map((keys, i) => (keys.has(key) ? i + 1 : 0)).filter(Boolean);
+          // 仅部分房间生效时标注房间；全房间共用则保持节点级展示
+          if (idxs.length && idxs.length < roomBuffKeySets.length) item.roomText = idxs.map(i => `房间 ${i}`).join('、');
+        }
+        return item;
+      }).filter(Boolean);
       return {
         title: zone.name || `节点 ${zone.stage_num || ''}`,
         meta: `Lv.${zone.monster_level || ''}`,
-        buffs: collectBuffs(zone.layer_buff),
+        buffs,
         selectable: collectBuffs(zone.selectable_buff),
         rooms,
       };
@@ -1078,7 +1127,7 @@ async function loadZzzNanoka(reqType, opts = {}) {
   if (reqType === '危局强袭战') {
     const modes = Array.isArray(detail?.modes) ? detail.modes : [];
     const collectBuffs = (obj) => Object.values(obj || {})
-      .map(v => ({ title: stripHtml(v.title || ''), desc: stripHtml(v.desc || '') }))
+      .map(v => ({ title: zzzCleanBuffTitle(v.title), desc: stripHtml(v.desc || '') }))
       .filter(v => v.title || v.desc);
     const modeLabel = (t) => t === 1002 ? '困难' : t === 1001 ? '普通' : '';
     const items = [];
@@ -1090,11 +1139,12 @@ async function loadZzzNanoka(reqType, opts = {}) {
         const monster = Object.values(room.monster_list || {})[0] || {};
         const boss = zzzMonsterCard(monster);
         const weakness = zzzWeaknessList(room.monster_weakness);
-        // 自身元素和弱点重复时不再重复展示（如基塔布鲁自身风/弱点风）
-        if (weakness.length && boss.elementText?.length) {
-          const weakNames = new Set(weakness.map(w => w.name));
-          boss.elementText = boss.elementText.filter(el => !weakNames.has(el.name));
-        }
+        // 弱点统一合并到一行展示，重复元素只保留一次（如基塔布鲁自身风/弱点风）
+        const weakNames = new Set(weakness.map(w => w.name));
+        boss.weaknessText = [
+          ...weakness,
+          ...(boss.elementText || []).filter(el => !weakNames.has(el.name)),
+        ];
         const buffs = collectBuffs(zone.layer_buff);
         const selectable = collectBuffs(zone.selectable_buff);
         items.push({
@@ -1375,6 +1425,7 @@ export class abyss_report extends plugin {
       event: 'message',
       priority: pluginPriority('abyss_report', 100),
       rule: [
+        { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?([1-9]\\.[0-9]{1,2})?(全部|所有|全期|全部期)(${allAliasReg()})$`, fnc: 'report' },
         { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?([1-9]\\.[0-9]{1,2})(${allAliasReg()})$`, fnc: 'report' },
         { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?(上一期|上期|上一|下一期|下期|下一)(${allAliasReg()})$`, fnc: 'report' },
         { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?(${allAliasReg()})(上一期|上期|上一|下一期|下期|下一)$`, fnc: 'report' },
@@ -1409,34 +1460,64 @@ export class abyss_report extends plugin {
     if (req.game === 'sr' || req.game === 'zzz') {
       try {
         const loadOpts = { version: req.version, prev: req.prev, next: req.next };
-        const nanoka = req.game === 'sr' ? await loadSrNanoka(req.type, loadOpts) : await loadZzzNanoka(req.type, loadOpts);
-        const hasData = nanoka && (nanoka.sections?.length || nanoka.nodes?.length || nanoka.items?.length || nanoka.boss);
-        if (hasData) {
-          if (nanoka.tip) await e.reply(nanoka.tip, true, { recallMsg: 90 });
-          const isZzz = req.game === 'zzz';
-          const srModes = ['maze', 'story', 'doom', 'peak'];
-          const isSrNew = req.game === 'sr' && srModes.includes(nanoka.mode);
-          const tpl = isZzz ? 'abyss_report/nanoka_report_zzz' : isSrNew ? 'abyss_report/nanoka_report_sr' : 'abyss_report/nanoka_report';
-          const img = await scaleImage(await render(tpl, {
-            gameName: isZzz ? '绝区零' : '崩坏：星穹铁道',
-            gameShort: isZzz ? 'ZENLESS ZONE ZERO' : 'STAR RAIL',
-            title: nanoka.title || req.type,
-            id: nanoka.id,
-            period: nanoka.period || '',
-            mode: nanoka.mode || '',
-            nodes: nanoka.nodes || [],
-            items: nanoka.items || [],
-            sections: nanoka.sections || [],
-            intro: nanoka.intro || '',
-            goals: nanoka.goals || [],
-            groups: nanoka.groups || [],
-            boss: nanoka.boss || null,
-            generatedAt: moment().format('MM-DD HH:mm'),
-          }, { e, pct: 1 }), isZzz ? 1.5 : isSrNew ? 1.5 : 1.65);
-          return e.reply(img);
+        const isZzzShiyu = req.game === 'zzz' && req.type === '式舆防卫战';
+        const isZzzDeadly = req.game === 'zzz' && req.type === '危局强袭战';
+        const multiPeriods = !!req.all
+          || (isZzzShiyu && String(config().abyss_report_zzz_shiyu_periods || 'last') === 'all')
+          || (isZzzDeadly && String(config().abyss_report_zzz_deadly_periods || 'last') === 'all');
+        const nanokas = [];
+        if (multiPeriods) {
+          const ids = await zzzAllPeriodIds(req.type, req.version);
+          if (ids && ids.length) {
+            for (const pid of ids) {
+              const n = await loadZzzNanoka(req.type, { id: pid });
+              if (n && (n.sections?.length || n.nodes?.length || n.items?.length || n.boss)) nanokas.push(n);
+            }
+          }
         }
+        if (!nanokas.length) {
+          const n = req.game === 'sr' ? await loadSrNanoka(req.type, loadOpts) : await loadZzzNanoka(req.type, loadOpts);
+          if (n) nanokas.push(n);
+        }
+        if (nanokas.length) {
+          if (!multiPeriods && nanokas[0].tip) await e.reply(nanokas[0].tip, true, { recallMsg: 90 });
+          const imgs = [];
+          for (const nanoka of nanokas) {
+            const isZzz = req.game === 'zzz';
+            const srModes = ['maze', 'story', 'doom', 'peak'];
+            const isSrNew = req.game === 'sr' && srModes.includes(nanoka.mode);
+            const tpl = isZzz ? 'abyss_report/nanoka_report_zzz' : isSrNew ? 'abyss_report/nanoka_report_sr' : 'abyss_report/nanoka_report';
+            const img = await scaleImage(await render(tpl, {
+              gameName: isZzz ? '绝区零' : '崩坏：星穹铁道',
+              gameShort: isZzz ? 'ZENLESS ZONE ZERO' : 'STAR RAIL',
+              title: nanoka.title || req.type,
+              id: nanoka.id,
+              period: nanoka.period || '',
+              mode: nanoka.mode || '',
+              nodes: nanoka.nodes || [],
+              items: nanoka.items || [],
+              sections: nanoka.sections || [],
+              intro: nanoka.intro || '',
+              goals: nanoka.goals || [],
+              groups: nanoka.groups || [],
+              boss: nanoka.boss || null,
+              generatedAt: moment().format('MM-DD HH:mm'),
+            }, { e, pct: isSrNew ? 1.5 : 1 }), isSrNew ? 1 : isZzz ? 1.5 : 1.65);
+            imgs.push(img);
+          }
+          if (imgs.length === 1) return e.reply(imgs[0]);
+          // napcat/icqq 构造合并转发时会把图片内联成 base64，单 node 过大必报「识别URL失败」，转发无解。
+          // 单条消息对图片大小限制宽松（单期已验证可发），故多期改为逐条发送，每条图与单期发送方式完全一致。
+          for (let i = 0; i < imgs.length; i++) {
+            await e.reply(`${req.type} · 第 ${nanokas[i].id} 期`);
+            await e.reply(imgs[i]);
+          }
+          return;
+        }
+        return e.reply(`暂无 ${req.game === 'zzz' ? '绝区零' : '星铁'} ${req.version || ''} ${req.type} 数据，请稍后再试。`, true, { recallMsg: 60 });
       } catch (err) {
         logger.warn(`[xhh][abyss_report] nanoka ${req.game} 数据渲染失败: ${err.message}`);
+        return e.reply(`绝区零/星铁 ${req.type || ''} 数据获取失败，请稍后再试。`, true, { recallMsg: 60 });
       }
     }
     let numbers = imageNumbers(req.game, version, req.type);

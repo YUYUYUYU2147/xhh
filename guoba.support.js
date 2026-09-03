@@ -586,6 +586,30 @@ export const supportGuoba = () => ({
         component: 'Switch',
       },
       {
+        field: 'abyss_report_zzz_shiyu_periods',
+        label: '式舆防卫战返回期数',
+        helpMessage: '默认"末期"只显示当前期（每版本最后一期）；选"全部期"会返回该版本全部期（如 3.1 的 3 期），多期时自动逐条发送',
+        component: 'Select',
+        componentProps: {
+          options: [
+            { label: '末期（默认）', value: 'last' },
+            { label: '全部期', value: 'all' },
+          ],
+        },
+      },
+      {
+        field: 'abyss_report_zzz_deadly_periods',
+        label: '危局强袭战返回期数',
+        helpMessage: '默认"末期"只显示当前期（每版本最后一期）；选"全部期"会返回该版本全部期（如 3.1 的 3 期），多期时自动逐条发送',
+        component: 'Select',
+        componentProps: {
+          options: [
+            { label: '末期（默认）', value: 'last' },
+            { label: '全部期', value: 'all' },
+          ],
+        },
+      },
+      {
         component: 'SOFT_GROUP_BEGIN',
         label: '插件优先级（修改后需重启Bot）',
       },
@@ -905,6 +929,8 @@ export const supportGuoba = () => ({
         abyss_report_sr_doom_levels: cfg.abyss_report_sr_doom_levels || '3,4',
         abyss_report_zzz_shiyu_stages: cfg.abyss_report_zzz_shiyu_stages || '4,5',
         abyss_report_sr_invasion: cfg.abyss_report_sr_invasion !== false,
+        abyss_report_zzz_shiyu_periods: cfg.abyss_report_zzz_shiyu_periods || 'last',
+        abyss_report_zzz_deadly_periods: cfg.abyss_report_zzz_deadly_periods || 'last',
         abyss_report_priority: cfg.abyss_report_priority ?? 100,
         meme: cfg.meme !== false,
         meme_baseUrl: cfg.meme_baseUrl || 'http://113.31.103.19:50835',
@@ -1030,6 +1056,8 @@ export const supportGuoba = () => ({
       yaml.set(_path + 'config.yaml', 'abyss_report_sr_maze_levels', String(data.abyss_report_sr_maze_levels || '').trim())
       yaml.set(_path + 'config.yaml', 'abyss_report_sr_doom_levels', String(data.abyss_report_sr_doom_levels || '').trim())
       yaml.set(_path + 'config.yaml', 'abyss_report_zzz_shiyu_stages', String(data.abyss_report_zzz_shiyu_stages || '').trim())
+      yaml.set(_path + 'config.yaml', 'abyss_report_zzz_shiyu_periods', String(data.abyss_report_zzz_shiyu_periods || 'last').trim())
+      yaml.set(_path + 'config.yaml', 'abyss_report_zzz_deadly_periods', String(data.abyss_report_zzz_deadly_periods || 'last').trim())
 
       const priorityFields = [
         'tl_priority', 'sign_priority', 'user_priority', 'wiki_priority',
