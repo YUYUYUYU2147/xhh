@@ -39,7 +39,17 @@
                 {{/if}}
               </div>
             </div>
-            {{if room.buff}}<div class="room-buff">{{room.buff}}</div>{{/if}}
+            {{if room.buffs && room.buffs.length}}
+            <div class="room-buffs">
+              <div class="room-buffs-title">本房间增益</div>
+              {{each room.buffs b}}
+              <div class="room-buff">
+                {{if b.title}}<b>{{b.title}}</b>{{/if}}
+                {{if b.desc}}<span>{{b.desc}}</span>{{/if}}
+              </div>
+              {{/each}}
+            </div>
+            {{/if}}
             <div class="monsters">
               {{each room.monsters mon}}
               <div class="monster">

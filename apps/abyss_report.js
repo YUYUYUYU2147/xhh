@@ -146,6 +146,7 @@ function parseMsg(msg = '') {
   const raw = String(msg || '').replace(/^#*xhh/i, '').trim();
   const version = raw.match(/([1-9]\.[0-9]{1,2})/)?.[1];
   const prev = /上一期|上期|上一/i.test(raw);
+  const next = /下一期|下期|下一/i.test(raw);
   let game = /星铁|星穹|崩铁|SR|HSR/i.test(raw) ? 'sr' : (/绝区零|ZZZ/i.test(raw) ? 'zzz' : 'gs');
   const aliases = allAliasReg();
   const typeText = raw.match(new RegExp(`(${aliases})`))?.[1];
@@ -161,7 +162,7 @@ function parseMsg(msg = '') {
       }
     }
   }
-  return { game, version, prev, type };
+  return { game, version, prev, next, type };
 }
 
 function imageNumbers(game, version, type) {
@@ -934,8 +935,26 @@ async function loadZzzNanoka(reqType, opts = {}) {
     }
   }
   const list = await fetchJson(cfg.list, 8000);
+  // 下一期：按 live_begin 时间排序找下一期深渊（与"上一期"不同，直接按期次推进）
+  if (opts.next) {
+    const items = Object.entries(list || {})
+      .map(([k, v]) => ({ id: Number(k), ...v }))
+      .filter(v => v.live_begin && v.live_end)
+      .sort((a, b) => Date.parse(a.live_begin) - Date.parse(b.live_begin));
+    const now = moment();
+    const activeIdx = items.findIndex(v => now.isBetween(moment(v.live_begin), moment(v.live_end), undefined, '[]'));
+    const idx = activeIdx >= 0 ? activeIdx : items.length - 1;
+    const row = items[idx + 1];
+    if (row) {
+      id = row.id;
+      label = '下一期';
+    } else if (items[idx]) {
+      id = items[idx].id;
+      tip = `${reqType} 暂无下一期数据`;
+    }
+  }
   // 版本索引仅在显式请求版本号 / 上一期时使用；默认当期沿用列表 live 状态判定，避免误选未发布占位数据
-  if (map && (opts.version || opts.prev)) {
+  if (!id && map && (opts.version || opts.prev)) {
     const pick = resolveMapId(map, live, reqType, opts);
     id = pick.id ?? null;
     label = pick.label || '';
@@ -969,16 +988,23 @@ async function loadZzzNanoka(reqType, opts = {}) {
       zoneEntries = zoneEntries.filter(([_, z]) => shiyuStages.includes(Number(z.stage_num)));
     }
 
-    const buildRoom = (zone) => {
+    const collectBuffs = (obj) => Object.values(obj || {})
+      .map(v => ({ title: stripHtml(v.title || ''), desc: stripHtml(v.desc || '') }))
+      .filter(v => v.title || v.desc);
+
+    const buildRoom = (zone, roomNo = 1) => {
       return Object.values(zone.layer_room || {}).map((room, ridx) => {
         const monsters = Object.values(room.monster_list || {}).map(v => zzzMonsterCard(v));
         const weakness = zzzWeaknessList(room.monster_weakness);
-        const buffs = Object.values(zone.layer_buff || {}).map(v => v.title || v.desc).filter(Boolean);
+        // 子房间的增益只取子房间自身数据，不能继承父节点的全部增益。
+        // 例如节点5的三个子房间分别对应三个不同增益，父节点只是总览。
+        const roomBuffs = collectBuffs(zone.layer_buff)
+          .filter((v, i, arr) => arr.findIndex(x => x.title === v.title && x.desc === v.desc) === i);
         return {
-          title: room.name || `房间 ${ridx + 1}`,
+          title: room.name || `房间 ${roomNo + ridx}`,
           meta: `Lv.${zone.monster_level || ''} · ${room.waves_num || 1} Wave`,
           weakness,
-          buff: stripHtml(buffs.join(' / ') || ''),
+          buffs: roomBuffs.filter(v => v.title || v.desc),
           monsters,
         };
       });
@@ -988,17 +1014,20 @@ async function loadZzzNanoka(reqType, opts = {}) {
       if (childIds.has(zoneId)) return null;
       let rooms = [];
       if (zone.child?.length) {
-        rooms = zone.child.flatMap(childId => buildRoom(zoneMap[String(childId)]));
+        rooms = zone.child.flatMap((childId, childIndex) => buildRoom(zoneMap[String(childId)] || {}, childIndex + 1));
       } else {
-        rooms = buildRoom(zone);
+        rooms = buildRoom(zone, 1);
       }
       return {
         title: zone.name || `节点 ${zone.stage_num || ''}`,
         meta: `Lv.${zone.monster_level || ''}`,
+        buffs: collectBuffs(zone.layer_buff),
+        selectable: collectBuffs(zone.selectable_buff),
         rooms,
       };
     }).filter(Boolean);
 
+    logger.info(`[xhh][abyss_report] 式舆防卫战 ${id} 节点数=${nodes.length} buffs=${nodes.map(n => (n.buffs || []).length).join('/')}`);
     return { version: nv, id, title: '式舆防卫战', period, tip, gameKey: 'zzz', mode: 'shiyu', nodes };
   }
 
@@ -1292,7 +1321,8 @@ export class abyss_report extends plugin {
       priority: pluginPriority('abyss_report', 100),
       rule: [
         { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?([1-9]\\.[0-9]{1,2})(${allAliasReg()})$`, fnc: 'report' },
-        { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?(${allAliasReg()})(上一期|上期|上一)$`, fnc: 'report' },
+        { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?(上一期|上期|上一|下一期|下期|下一)(${allAliasReg()})$`, fnc: 'report' },
+        { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?(${allAliasReg()})(上一期|上期|上一|下一期|下期|下一)$`, fnc: 'report' },
         { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?(${allAliasReg()})(速报|攻略|查询|信息|图)$`, fnc: 'report' },
         { reg: `^#*xhh(原神|星铁|星穹|崩铁|绝区零|ZZZ)?(${allAliasReg()})$`, fnc: 'report' },
       ],
@@ -1323,7 +1353,7 @@ export class abyss_report extends plugin {
     }
     if (req.game === 'sr' || req.game === 'zzz') {
       try {
-        const loadOpts = { version: req.version, prev: req.prev };
+        const loadOpts = { version: req.version, prev: req.prev, next: req.next };
         const nanoka = req.game === 'sr' ? await loadSrNanoka(req.type, loadOpts) : await loadZzzNanoka(req.type, loadOpts);
         const hasData = nanoka && (nanoka.sections?.length || nanoka.nodes?.length || nanoka.items?.length || nanoka.boss);
         if (hasData) {
