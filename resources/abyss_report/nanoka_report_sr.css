@@ -48,7 +48,8 @@ body{margin:0;min-width:1240px;font-family:"Noto Sans CJK SC","Microsoft YaHei",
 .m-weak{display:flex;gap:1px;flex-wrap:nowrap;white-space:nowrap;justify-content:center;margin-bottom:4px;width:100%}
 .weak-dot{padding:1px 0;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:1px;font-size:10px;font-weight:800;color:#e9edff;background:transparent;min-width:0}
 .weak-dot .weak-icon{width:11px;height:11px;display:block;margin:0;border-radius:50%;object-fit:contain;flex:none}
-.weak-text{line-height:1;font-weight:900;text-shadow:0 1px 2px #000,0 0 2px #000}
+.weak-text{line-height:1;font-weight:900;text-shadow:1px 1px 0 #000}
+.weak-text[style*="color:#a970ff"]{font-size:12px;color:#d7b8ff!important;text-shadow:1px 1px 0 #000,-1px 0 0 #000}
 .m-stats{width:100%;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#c6cdea;margin-top:2px}
 .m-stat{display:flex;justify-content:space-between;align-items:center;padding:0 2px}
 .m-stat-label{opacity:.75}
