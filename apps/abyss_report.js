@@ -935,10 +935,13 @@ async function loadZzzNanoka(reqType, opts = {}) {
     }
   }
   const list = await fetchJson(cfg.list, 8000);
-  // 下一期：按 live_begin 时间排序找下一期深渊（与"上一期"不同，直接按期次推进）
+  // 下一期：优先按 live_begin 时间推进；危局等列表的未发布期次没有 live 时间，退回按 id 顺延
   if (opts.next) {
-    const items = Object.entries(list || {})
+    const allItems = Object.entries(list || {})
       .map(([k, v]) => ({ id: Number(k), ...v }))
+      .filter(v => Number.isFinite(v.id))
+      .sort((a, b) => a.id - b.id);
+    const items = allItems
       .filter(v => v.live_begin && v.live_end)
       .sort((a, b) => Date.parse(a.live_begin) - Date.parse(b.live_begin));
     const now = moment();
@@ -948,9 +951,17 @@ async function loadZzzNanoka(reqType, opts = {}) {
     if (row) {
       id = row.id;
       label = '下一期';
-    } else if (items[idx]) {
-      id = items[idx].id;
-      tip = `${reqType} 暂无下一期数据`;
+    } else {
+      // 危局强袭战等列表的下一期通常还没写入 live_begin/live_end，只有 begin/end 占位时间，按期次 id 顺延
+      const curId = items[idx]?.id;
+      const pending = curId == null ? null : allItems.find(v => v.id > curId && (v.live_begin || v.begin));
+      if (pending) {
+        id = pending.id;
+        label = '下一期';
+      } else if (items[idx]) {
+        id = items[idx].id;
+        tip = `${reqType} 暂无下一期数据`;
+      }
     }
   }
   // 版本索引仅在显式请求版本号 / 上一期时使用；默认当期沿用列表 live 状态判定，避免误选未发布占位数据
@@ -992,19 +1003,14 @@ async function loadZzzNanoka(reqType, opts = {}) {
       .map(v => ({ title: stripHtml(v.title || ''), desc: stripHtml(v.desc || '') }))
       .filter(v => v.title || v.desc);
 
-    const buildRoom = (zone, roomNo = 1) => {
+    const buildRoom = (zone) => {
       return Object.values(zone.layer_room || {}).map((room, ridx) => {
         const monsters = Object.values(room.monster_list || {}).map(v => zzzMonsterCard(v));
         const weakness = zzzWeaknessList(room.monster_weakness);
-        // 子房间的增益只取子房间自身数据，不能继承父节点的全部增益。
-        // 例如节点5的三个子房间分别对应三个不同增益，父节点只是总览。
-        const roomBuffs = collectBuffs(zone.layer_buff)
-          .filter((v, i, arr) => arr.findIndex(x => x.title === v.title && x.desc === v.desc) === i);
         return {
-          title: room.name || `房间 ${roomNo + ridx}`,
+          title: room.name || `房间 ${ridx + 1}`,
           meta: `Lv.${zone.monster_level || ''} · ${room.waves_num || 1} Wave`,
           weakness,
-          buffs: roomBuffs.filter(v => v.title || v.desc),
           monsters,
         };
       });
@@ -1014,9 +1020,9 @@ async function loadZzzNanoka(reqType, opts = {}) {
       if (childIds.has(zoneId)) return null;
       let rooms = [];
       if (zone.child?.length) {
-        rooms = zone.child.flatMap((childId, childIndex) => buildRoom(zoneMap[String(childId)] || {}, childIndex + 1));
+        rooms = zone.child.flatMap(childId => buildRoom(zoneMap[String(childId)]));
       } else {
-        rooms = buildRoom(zone, 1);
+        rooms = buildRoom(zone);
       }
       return {
         title: zone.name || `节点 ${zone.stage_num || ''}`,
