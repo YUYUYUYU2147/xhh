@@ -11,6 +11,8 @@ import {
 } from '#xhh';
 import moment from 'moment';
 import crypto from 'node:crypto';
+import http from 'node:http';
+import https from 'node:https';
 import md5 from 'md5';
 import {
     execSync
@@ -26,6 +28,174 @@ let headers = {
 
 let Download = false;
 const BILI_DIRECT_VIDEO_LIMIT = 99 * 1024 * 1024;
+
+// 下载空闲超时（毫秒）：超过该时间没有新数据就判定失败并重连重试
+const DOWNLOAD_IDLE_TIMEOUT = 30000;
+// 单次下载最大重试次数
+const DOWNLOAD_RETRY = 4;
+// 下载过程产生的临时文件，结束后统一清理
+const BILI_TEMP_FILES = [
+    './plugins/xhh/temp/bili/video.m4s',
+    './plugins/xhh/temp/bili/audio.m4s',
+    './plugins/xhh/temp/bili/temp.mp4'
+];
+
+const urlClient = url => (String(url).startsWith('http://') ? http : https);
+
+/**
+ * 只读取响应头，用于解析最终地址与文件大小
+ * 返回 { redirect } 表示需要继续跟随重定向
+ */
+function requestHead(url, headers, method = 'HEAD', extra = {}) {
+    return new Promise((resolve, reject) => {
+        const req = urlClient(url).request(
+            url,
+            { method, headers: { ...headers, ...extra } },
+            res => {
+                const { statusCode, headers: h } = res;
+                res.resume();
+                if ([301, 302, 303, 307, 308].includes(statusCode) && h.location) {
+                    return resolve({ redirect: new URL(h.location, url).href });
+                }
+                if (statusCode >= 400) return reject(new Error(`HTTP ${statusCode}`));
+                let length = parseInt(h['content-length'], 10) || 0;
+                const range = h['content-range'];
+                if (range) {
+                    const m = /\/(\d+)$/.exec(range);
+                    if (m) length = parseInt(m[1], 10);
+                }
+                resolve({
+                    url,
+                    length,
+                    acceptRanges: h['accept-ranges'] === 'bytes' || !!range
+                });
+            }
+        );
+        req.setTimeout(15000, () => req.destroy(new Error('获取视频信息超时')));
+        req.on('error', reject);
+        req.end();
+    });
+}
+
+/**
+ * 解析出真实下载地址与文件大小（跟随重定向，不下载正文）
+ * 部分 CDN 不支持 HEAD，失败时自动退化为 Range 请求
+ */
+async function resolveStream(url, headers) {
+    let current = url;
+    for (let i = 0; i < 5; i++) {
+        let info;
+        try {
+            info = await requestHead(current, headers, 'HEAD');
+        } catch (err) {
+            info = await requestHead(current, headers, 'GET', { Range: 'bytes=0-0' });
+        }
+        if (info.redirect) {
+            current = info.redirect;
+            continue;
+        }
+        if (!info.length) {
+            // HEAD 没给出长度，用 Range 再确认一次
+            const r = await requestHead(info.url, headers, 'GET', { Range: 'bytes=0-0' });
+            if (!r.redirect && r.length) {
+                return { url: info.url, length: r.length, acceptRanges: true };
+            }
+        }
+        return info;
+    }
+    throw new Error('视频地址重定向次数过多');
+}
+
+/** 单次流式下载：边下边写盘，支持断点续传 */
+function downloadOnce(url, filePath, headers, total, acceptRanges) {
+    return new Promise((resolve, reject) => {
+        let start = 0;
+        if (fs.existsSync(filePath)) {
+            const stat = fs.statSync(filePath);
+            if (total > 0 && stat.size === total) return resolve(stat.size);
+            if (acceptRanges && total > 0 && stat.size < total) start = stat.size;
+            else fs.rmSync(filePath, { force: true });
+        }
+
+        const reqHeaders = { ...headers };
+        if (start > 0) reqHeaders.Range = `bytes=${start}-`;
+
+        const ws = fs.createWriteStream(filePath, start > 0 ? { flags: 'a' } : { flags: 'w' });
+        let received = start;
+        let settled = false;
+
+        const finish = err => {
+            if (settled) return;
+            settled = true;
+            try { ws.close(); } catch (e) { /* 忽略关闭异常 */ }
+            if (err) return reject(err);
+            if (total > 0 && received !== total) {
+                return reject(new Error(`下载不完整：${received}/${total} 字节`));
+            }
+            resolve(received);
+        };
+
+        ws.on('error', finish);
+
+        const req = urlClient(url).request(url, { method: 'GET', headers: reqHeaders }, res => {
+            const { statusCode, headers: h } = res;
+
+            if ([301, 302, 303, 307, 308].includes(statusCode) && h.location) {
+                res.resume();
+                settled = true;
+                try { ws.close(); } catch (e) { /* 忽略关闭异常 */ }
+                return downloadOnce(new URL(h.location, url).href, filePath, headers, total, acceptRanges)
+                    .then(resolve, reject);
+            }
+
+            // 带了 Range 却返回 200，说明服务端忽略续传，从头重下
+            if (start > 0 && statusCode !== 206) {
+                res.resume();
+                settled = true;
+                try { ws.close(); } catch (e) { /* 忽略关闭异常 */ }
+                fs.rmSync(filePath, { force: true });
+                return downloadOnce(url, filePath, headers, total, false).then(resolve, reject);
+            }
+
+            if (statusCode >= 400) {
+                res.resume();
+                return finish(new Error(`下载失败：HTTP ${statusCode}`));
+            }
+
+            res.on('data', chunk => { received += chunk.length; });
+            res.on('error', finish);
+            // 写盘结束才算下载完成，并按总大小校验完整性
+            ws.on('finish', () => {
+                if (total > 0 && received !== total) {
+                    return finish(new Error(`下载不完整：${received}/${total} 字节`));
+                }
+                finish();
+            });
+            res.pipe(ws);
+        });
+
+        req.setTimeout(DOWNLOAD_IDLE_TIMEOUT, () =>
+            req.destroy(new Error(`下载超时：${DOWNLOAD_IDLE_TIMEOUT / 1000} 秒无数据`))
+        );
+        req.on('error', finish);
+        req.end();
+    });
+}
+
+/** 带重试的下载 */
+async function downloadToFile(info, filePath, headers, name = '文件') {
+    let lastErr;
+    for (let i = 1; i <= DOWNLOAD_RETRY; i++) {
+        try {
+            return await downloadOnce(info.url, filePath, headers, info.length, info.acceptRanges);
+        } catch (err) {
+            lastErr = err;
+            logger.warn(`[小花火bili]${name}下载失败（第${i}/${DOWNLOAD_RETRY}次）：${err.message}`);
+            if (i < DOWNLOAD_RETRY) await sleep(1500 * i);
+        }
+    }
+    throw new Error(`${name}下载失败：${lastErr?.message || '未知错误'}`);
+}
 
 const qn_list = {
     0: 16,
@@ -378,20 +548,14 @@ class bili {
             }
             const url1 = res.data.dash.audio[0].baseUrl;
 
-            //视频大小
-            const sp = await fetch(url, {
-                method: 'get',
-                headers
-            })
-            const sp_size = parseInt(sp.headers.get('Content-Length'), 10)
+            //视频大小（只读响应头，不占用下载连接）
+            const vInfo = await resolveStream(url, headers);
+            const sp_size = vInfo.length;
             logger.mark('[小花火bili]视频大小：' + sp_size)
 
             //音频大小
-            const yp = await fetch(url1, {
-                method: 'get',
-                headers
-            })
-            const yp_size = parseInt(yp.headers.get('Content-Length'), 10)
+            const aInfo = await resolveStream(url1, headers);
+            const yp_size = aInfo.length;
             logger.mark('[小花火bili]音频大小：' + yp_size)
 
             //总大小（实际有误差，但忽略不计）
@@ -444,13 +608,29 @@ class bili {
         }
     }
 
+    // 上传群文件：大文件耗时远超框架默认接口超时（NapCat 传 100MB+ 常需 1~2 分钟），
+    // 若不临时放宽，框架会提前判超时并断开连接，实际却在后台上传成功
     async uploadVideoFile(e, filePath) {
-        if (e.isGroup && e.group) {
-            if (e.group.fs?.upload) return e.group.fs.upload(filePath);
-            if (e.group.sendFile) return e.group.sendFile(filePath);
+        const bot = e.bot || Bot[Number(Bot.uin)];
+        const oldTimeout = bot?.timeout;
+        if (bot && typeof oldTimeout === 'number') {
+            bot.timeout = Math.max(oldTimeout, 600000);
         }
-        if (e.friend?.sendFile) return e.friend.sendFile(filePath);
-        return e.reply(segment.video(filePath));
+
+        const upload = async () => {
+            if (e.isGroup && e.group) {
+                if (e.group.fs?.upload) return e.group.fs.upload(filePath);
+                if (e.group.sendFile) return e.group.sendFile(filePath);
+            }
+            if (e.friend?.sendFile) return e.friend.sendFile(filePath);
+            return e.reply(segment.video(filePath));
+        };
+
+        try {
+            return await upload();
+        } finally {
+            if (bot && typeof oldTimeout === 'number') bot.timeout = oldTimeout;
+        }
     }
 
     //获取视频基础信息
@@ -1325,9 +1505,28 @@ class bili {
             if (send) e.reply('有其他视频在下载中，请等待！', true);
             return false;
         }
-        const headers = await this.getHeaders();
-        if (!headers) return false
+        // 上锁必须在任何 await 之前完成，否则并发调用可能同时通过上面的检查
+        Download = true;
+        try {
+            const headers = await this.getHeaders();
+            if (!headers) return false
+            return await this.doDownload(e, bv, send, res, vo, headers);
+        } catch (err) {
+            logger.error('[小花火bili]视频处理失败：' + (err?.message || err));
+            if (send) {
+                e.reply(`视频处理失败：${err?.message || '未知错误'}`, true).catch(() => { });
+            }
+            return false;
+        } finally {
+            Download = false;
+            for (const p of BILI_TEMP_FILES) {
+                try { fs.rmSync(p, { force: true }); } catch (err) { /* 忽略清理异常 */ }
+            }
+        }
+    }
 
+    // 下载并发送视频的主体逻辑
+    async doDownload(e, bv, send, res, vo, headers) {
         if (!res) {
             // const  n = await (/\d+/).exec(e.msg) || 0
             const cid = await this.player(bv, 0);
@@ -1360,23 +1559,19 @@ class bili {
                 break;
             }
         }
+        // 没有匹配到画质时退回第一条可用流，避免 url 为空导致下载直接报错
+        if (!url && res.data.dash.video?.length) url = res.data.dash.video[0].baseUrl;
+        if (!url) return logger.error('[小花火bili]未获取到视频流地址');
         const url1 = res.data.dash.audio[0].baseUrl;
-        //视频大小
-        const sp = await fetch(url, {
-            method: 'get',
-            headers
-        })
-        const sp_size = parseInt(sp.headers.get('Content-Length'), 10)
+        //视频大小（只读响应头，不占用下载连接）
+        const vInfo = await resolveStream(url, headers);
+        const sp_size = vInfo.length;
         //音频大小
-        const yp = await fetch(url1, {
-            method: 'get',
-            headers
-        })
-        const yp_size = parseInt(yp.headers.get('Content-Length'), 10)
+        const aInfo = await resolveStream(url1, headers);
+        const yp_size = aInfo.length;
         //总大小（实际有误差，但忽略不计）
         const size = sp_size + yp_size
 
-        Download = true;
         let re;
         if (send) {
             const tip = size > BILI_DIRECT_VIDEO_LIMIT
@@ -1390,15 +1585,17 @@ class bili {
         if (re?.data?.message_id) re.message_id = re.data.message_id
 
         //下载ing
-        const v_path = './plugins/xhh/temp/bili/video.m4s'
-        const v_path1 = './plugins/xhh/temp/bili/audio.m4s'
-        let sp_path = './plugins/xhh/temp/bili/temp.mp4'
+        const v_path = BILI_TEMP_FILES[0]
+        const v_path1 = BILI_TEMP_FILES[1]
+        const sp_path = BILI_TEMP_FILES[2]
         await this.temp();
+        // 清掉上次的残留，避免断点续传时拼进旧数据
+        fs.rmSync(v_path, { force: true });
+        fs.rmSync(v_path1, { force: true });
         logger.mark('[小花火bili]:开始下载视频和音频');
-        const data = Buffer.from(await sp.arrayBuffer());
-        const data1 = Buffer.from(await yp.arrayBuffer());
-        fs.writeFileSync(v_path, data);
-        fs.writeFileSync(v_path1, data1);
+        // 串行流式写盘：不再一次性读进内存，也不会两个连接同时挂着
+        await downloadToFile(vInfo, v_path, headers, '视频');
+        await downloadToFile(aInfo, v_path1, headers, '音频');
         logger.mark('[小花火bili]:视频和音频下载完成');
         logger.mark('[小花火bili]:合并视频和音频中');
         execSync(`cd plugins/xhh/temp/bili/ && ffmpeg -i video.m4s -i audio.m4s -c:v copy -c:a copy -f mp4 -y -loglevel error temp.mp4`);
@@ -1431,7 +1628,6 @@ class bili {
             if (e.isGroup) await e.group.recallMsg(re.message_id);
             else await e.friend.recallMsg(re.message_id);
         }
-        Download = false;
         if (vo) return size > BILI_DIRECT_VIDEO_LIMIT ? false : video;
         return true;
     }
