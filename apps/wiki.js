@@ -4,6 +4,12 @@ import { JSDOM } from 'jsdom';
 const { window } = new JSDOM();
 const DOMParser = window.DOMParser;
 
+// 绝区零本地别名修正：单字别名（如“雅”）过于宽泛，不能直接参与模糊兜底，否则随机串会误命中。
+// 这里用“精确映射”方式保留常用短别名——只有输入完全等于 key 时才命中，保证 #雅图鉴 仍可用且不会误伤。
+const ZZZ_CUSTOM_ALIASES = {
+  '雅': '星见雅',
+};
+
 
 function collectWikiValues(input, nameOnly = false, out = []) {
   if (input === undefined || input === null) return out;
@@ -442,20 +448,22 @@ export class Wiki extends plugin {
   async resolveZzzWikiName(name = '', channelId = 43) {
     const key = this.normalizeZzzKey(name);
     if (!key) return name;
+    if (ZZZ_CUSTOM_ALIASES[key]) return ZZZ_CUSTOM_ALIASES[key];
     const list = await this.getZzzWikiEntries(channelId);
     const keysOf = item => [item.title, item.alias, ...(item.aliases || [])].map(v => this.normalizeZzzKey(v)).filter(Boolean);
     let hit = list.find(item => keysOf(item).some(v => v === key));
-    if (!hit) hit = list.find(item => keysOf(item).some(v => v.includes(key) || key.includes(v)));
+    // 单字别名（如“雅”）过于宽泛，禁止其参与 key.includes(v) 兜底，避免随机串误命中
+    if (!hit) hit = list.find(item => keysOf(item).some(v => v.includes(key) || (v.length >= 2 && key.includes(v))));
     return hit?.title || name;
   }
 
   async getZzzObcIcon(name = '', channelId = 43) {
     if (!name) return '';
     const list = await this.getZzzWikiEntries(channelId);
-    const key = this.normalizeZzzKey(name);
+    const key = this.normalizeZzzKey(ZZZ_CUSTOM_ALIASES[this.normalizeZzzKey(name)] || name);
     const hit = list.find(item => {
       const keys = [item.title, item.alias, ...(item.aliases || [])].map(v => this.normalizeZzzKey(v)).filter(Boolean);
-      return keys.some(v => v === key || v.includes(key) || key.includes(v));
+      return keys.some(v => v === key || v.includes(key) || (v.length >= 2 && key.includes(v)));
     });
     return hit?.icon || '';
   }
