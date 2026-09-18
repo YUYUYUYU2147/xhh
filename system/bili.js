@@ -27,7 +27,6 @@ let headers = {
 };
 
 let Download = false;
-const BILI_DIRECT_VIDEO_LIMIT = 99 * 1024 * 1024;
 
 // 下载空闲超时（毫秒）：超过该时间没有新数据就判定失败并重连重试
 const DOWNLOAD_IDLE_TIMEOUT = 30000;
@@ -605,6 +604,22 @@ class bili {
             e.reply(msgs);
         } else {
             if (video) e.reply(video);
+        }
+    }
+
+    // 直接发送视频：和 uploadVideoFile 一样，NapCat 上传大视频（100MB+）常需 1~2 分钟，
+    // 超过框架默认接口超时会被 OneBotv11 适配器提前判「请求超时」并断开，
+    // 故发送前临时放宽 bot.timeout，发送完恢复
+    async sendVideoWithTimeout(e, video) {
+        const bot = e.bot || Bot[Number(Bot.uin)];
+        const oldTimeout = bot?.timeout;
+        if (bot && typeof oldTimeout === 'number') {
+            bot.timeout = Math.max(oldTimeout, 600000);
+        }
+        try {
+            return await e.reply(video);
+        } finally {
+            if (bot && typeof oldTimeout === 'number') bot.timeout = oldTimeout;
         }
     }
 
@@ -1574,9 +1589,8 @@ class bili {
 
         let re;
         if (send) {
-            const tip = size > BILI_DIRECT_VIDEO_LIMIT
-                ? `视频大于99MB，将下载后作为群文件发送，大小约为${Math.ceil(size / 1048576)}MB，请稍等！`
-                : `开始下载bilibili视频，视频大小约为${Math.ceil(size / 1048576)}MB，请稍等！`;
+            // 不再按大小区分群文件：统一直接发送视频（参考 rconsole 做法）
+            const tip = `开始下载bilibili视频，视频大小约为${Math.ceil(size / 1048576)}MB，请稍等！`;
             re = await e.reply(
                 tip,
                 true
@@ -1602,10 +1616,9 @@ class bili {
         logger.mark('[小花火bili]:视频和音频合并完成');
         let v_re,
             video = segment.video(sp_path);
-        if (size > BILI_DIRECT_VIDEO_LIMIT) {
-            await this.uploadVideoFile(e, sp_path);
-        } else if (!vo) {
-            v_re = await e.reply(video);
+        // 大于100MB的视频也不再转群文件，改为直接发送视频（参考 rconsole 的 segment.video 直发）
+        if (!vo) {
+            v_re = await this.sendVideoWithTimeout(e, video);
         }
         if (v_re?.data?.message_id) v_re.message_id = v_re.data.message_id
 
@@ -1621,14 +1634,14 @@ class bili {
             if (e.isGroup) e.group.recallMsg(v_re.message_id);
             else e.friend.recallMsg(v_re.message_id);
             sleep(1500)
-            await e.reply(video);
+            await this.sendVideoWithTimeout(e, video);
         }
         
         if (send) {
             if (e.isGroup) await e.group.recallMsg(re.message_id);
             else await e.friend.recallMsg(re.message_id);
         }
-        if (vo) return size > BILI_DIRECT_VIDEO_LIMIT ? false : video;
+        if (vo) return video;
         return true;
     }
 
