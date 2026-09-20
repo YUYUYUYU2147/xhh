@@ -12,7 +12,7 @@ const headers = {
 const GAME_CONFIG = {
   bh3: { gid: 1, name: '崩坏3', keywords: ['特别节目丨内容回顾', '特别节目', '内容回顾'] },
   gs: { gid: 2, name: '原神', keywords: ['前瞻汇总', '前瞻信息', '版本前瞻'] },
-  sr: { gid: 6, name: '崩坏：星穹铁道', keywords: ['前瞻汇总', '前瞻信息', '版本前瞻'] },
+  sr: { gid: 6, name: '崩坏：星穹铁道', keywords: ['特别节目内容回顾', '前瞻特别节目'] },
   zzz: { gid: 8, name: '绝区零', keywords: ['前瞻，一站式搞定', '前瞻信息', '版本前瞻'] },
 };
 
@@ -67,7 +67,10 @@ function extractPostSummary(post = {}, maxLen = 2000) {
 async function searchGlobalPosts(keyword, gids, size = 10) {
   const url = `${GLOBAL_SEARCH_API}?gids=${encodeURIComponent(gids)}&size=${size}&keyword=${encodeURIComponent(keyword)}&sort_type=2`;
   const res = await fetch(url, { headers }).then(r => r.json());
-  return (res?.data?.posts || []).map(v => v?.post).filter(Boolean);
+  return (res?.data?.posts || [])
+    .map(v => v?.post)
+    .filter(Boolean)
+    .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
 }
 
 async function fetchPostFull(post = {}, gids = 1) {
@@ -128,6 +131,7 @@ export class forward_info extends plugin {
         for (let post of posts) {
           if (!post?.post_id || seenPosts.has(post.post_id)) continue;
           // 先用标题粗筛，减少详情接口请求
+          if (/(预告|转发抽奖|抽奖)/.test(post.subject || '')) continue;
           if (!/(前瞻|特别节目|内容回顾)/.test(post.subject || '')) continue;
           post = await fetchPostFull(post, cfg.gid);
           if (!isForwardPost(post)) continue;
