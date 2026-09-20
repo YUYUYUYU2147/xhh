@@ -300,7 +300,8 @@ class mhy {
       case '5':
         return isSr ? 'prod_qd_cn' : 'cn_qd01'; // B服
     }
-    return 'prod_gf_cn';
+    // 崩三官服 uid 首位可能是 6/8/9，默认应返回 cn_gf01，而非原神/星铁的 prod_gf_cn
+    return game === 'bh3' ? 'cn_gf01' : 'prod_gf_cn';
   }
 
 }

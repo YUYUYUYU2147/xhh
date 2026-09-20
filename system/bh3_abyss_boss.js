@@ -5,7 +5,9 @@ import NoteUser from '../../genshin/model/mys/NoteUser.js';
 import { yaml, mhy, api, config } from '#xhh';
 
 const STOKEN_DIR = './plugins/xhh/data/Stoken';
-const BH3_REGIONS = ['android01', 'ios01', 'pc01', 'bb01', 'yyb01', 'hun01', 'hun02', 'cn_gf01', 'cn_qd01'];
+// 与 apps/bh3_abyss.js 的 getAuth 保持一致：不从 Stoken 里挑 cn_gf01/cn_qd01 官服条目，
+// 否则多角色用户会捞到与当前 Cookie 不匹配的官服号，米游社返回 1008「用户信息不匹配」
+const BH3_REGIONS = ['android01', 'ios01', 'pc01', 'bb01', 'yyb01', 'hun01', 'hun02'];
 const CACHE_KEY = 'xhh:bh3:current_abyss_info';
 const BATTLEFIELD_CACHE_KEY = 'xhh:bh3:current_battlefield_info';
 const SEARCH_API = 'https://bbs-api.miyoushe.com/painter/api/user_instant/search/list';
@@ -201,6 +203,7 @@ function extractBossFromPost(post = {}) {
     [/量子泥鳅|泥鳅/, '量子泥鳅'],
     [/神骸[-—·\s]*虚无主义|虚无主义/, '神骸-虚无主义'],
     [/摩录多/, '摩录多'],
+    [/狐狸|绯狱丸/, '绯狱丸'],
   ];
   for (const [reg, name] of titleBossRules) {
     if (reg.test(subject)) return name;
@@ -209,10 +212,11 @@ function extractBossFromPost(post = {}) {
     .filter(Boolean)
     .join('\n')
     .replace(/\\n/g, '\n');
+  // 要求 Boss 后必须跟冒号，避免把正文流程描述「压BOSS起身攒环能」里的操作词误当 Boss 名
   const patterns = [
-    /BOSS\s*[：:]?\s*([^\n，。,.；;]{2,40})/i,
-    /boss\s*[：:]?\s*([^\n，。,.；;]{2,40})/i,
-    /(?:超弦|深渊).*?(?:Boss|BOSS|boss)\s*[：:]?\s*([^\n，。,.；;]{2,40})/i,
+    /BOSS\s*[：:]\s*([^\n，。,.；;]{2,40})/i,
+    /boss\s*[：:]\s*([^\n，。,.；;]{2,40})/i,
+    /(?:超弦|深渊).*?(?:Boss|BOSS|boss)\s*[：:]\s*([^\n，。,.；;]{2,40})/i,
   ];
   for (const reg of patterns) {
     const m = text.match(reg);
@@ -406,44 +410,52 @@ async function getManualAbyssInfo() {
   }
 }
 
-export async function fetchCurrentAbyssInfo(auth) {
+export async function fetchCurrentAbyssInfo(auth, realE = null) {
   if (!auth?.uid || !auth?.ck) return inferCurrentAbyssInfoFromMys({}, auth?.region || 'cn_gf01');
-  const e = { user_id: auth.qq || 0 };
+  const e = realE || { user_id: auth.qq || 0 };
   const headers = mhy.getHeaders(e, auth.ck);
-  const indexRes = await api(e, { type: 'bh3_index', uid: auth.uid, headers, game: 'bh3', server: auth.region, silent: true });
-  if (indexRes?.retcode !== 0) return inferCurrentAbyssInfoFromMys({}, auth.region || 'cn_gf01');
+  // index 走 appv2 接口，用绑定接口给的角色平台代号 auth.region(android01/ios01/pc01)；
+  // 失败时再退服代号 cn_gf01/cn_qd01 兜底
+  let indexRes = await api(e, { type: 'bh3_index', uid: auth.uid, headers, game: 'bh3', server: auth.region, silent: true });
+  let indexServer = auth.region || '';
+  if (indexRes?.retcode !== 0) {
+    for (const sv of ['cn_gf01', 'cn_qd01']) {
+      const r = await api(e, { type: 'bh3_index', uid: auth.uid, headers, game: 'bh3', server: sv, silent: true });
+      if (r?.retcode === 0) { indexRes = r; indexServer = sv; break; }
+    }
+  }
+  if (!indexRes || indexRes.retcode !== 0) return inferCurrentAbyssInfoFromMys({}, auth.region || 'cn_gf01');
   const role = indexRes.data?.role || {};
   const level = Number(role.level || 0);
   const queryList = level > 0 && level <= 80
     ? [{ type: 'bh3_old_abyss', label: '量子流形' }, { type: 'bh3_new_abyss', label: '超弦空间' }]
     : [{ type: 'bh3_new_abyss', label: '超弦空间' }, { type: 'bh3_old_abyss', label: '量子流形' }];
-  const serverValues = [...new Set([auth.region, mhy.getServer(auth.uid, 'bh3'), 'cn_gf01', 'cn_qd01'].filter(Boolean))];
 
-  for (const server of serverValues) {
-    for (const item of queryList) {
-      try {
-        const res = await api(e, { type: item.type, uid: auth.uid, headers, game: 'bh3', server, silent: true });
-        const reports = (res?.data?.reports || [])
-          .filter(r => isCurrentReport(r))
-          .sort((a, b) => Number(getReportSortTs(b) || 0) - Number(getReportSortTs(a) || 0));
-        if (res?.retcode === 0 && reports.length) {
-          const info = buildInfo(item.label, reports[0], role, server);
-          await redis.set(CACHE_KEY, JSON.stringify(info), { EX: 2 * 3600 });
-          return info;
-        }
-      } catch (err) {
-        if (config().debug) logger.mark(`[xhh][bh3_abyss_boss] ${item.label} ${server} failed: ${err.message}`);
+  // 战报(app 接口)与 index 一样使用平台代号 auth.region；服代号 cn_gf01/cn_qd01 反而会 1008。
+  // auth.region 查询成功后无论本期是否有战报都停止，无数据时直接走米游社推断，避免无谓 1008
+  for (const item of queryList) {
+    try {
+      const res = await api(e, { type: item.type, uid: auth.uid, headers, game: 'bh3', server: auth.region, silent: true });
+      if (res?.retcode !== 0) continue;
+      const reports = (res?.data?.reports || [])
+        .filter(r => isCurrentReport(r))
+        .sort((a, b) => Number(getReportSortTs(b) || 0) - Number(getReportSortTs(a) || 0));
+      if (reports.length) {
+        const info = buildInfo(item.label, reports[0], role, indexServer || auth.region);
+        await redis.set(CACHE_KEY, JSON.stringify(info), { EX: 2 * 3600 });
+        return info;
       }
+    } catch (err) {
+      if (config().debug) logger.mark(`[xhh][bh3_abyss_boss] ${item.label} failed: ${err.message}`);
     }
   }
-  return inferCurrentAbyssInfoFromMys(role, serverValues[0] || auth.region);
+  return inferCurrentAbyssInfoFromMys(role, indexServer || auth.region);
 }
 
-export async function fetchCurrentBattlefieldInfo(auth) {
+export async function fetchCurrentBattlefieldInfo(auth, realE = null) {
   if (!auth?.uid || !auth?.ck) return null;
-  const e = { user_id: auth.qq || 0 };
+  const e = realE || { user_id: auth.qq || 0 };
   const headers = mhy.getHeaders(e, auth.ck);
-  const serverValues = [...new Set([auth.region, mhy.getServer(auth.uid, 'bh3'), 'cn_gf01', 'cn_qd01'].filter(Boolean))];
   const battlefieldStart = (() => {
     const now = moment();
     const start = now.clone().day(2).startOf('day');
@@ -451,54 +463,66 @@ export async function fetchCurrentBattlefieldInfo(auth) {
     return start.unix();
   })();
 
-  for (const server of serverValues) {
-    try {
-      const [indexRes, bfRes] = await Promise.all([
-        api(e, { type: 'bh3_index', uid: auth.uid, headers, game: 'bh3', server, silent: true }),
-        api(e, { type: 'bh3_battle_field', uid: auth.uid, headers, game: 'bh3', server, silent: true }),
-      ]);
-      if (bfRes?.retcode !== 0) continue;
+  // index(appv2) 用平台代号 auth.region，失败再退服代号兜底
+  let indexRes = await api(e, { type: 'bh3_index', uid: auth.uid, headers, game: 'bh3', server: auth.region, silent: true });
+  if (indexRes?.retcode !== 0) {
+    for (const sv of ['cn_gf01', 'cn_qd01']) {
+      const r = await api(e, { type: 'bh3_index', uid: auth.uid, headers, game: 'bh3', server: sv, silent: true });
+      if (r?.retcode === 0) { indexRes = r; break; }
+    }
+  }
+  const role = indexRes?.data?.role || {};
+
+  // 战场战报(app 接口)与 index 一样使用平台代号 auth.region；服代号 cn_gf01/cn_qd01 反而会 1008
+  try {
+    const bfRes = await api(e, { type: 'bh3_battle_field', uid: auth.uid, headers, game: 'bh3', server: auth.region, silent: true });
+    if (bfRes?.retcode === 0) {
       const reports = (bfRes?.data?.reports || [])
         .filter(r => !r.time_second || Number(r.time_second) >= battlefieldStart)
-        .sort(
-        (a, b) => Number(b.time_second || 0) - Number(a.time_second || 0)
-      );
-      if (!reports.length) continue;
+        .sort((a, b) => Number(b.time_second || 0) - Number(a.time_second || 0));
       const latest = reports[0];
-      const bosses = (latest.battle_infos || [])
+      const bosses = (latest?.battle_infos || [])
         .map(v => v?.boss?.name)
         .filter(Boolean);
-      if (!bosses.length) continue;
-      const role = indexRes?.data?.role || {};
-      const info = {
-        bosses,
-        area: fmtBattlefieldArea(latest.area),
-        score: latest.score || 0,
-        rank: latest.rank || 0,
-        uid: role.role_id || auth.uid,
-        nickname: role.nickname || '',
-        region: serverMap[server] || server,
-        dataTime: moment().format('MM-DD HH:mm'),
-      };
-      await redis.set(BATTLEFIELD_CACHE_KEY, JSON.stringify(info), { EX: 2 * 3600 });
-      return info;
-    } catch (err) {
-      if (config().debug) logger.mark(`[xhh][bh3_battlefield_boss] ${server} failed: ${err.message}`);
+      if (latest && bosses.length) {
+        const info = {
+          bosses,
+          area: fmtBattlefieldArea(latest.area),
+          score: latest.score || 0,
+          rank: latest.rank || 0,
+          uid: role.role_id || auth.uid,
+          nickname: role.nickname || '',
+          region: serverMap[auth.region] || auth.region,
+          dataTime: moment().format('MM-DD HH:mm'),
+        };
+        await redis.set(BATTLEFIELD_CACHE_KEY, JSON.stringify(info), { EX: 2 * 3600 });
+        return info;
+      }
     }
+  } catch (err) {
+    if (config().debug) logger.mark(`[xhh][bh3_battlefield_boss] failed: ${err.message}`);
   }
   return null;
 }
 
 export async function getCurrentAbyssInfoByEvent(e) {
-  const qq = e?.at || e?.user_id;
+  // qq 提取与 apps/bh3_abyss.js 的 getAuth 保持一致，避免 e.at 数组/缺省导致账号错位
+  let qq = e?.user_id;
+  for (const msg of e?.message || []) {
+    if (msg.type === 'at') { qq = msg.qq; break; }
+  }
   const auth = await getAuthByQQ(qq);
-  return fetchCurrentAbyssInfo(auth);
+  logger.mark?.(`[xhh][bh3_abyss_boss] 攻略取号：qq=${auth.qq} uid=${auth.uid} region=${auth.region} ck=${auth.ck ? '有' : '无'}`);
+  return fetchCurrentAbyssInfo(auth, e);
 }
 
 export async function getCurrentBattlefieldInfoByEvent(e) {
-  const qq = e?.at || e?.user_id;
+  let qq = e?.user_id;
+  for (const msg of e?.message || []) {
+    if (msg.type === 'at') { qq = msg.qq; break; }
+  }
   const auth = await getAuthByQQ(qq);
-  return fetchCurrentBattlefieldInfo(auth);
+  return fetchCurrentBattlefieldInfo(auth, e);
 }
 
 export async function getAnyCurrentAbyssText(compact = true) {

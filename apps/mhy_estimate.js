@@ -18,6 +18,9 @@ const SEARCH_API = 'https://bbs-api.miyoushe.com/painter/api/user_instant/search
 const GLOBAL_SEARCH_API = 'https://bbs-api.miyoushe.com/post/wapi/searchPosts';
 const POST_FULL_API = 'https://bbs-api.miyoushe.com/post/wapi/getPostFull';
 const GAME_GIDS = { abyss: 1, battlefield: 1, godwar: 1, zzz_defense: 8, zzz_deadly: 8 };
+// 攻略视频直发：超过该大小的视频不下载，回退封面+链接
+const VOD_TEMP_DIR = './plugins/xhh/temp/mys_vod/';
+const VOD_MAX_SIZE = 50 * 1024 * 1024;
 
 function pickGame(msg) {
   if (/原神|原石|gs/i.test(msg)) return 'gs';
@@ -167,6 +170,25 @@ const BH3_GUIDE_TYPE_WORDS = {
 
 const BH3_GUIDE_ACTION_WORDS = /推荐配队|攻略图|攻略|速报|作业|阵容|配队|队伍|刻印|因子|信息|查询|查看/ig;
 
+// 深渊 Boss 标准名 → 常用昵称（攻略作者常写昵称而非标准名，如「狐狸」而非「绯狱丸」）
+// 识别到 Boss 后，搜索与过滤需同时支持标准名和昵称，否则昵称帖会被「必须命中 Boss 名」过滤掉
+const ABYSS_BOSS_ALIASES = {
+  '绯狱丸': ['绯狱丸', '狐狸'],
+  '量子泥鳅': ['量子泥鳅', '泥鳅'],
+  '神骸-虚无主义': ['神骸-虚无主义', '虚无主义'],
+};
+
+function expandAbyssBossWords(words = []) {
+  const out = [];
+  for (const w of (Array.isArray(words) ? words : [words])) {
+    if (!w) continue;
+    for (const alias of (ABYSS_BOSS_ALIASES[w] || [w])) {
+      if (!out.includes(alias)) out.push(alias);
+    }
+  }
+  return out;
+}
+
 function extractBh3GuideKeyword(msg = '', type = 'godwar') {
   const raw = String(msg || '').replace(/^#/, '').trim();
   let keyword = raw
@@ -232,7 +254,11 @@ function collectJsonText(value, depth = 0) {
   const preferKeys = ['text', 'insert', 'content', 'desc', 'title'];
   const direct = preferKeys.flatMap(k => collectJsonText(value[k], depth + 1));
   if (direct.length) return direct;
-  return Object.values(value).flatMap(v => collectJsonText(v, depth + 1));
+  // 跳过视频/图片等媒体元数据，避免把 resolutions/definition/codec/size 等字段当正文
+  const skip = new Set(['vod', 'resolutions', 'backup_resolutions', 'image', 'attributes']);
+  return Object.entries(value)
+    .filter(([k]) => !skip.has(k))
+    .flatMap(([, v]) => collectJsonText(v, depth + 1));
 }
 
 function extractPostSummary(post = {}, maxLen = 3000) {
@@ -252,6 +278,99 @@ function extractPostSummary(post = {}, maxLen = 3000) {
     .trim();
   if (!text) return '';
   return text.length > maxLen ? `${text.slice(0, maxLen)}...\n（正文较长已截断，可结合图片或原帖继续查看）` : text;
+}
+
+// 从米游社帖子详情里提取视频对象（structured_content 的 insert.vod，或兜底 vod_list）
+function extractPostVod(post = {}) {
+  const scan = (value, depth = 0) => {
+    if (depth > 6 || value == null) return null;
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        const hit = scan(v, depth + 1);
+        if (hit) return hit;
+      }
+      return null;
+    }
+    if (typeof value === 'object') {
+      if (value.vod && typeof value.vod === 'object') return value.vod;
+      for (const k of Object.keys(value)) {
+        const hit = scan(value[k], depth + 1);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  let parsed = null;
+  const raw = post.structured_content || post.content || '';
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch (_) { parsed = null; }
+  } else {
+    parsed = raw;
+  }
+  const vod = scan(parsed);
+  if (vod) return vod;
+  if (Array.isArray(post.vod_list) && post.vod_list.length) return post.vod_list[0];
+  return null;
+}
+
+// 提取视频封面与最高画质直链，供「纯视频攻略帖」展示
+function postVodInfo(post = {}) {
+  const vod = extractPostVod(post);
+  if (!vod) return null;
+  const res = Array.isArray(vod.resolutions) ? vod.resolutions : (Array.isArray(vod.backup_resolutions) ? vod.backup_resolutions : []);
+  const best = res.length ? res[res.length - 1] : null;
+  return {
+    cover: vod.cover || '',
+    url: best?.url || '',
+    duration: vod.duration || 0,
+    label: best?.label || best?.definition || '',
+    resolutions: res,
+  };
+}
+
+// 生成米游社原帖链接（崩三 bh3 / 绝区零 zzz）
+function mysPostUrl(post = {}, gids = 1) {
+  const pid = post.post_id || post.postId || '';
+  if (!pid) return '';
+  const path = Number(gids) === 8 ? 'zzz' : 'bh3';
+  return `https://www.miyoushe.com/${path}/article/${pid}`;
+}
+
+// 选择合适画质：不超过 VOD_MAX_SIZE 的最高画质；全部超限时取最小画质兜底
+function pickVodUrl(vod = {}, maxSize = VOD_MAX_SIZE) {
+  const res = Array.isArray(vod.resolutions) ? vod.resolutions : [];
+  const list = res.filter(r => r?.url).sort((a, b) => (b.size || 0) - (a.size || 0));
+  if (!list.length) return null;
+  const under = list.find(r => (r.size || 0) <= maxSize);
+  return under || list[list.length - 1];
+}
+
+// 流式下载米游社视频到本地（完整 mp4，无需 ffmpeg 合并）
+async function downloadMysVideo(url, filePath) {
+  if (!fs.existsSync(VOD_TEMP_DIR)) fs.mkdirSync(VOD_TEMP_DIR, { recursive: true });
+  const res = await fetch(url, {
+    headers: {
+      Referer: 'https://www.miyoushe.com',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  // 兼容 node-fetch v2/v3 与 Node 原生 fetch（后者 res.body 是 web stream，没有 pipe）
+  const buf = Buffer.from(await res.arrayBuffer());
+  fs.writeFileSync(filePath, buf);
+  return filePath;
+}
+
+// 直接发送视频（放宽超时，不进合并转发），与 b 站 sendVideoWithTimeout 同思路
+async function sendVodVideo(e, video) {
+  const bot = e.bot || Bot[Number(Bot.uin)];
+  const oldTimeout = bot?.timeout;
+  if (bot && typeof oldTimeout === 'number') bot.timeout = Math.max(oldTimeout, 600000);
+  try {
+    return await e.reply(video);
+  } finally {
+    if (bot && typeof oldTimeout === 'number') bot.timeout = oldTimeout;
+  }
 }
 
 function postPlainText(post = {}) {
@@ -373,7 +492,7 @@ function isGuidePostUsable(post = {}, type, queryList = []) {
   return true;
 }
 
-function formatPostInfo(prefix, post = {}, fallback = '') {
+function formatPostInfo(prefix, post = {}, fallback = '', gids = 1) {
   const lines = [
     prefix,
     post.subject || fallback,
@@ -382,7 +501,10 @@ function formatPostInfo(prefix, post = {}, fallback = '') {
   if (time) lines.push(`发布：${new Date(time * 1000).toLocaleString('zh-CN', { hour12: false })}`);
   const summary = extractPostSummary(post);
   if (summary) lines.push(`摘要：${summary}`);
-  if (post.post_id) lines.push(`原帖ID：${post.post_id}`);
+  if (post.post_id) {
+    const url = mysPostUrl(post, gids);
+    lines.push(url ? `原帖ID：${post.post_id}\n原帖：${url}` : `原帖ID：${post.post_id}`);
+  }
   return lines.join('\n');
 }
 
@@ -475,7 +597,7 @@ export class mhy_estimate extends plugin {
         currentAbyssInfo = await getCurrentAbyssInfoByEvent(e);
         if (currentAbyssInfo?.boss && currentAbyssInfo.boss !== '未知') {
           query = currentAbyssInfo.boss;
-          queryList = [currentAbyssInfo.boss];
+          queryList = expandAbyssBossWords([currentAbyssInfo.boss]);
         }
       } catch (err) {
         logger.warn(`[xhh][estimate] 获取当前深渊Boss失败: ${err?.message || err}`);
@@ -511,6 +633,8 @@ export class mhy_estimate extends plugin {
     const msg = [];
     const seenPosts = new Set();
     const seenImages = new Set();
+    let downloadedVod = false; // 一次攻略搜索最多直发 1 个视频，避免拖慢整个流程
+    let vodSend = null; // 待单独直发的视频 { filePath, postInfo }（不进合并转发）
     if (cfg.custom?.[0]) msg.push([`作者：${cfg.custom[1] || '自定义图片源'}`, segment.image(cfg.custom[0])]);
     if (currentAbyssInfo) { const { formatCurrentAbyssInfo } = await loadBh3BossModule(); msg.push(`已识别当期深渊：\n${formatCurrentAbyssInfo(currentAbyssInfo, true)}`); }
     if (currentBattlefieldInfo) { const { formatCurrentBattlefieldInfo } = await loadBh3BossModule(); msg.push(`已识别当期战场：\n${formatCurrentBattlefieldInfo(currentBattlefieldInfo, true)}`); }
@@ -536,10 +660,38 @@ export class mhy_estimate extends plugin {
               seenImages.add(images[i]);
               return segment.image(images[i]);
             });
-          const postInfo = formatPostInfo(`作者：${author}`, post, searchWord);
-          if (!imageSegments.length && !extractPostSummary(post)) continue;
+          // 有视频的攻略帖：视频下载成功则单独直发，文字简介仍进合并转发；失败回退封面+链接
+          const vod = postVodInfo(post);
+          const hasText = !!extractPostSummary(post);
+          const postInfo = formatPostInfo(`作者：${author}`, post, searchWord, detailGid);
+          let vodLine = '';
+          let vodCoverSeg = null;
+          let vodDownloaded = false;
+          if (vod && !downloadedVod) {
+            const picked = pickVodUrl(vod);
+            if (picked?.url) {
+              try {
+                const filePath = await downloadMysVideo(picked.url, `${VOD_TEMP_DIR}${post.post_id || Date.now()}.mp4`);
+                vodSend = { filePath };
+                downloadedVod = true;
+                vodDownloaded = true;
+              } catch (err) {
+                logger.warn(`[xhh][estimate] 攻略视频下载失败 ${post.post_id}: ${err?.message || err}`);
+              }
+            }
+          }
+          if (vod && !vodDownloaded) {
+            // 下载失败或已下载过其他视频：回退封面+链接
+            if (vod.cover && !seenImages.has(vod.cover)) {
+              seenImages.add(vod.cover);
+              vodCoverSeg = segment.image(vod.cover);
+            }
+            const vodDesc = [`${vod.label || ''}`, vod.duration ? `约${Math.round(vod.duration / 1000)}秒` : ''].filter(Boolean).join(' · ');
+            vodLine = `视频攻略${vodDesc ? `（${vodDesc}）` : ''}：${mysPostUrl(post, detailGid) || vod.url}`;
+          }
+          if (!imageSegments.length && !vodCoverSeg && !hasText && !vodLine) continue;
           seenPosts.add(postKey);
-          msg.push([postInfo, ...imageSegments]);
+          msg.push([postInfo, vodLine, ...imageSegments, vodCoverSeg].filter(Boolean));
           if (query && msg.length >= 6) break;
         }
         if (query && msg.length >= 6) break;
@@ -567,10 +719,37 @@ export class mhy_estimate extends plugin {
                 seenImages.add(url);
                 return segment.image(url);
               });
-            const postInfo = formatPostInfo('来源：米游社全站搜索', post, searchWord);
-            if (!imageSegments.length && !extractPostSummary(post)) continue;
+            const vod = postVodInfo(post);
+            const hasText = !!extractPostSummary(post);
+            const postInfo = formatPostInfo('来源：米游社全站搜索', post, searchWord, gids);
+            let vodLine = '';
+            let vodCoverSeg = null;
+            let vodDownloaded = false;
+            if (vod && !downloadedVod) {
+              const picked = pickVodUrl(vod);
+              if (picked?.url) {
+                try {
+                  const filePath = await downloadMysVideo(picked.url, `${VOD_TEMP_DIR}${post.post_id || Date.now()}.mp4`);
+                  vodSend = { filePath };
+                  downloadedVod = true;
+                  vodDownloaded = true;
+                } catch (err) {
+                  logger.warn(`[xhh][estimate] 攻略视频下载失败 ${post.post_id}: ${err?.message || err}`);
+                }
+              }
+            }
+            if (vod && !vodDownloaded) {
+              // 下载失败或已下载过其他视频：回退封面+链接
+              if (vod.cover && !seenImages.has(vod.cover)) {
+                seenImages.add(vod.cover);
+                vodCoverSeg = segment.image(vod.cover);
+              }
+              const vodDesc = [`${vod.label || ''}`, vod.duration ? `约${Math.round(vod.duration / 1000)}秒` : ''].filter(Boolean).join(' · ');
+              vodLine = `视频攻略${vodDesc ? `（${vodDesc}）` : ''}：${mysPostUrl(post, gids) || vod.url}`;
+            }
+            if (!imageSegments.length && !vodCoverSeg && !hasText && !vodLine) continue;
             seenPosts.add(postKey);
-            msg.push([postInfo, ...imageSegments]);
+            msg.push([postInfo, vodLine, ...imageSegments, vodCoverSeg].filter(Boolean));
             if (msg.length >= 6) break;
           }
           if (msg.length >= 6) break;
@@ -580,8 +759,18 @@ export class mhy_estimate extends plugin {
       }
     }
 
-    if (!msg.length) return e.reply(`未找到${query ? `「${query}」` : ''}${cfg.none || cfg.name}相关图片，请稍后再试！`, true);
     const title = query ? `${cfg.name}「${query}」攻略来啦~` : `${cfg.name}来啦~`;
-    return e.reply(await makeForwardMsg(e, msg, `${title}\n如果出现图片错误，请忽略`));
+    let sent = false;
+    if (msg.length) {
+      await e.reply(await makeForwardMsg(e, msg, `${title}\n如果出现图片错误，请忽略`));
+      sent = true;
+    }
+    if (vodSend) {
+      // 视频单独直发（简介文字已在合并转发里）
+      await sendVodVideo(e, segment.video(vodSend.filePath));
+      sent = true;
+    }
+    if (!sent) return e.reply(`未找到${query ? `「${query}」` : ''}${cfg.none || cfg.name}相关图片，请稍后再试！`, true);
+    return true;
   }
 }
