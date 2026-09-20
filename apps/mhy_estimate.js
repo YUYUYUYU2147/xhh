@@ -345,8 +345,24 @@ function pickVodUrl(vod = {}, maxSize = VOD_MAX_SIZE) {
   return under || list[list.length - 1];
 }
 
+// 清理过期攻略视频缓存：删除 temp/mys_vod 下修改时间超过 24 小时的文件
+function cleanupMysVod(maxAgeMs = 24 * 3600 * 1000) {
+  try {
+    if (!fs.existsSync(VOD_TEMP_DIR)) return;
+    const now = Date.now();
+    for (const name of fs.readdirSync(VOD_TEMP_DIR)) {
+      const p = VOD_TEMP_DIR + name;
+      try {
+        const st = fs.statSync(p);
+        if (st.isFile() && now - st.mtimeMs > maxAgeMs) fs.rmSync(p, { force: true });
+      } catch (e) { /* 忽略单文件删除失败 */ }
+    }
+  } catch (e) { /* 忽略目录读取失败 */ }
+}
+
 // 流式下载米游社视频到本地（完整 mp4，无需 ffmpeg 合并）
 async function downloadMysVideo(url, filePath) {
+  cleanupMysVod(); // 下载前顺带清理超过 24h 的旧视频
   if (!fs.existsSync(VOD_TEMP_DIR)) fs.mkdirSync(VOD_TEMP_DIR, { recursive: true });
   const res = await fetch(url, {
     headers: {
@@ -360,6 +376,9 @@ async function downloadMysVideo(url, filePath) {
   fs.writeFileSync(filePath, buf);
   return filePath;
 }
+
+// 模块加载即清理一次历史残留（超过 24h 的攻略视频）
+cleanupMysVod();
 
 // 直接发送视频（放宽超时，不进合并转发），与 b 站 sendVideoWithTimeout 同思路
 async function sendVodVideo(e, video) {
