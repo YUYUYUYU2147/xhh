@@ -200,6 +200,7 @@ function cleanBossName(text = '') {
 function extractBossFromPost(post = {}) {
   const subject = String(post.subject || '');
   const titleBossRules = [
+    [/地藏/, '地藏'],
     [/量子泥鳅|泥鳅/, '量子泥鳅'],
     [/神骸[-—·\s]*虚无主义|虚无主义/, '神骸-虚无主义'],
     [/摩录多/, '摩录多'],
