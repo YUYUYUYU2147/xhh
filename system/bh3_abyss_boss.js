@@ -230,7 +230,10 @@ function extractBossFromPost(post = {}) {
 
 
 function isBattlefieldGuidePost(post = {}) {
+  const title = String(post.subject || '');
   const text = [post.subject, post.content, post.structured_content].filter(Boolean).join('\n');
+  // 标题明确是深渊帖的，不因正文顺带提到「战场」而误过滤（作者常在文末附战场作业链接）
+  if (/(超弦|超炫|深渊|红莲|寂灭|苦痛|扰动)/.test(title)) return false;
   // 防止用战场作业误推断当前深渊 Boss。战场帖常包含“战场/记忆战场/lzx/分数”。
   return /记忆战场|战场|lzx|ss\d*.*分|\d{5,6}分/i.test(text);
 }
@@ -303,24 +306,26 @@ function buildInferredAbyssInfo(post = {}, word = '', role = {}, region = '', so
 
 async function inferCurrentAbyssInfoFromMys(role = {}, region = '') {
   const sources = parseGuideSources(config().bh3_guide_abyss_sources);
-  const nowSec = Math.floor(Date.now() / 1000);
+  logger.mark(`[xhh][bh3_abyss_boss] 推断开始，攻略源：${sources.map(s => `${s[0]}|${s[1]}`).join(' , ')}`);
   for (const [keyword, uid, author] of sources) {
     const searchWords = [`${keyword} 超弦`, `${keyword} 深渊`, `${keyword} 共鸣`, `${keyword} 量子`, `${keyword} 泥鳅`, '希鸭花', keyword];
     for (const word of searchWords) {
       try {
         const posts = await searchMysPosts(word, uid, 8);
         for (const post of posts) {
-          if (!isRecentPost(post, 4)) continue;
-          if (!isCurrentAbyssGuidePost(post)) continue;
-          if (isBattlefieldGuidePost(post)) continue;
+          const subject = String(post.subject || '').slice(0, 30);
+          if (!isRecentPost(post, 4)) { logger.mark(`[xhh][bh3_abyss_boss] 过滤(超4天)「${subject}」`); continue; }
+          if (!isCurrentAbyssGuidePost(post)) { logger.mark(`[xhh][bh3_abyss_boss] 过滤(非本期)「${subject}」`); continue; }
+          if (isBattlefieldGuidePost(post)) { logger.mark(`[xhh][bh3_abyss_boss] 过滤(战场帖)「${subject}」`); continue; }
           const boss = extractBossFromPost(post);
-          if (!boss) continue;
+          if (!boss) { logger.mark(`[xhh][bh3_abyss_boss] 过滤(提不出Boss)「${subject}」`); continue; }
+          logger.mark(`[xhh][bh3_abyss_boss] 命中攻略帖「${subject}」→ Boss：${boss}`);
           const info = buildInferredAbyssInfo(post, keyword, role, region, author);
           await redis.set(CACHE_KEY, JSON.stringify(info), { EX: 30 * 60 });
           return info;
         }
       } catch (err) {
-        if (config().debug) logger.mark(`[xhh][bh3_abyss_boss] 米游社搜索 ${word}/${uid} 失败: ${err.message}`);
+        logger.mark(`[xhh][bh3_abyss_boss] 米游社搜索 ${word}/${uid} 失败: ${err.message}`);
       }
     }
   }
