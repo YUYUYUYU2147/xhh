@@ -10,12 +10,12 @@
       <div class="box">
         {{each data s}}
         <div class="box_">
-          <img src="{{s.icon}}" />
+          <img src="{{s.icon}}" data-alt="{{s.iconFallback || ''}}" onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}else{this.style.visibility='hidden'}" />
           <p>{{s.name}}</p>
           {{if s.badges && s.badges.length}}
           <div class="badge-row">
             {{each s.badges b}}
-              <span class="mini-badge">{{if b.icon}}<img src="{{ppath}}wiki/imgs/{{b.icon}}">{{/if}}{{b.text}}</span>
+              <span class="mini-badge">{{if b.icon}}<img src="{{if b.icon.startsWith('http')}}{{b.icon}}{{else}}{{ppath}}wiki/imgs/{{b.icon}}{{/if}}">{{/if}}{{b.text}}</span>
             {{/each}}
           </div>
           {{/if}}

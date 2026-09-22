@@ -4,31 +4,11 @@ import { JSDOM } from 'jsdom';
 const { window } = new JSDOM();
 const DOMParser = window.DOMParser;
 
-// 绝区零角色/音擎别名，分别配置在 system/default/zzz_js_names.yaml、zzz_wq_names.yaml（格式：正式名: [别名列表]）
-// 单字别名（如“雅”）过于宽泛，不能直接参与模糊兜底，否则随机串会误命中，只做精确匹配。
-const _zzzAliasCache = {};
-const ZZZ_ALIAS_FILES = {
-  43: 'zzz_js_names.yaml',   // 代理人
-  45: 'zzz_wq_names.yaml'    // 音擎
+// 绝区零本地别名修正：单字别名（如“雅”）过于宽泛，不能直接参与模糊兜底，否则随机串会误命中。
+// 这里用“精确映射”方式保留常用短别名——只有输入完全等于 key 时才命中，保证 #雅图鉴 仍可用且不会误伤。
+const ZZZ_CUSTOM_ALIASES = {
+  '雅': '星见雅',
 };
-function zzzAliasMap(channelId = 43) {
-  const file = ZZZ_ALIAS_FILES[channelId] || ZZZ_ALIAS_FILES[43];
-  const cacheKey = `__${file}`;
-  if (_zzzAliasCache[cacheKey]) return _zzzAliasCache[cacheKey];
-  const names = yaml.get(`./plugins/xhh/system/default/${file}`) || {};
-  const norm = v => String(v || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '').toLowerCase();
-  const map = {};
-  for (const [formal, aliases] of Object.entries(names)) {
-    const fk = norm(formal);
-    if (fk) map[fk] = formal;
-    for (const a of (Array.isArray(aliases) ? aliases : [])) {
-      const key = norm(a);
-      if (key) map[key] = formal;
-    }
-  }
-  _zzzAliasCache[cacheKey] = map;
-  return map;
-}
 
 
 function collectWikiValues(input, nameOnly = false, out = []) {
@@ -154,15 +134,6 @@ export class Wiki extends plugin {
 
   getWikiIcon(text = '') {
     text = String(text || '');
-    // 绝区零官方属性图标（游戏内素材，nanoka assets 转储），返回完整 URL 由模板识别
-    const zzzIconMap = {
-      '物理': 'IconPhysical',
-      '火': 'IconFire',
-      '冰': 'IconIce',
-      '电': 'IconElectric',
-      '以太': 'IconEther',
-      '风': 'IconWind'
-    };
     const iconMap = {
       '星尘': 'bh3_星尘.svg', '星辰': 'bh3_星尘.svg',
       '生物': 'bh3_生物.svg', '异能': 'bh3_异能.svg', '机械': 'bh3_机械.svg', '量子': 'bh3_量子.svg', '虚数': 'bh3_虚数.svg',
@@ -173,9 +144,6 @@ export class Wiki extends plugin {
       '天衍之杯': '星环分野.svg', '星之环分野': '星环分野.svg',
       '输出': '定位.svg', '辅助': '定位.svg', '定位': '定位.svg'
     };
-    for (const [key, icon] of Object.entries(zzzIconMap)) {
-      if (text === key) return `https://static.nanoka.cc/assets/zzz/${icon}.webp`;
-    }
     for (const [key, icon] of Object.entries(iconMap)) {
       if (text.includes(key)) return icon;
     }
@@ -185,9 +153,7 @@ export class Wiki extends plugin {
 
   async illustrated_book(e) {
     if (!config().wiki) return false;
-    // 本项目约定：* 前缀代表星铁（同 sr_logs.js），# 前缀代表原神
-    const starPrefix = /^[＃#%]*\*/.test(e.msg);
-    const isSr = starPrefix || e.msg.includes('星铁');
+    const isSr = e.msg.includes('星铁');
     const isZZZ = e.msg.includes('绝区零') || e.msg.includes('ZZZ');
     const isBH3 = e.msg.includes('崩坏3') || e.msg.includes('崩坏三') || e.msg.includes('崩三') || e.msg.includes('BH3');
     let name = e.msg
@@ -261,11 +227,7 @@ export class Wiki extends plugin {
     
     if (name=='遗器') type = 'yq', _name = '遗器';
     if (name=='圣遗物') type = 'syw', _name = '圣遗物';
-    // 星铁语境下「武器」=「光锥」（星铁没有 wq_list，武器对应 gz）
-    if (/武器|大剑|双手剑|单手剑|法器|长枪|弓箭|弓/.test(name)) {
-      if (isSr) { type = 'gz', _name = '光锥'; }
-      else { type = 'wq', _name = '武器'; }
-    }
+    if (/武器|大剑|双手剑|单手剑|法器|长枪|弓箭|弓/.test(name)) type = 'wq', _name = '武器';
     if (name.includes('光锥')) type = 'gz', _name = '光锥';
     if (name.includes('音擎')) type = 'wq', _name = '音擎';
     if (name.includes('驱动盘')) type = 'syw', _name = '驱动盘';
@@ -428,7 +390,7 @@ export class Wiki extends plugin {
           break;
       }
     }
-    const ratingOrder = { 五星: 1, 'S级': 1, 四星: 2, 'A级': 2, 三星: 3, 'B级': 3, 二星: 4, 一星: 5 };
+    const ratingOrder = { 五星: 1, 四星: 2, 三星: 3, 二星: 4, 一星: 5 };
     //重新排序（5星排在顶部）
     data = data.sort((a, b) => {
       return ratingOrder[a.ji] - ratingOrder[b.ji];
@@ -491,8 +453,7 @@ export class Wiki extends plugin {
   async resolveZzzWikiName(name = '', channelId = 43) {
     const key = this.normalizeZzzKey(name);
     if (!key) return name;
-    const alias = zzzAliasMap(channelId)[key];
-    if (alias) return alias;
+    if (ZZZ_CUSTOM_ALIASES[key]) return ZZZ_CUSTOM_ALIASES[key];
     const list = await this.getZzzWikiEntries(channelId);
     const keysOf = item => [item.title, item.alias, ...(item.aliases || [])].map(v => this.normalizeZzzKey(v)).filter(Boolean);
     let hit = list.find(item => keysOf(item).some(v => v === key));
@@ -504,7 +465,7 @@ export class Wiki extends plugin {
   async getZzzObcIcon(name = '', channelId = 43) {
     if (!name) return '';
     const list = await this.getZzzWikiEntries(channelId);
-    const key = this.normalizeZzzKey(zzzAliasMap(channelId)[this.normalizeZzzKey(name)] || name);
+    const key = this.normalizeZzzKey(ZZZ_CUSTOM_ALIASES[this.normalizeZzzKey(name)] || name);
     const hit = list.find(item => {
       const keys = [item.title, item.alias, ...(item.aliases || [])].map(v => this.normalizeZzzKey(v)).filter(Boolean);
       return keys.some(v => v === key || v.includes(key) || (v.length >= 2 && key.includes(v)));
@@ -522,30 +483,6 @@ export class Wiki extends plugin {
       .replace(/[ \t]{2,}/g, ' ')
       .trim();
     return text.length > len ? `${text.slice(0, len)}…` : text;
-  }
-
-  zzzRichText(text = '') {
-    return String(text || '')
-      // 白色是游戏内深色界面的强调色，放到本插件的浅色卡片上会看不清。
-      .replace(/#FFFFFF/gi, '#6b5b45')
-      .replace(/<color=([^>]+)>/gi, '<span style="color:$1">')
-      .replace(/<\/color>/gi, '</span>')
-      .replace(/<IconMap:[^>]+>/gi, '')
-      .replace(/\n/g, '<br>');
-  }
-
-  zzzDisplayText(text = '') {
-    // 普通攻击/冲刺攻击等标签原本是游戏深色界面的白色，改成深色；
-    // 百分比和属性数值保留原数据颜色，方便快速区分。
-    return this.zzzRichText(String(text || '').replace(/#FFFFFF/gi, '#6b5b45'));
-  }
-
-  zzzMaxRandProperty(c = {}) {
-    const value = Number(c.rand_property?.value || 0);
-    const rate = Number(c.stars?.['5']?.rand_rate || 0);
-    if (!Number.isFinite(value) || !Number.isFinite(rate) || !rate) return this.zzzFormatProperty(c.rand_property);
-    const max = value * rate / 600000;
-    return `${Number.isInteger(max) ? max : max.toFixed(1)}%`;
   }
 
   zzzFirstValue(obj = {}) {
@@ -566,6 +503,27 @@ export class Wiki extends plugin {
   getZzzWeaponTalent(c = {}) {
     const talents = Object.values(c.talents || {});
     return talents[talents.length - 1] || talents[0] || null;
+  }
+
+  zzzRichText(text = '') {
+    return String(text || '')
+      .replace(/#FFFFFF/gi, '#6b5b45')
+      .replace(/<color=([^>]+)>/gi, '<span style="color:$1">')
+      .replace(/<\/color>/gi, '</span>')
+      .replace(/<IconMap:[^>]+>/gi, '')
+      .replace(/\n/g, '<br>');
+  }
+
+  zzzDisplayText(text = '') {
+    return this.zzzRichText(String(text || '').replace(/#FFFFFF/gi, '#6b5b45'));
+  }
+
+  zzzMaxRandProperty(c = {}) {
+    const value = Number(c.rand_property?.value || 0);
+    const rate = Number(c.stars?.['5']?.rand_rate || 0);
+    if (!Number.isFinite(value) || !Number.isFinite(rate) || !rate) return this.zzzFormatProperty(c.rand_property);
+    const max = value * rate / 600000;
+    return `${Number.isInteger(max) ? max : max.toFixed(1)}%`;
   }
 
   // 绝区零代理人专属音擎/推荐驱动盘快捷查询
@@ -698,25 +656,15 @@ export class Wiki extends plugin {
       desc: this.zzzCleanText(v.desc, 88)
     }));
     const fr = c.fairy_recommend || {};
-    // nanoka 的 part4/5/6 是「主词条推荐集合」，与实际 slot 不是一一对应
-    // （如艾莲 part6=暴击伤害，但 6 号位并无此词条），按主词条/副词条两组展示，避免错误的号位标注
-    const mainStats = [fr.part4?.name, fr.part5?.name, fr.part6?.name].filter(Boolean);
-    const propMap = {};
-    [fr.part4, fr.part5, fr.part6, fr.part_sub].forEach(p => { if (p?.prop) propMap[p.prop] = p.name; });
-    const subNames = [fr.part_sub?.name, ...(fr.part_sub_list || [])]
-      .map(id => propMap[id] || id)
-      .filter((v, i, arr) => v && arr.indexOf(v) === i);
-    const recommend = {
-      main: mainStats.join(' / '),
-      sub: subNames.join(' / ')
-    };
+    const recommend = [
+      { key: '4号位', value: fr.part4?.name },
+      { key: '5号位', value: fr.part5?.name },
+      { key: '6号位', value: fr.part6?.name },
+      { key: '副词条', value: fr.part_sub?.name }
+    ].filter(v => v.value);
     // 档案简介是图鉴核心内容，不做字数截断；之前 260 字会在部分角色末尾显示“…”。
     const profile = this.zzzCleanText(partner.profile_desc || c.desc || '', 9999);
     const obcIcon = await this.getZzzObcIcon(c.name, 43);
-    const ascendMaterials = await mys.zzzParseRoleAscendMaterials(c.level);
-    const skillMaterials = await mys.zzzParseRoleSkillMaterials(c.skill);
-    const expMaterials = await mys.zzzParseRoleExpMaterials(c.level_exp);
-    const passiveMaterials = await mys.zzzParseRolePassiveMaterials(c.passive);
     const view = {
       name: c.name || '未知代理人',
       avatar_img: obcIcon,
@@ -749,14 +697,10 @@ export class Wiki extends plugin {
         { key: '暴击率', value: base.crit ? `${base.crit / 100}%` : '-' },
         { key: '暴击伤害', value: base.crit_damage ? `${base.crit_damage / 100}%` : '-' }
       ],
-      strategy: (c.strategy || []).map(v => this.zzzCleanText(v, 90)).filter(v => v && !/^\d{1,2}$/.test(v)),
+      strategy: (c.strategy || []).map(v => this.zzzCleanText(v, 90)).filter(Boolean),
       skills: skills.slice(0, 6),
       talents,
-      recommend,
-      ascendMaterials,
-      skillMaterials,
-      expMaterials,
-      passiveMaterials
+      recommend
     };
     return render('wiki/zzz_role', view, { e, ret: true });
   }

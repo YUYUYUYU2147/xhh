@@ -65,7 +65,21 @@
       <div class="block-title"><span>SKILL</span><h2>技能摘要</h2></div>
       <div class="skill-grid">
         {{each skills s}}
-          <div class="skill-card"><h3>{{s.name}}</h3><p>{{s.desc}}</p></div>
+          <div class="skill-card"><h3>{{s.name}}</h3><p>{{@s.desc}}</p></div>
+        {{/each}}
+      </div>
+    </section>
+    {{/if}}
+
+    {{if refinements && refinements.length}}
+    <section class="block">
+      <div class="block-title"><span>W-ENGINE</span><h2>音擎效果 · 精炼等级</h2></div>
+      <div class="refinement-grid">
+        {{each refinements r}}
+          <div class="refinement-card">
+            <div class="refinement-title">精炼{{r.level}}</div>
+            <div class="refinement-desc">{{@r.desc}}</div>
+          </div>
         {{/each}}
       </div>
     </section>
@@ -82,12 +96,81 @@
     </section>
     {{/if}}
 
-    {{if recommend && recommend.length}}
+    {{if recommend && (recommend.main || recommend.sub)}}
     <section class="block">
       <div class="block-title"><span>DRIVE DISC</span><h2>驱动盘词条</h2></div>
       <div class="recommend-row">
-        {{each recommend r}}
-          <div class="recommend-pill"><span>{{r.key}}</span><b>{{r.value}}</b></div>
+        {{if recommend.main}}<div class="recommend-pill"><span>主词条</span><b>{{recommend.main}}</b></div>{{/if}}
+        {{if recommend.sub}}<div class="recommend-pill"><span>副词条</span><b>{{recommend.sub}}</b></div>{{/if}}
+      </div>
+    </section>
+    {{/if}}
+
+    {{if materials && materials.length}}
+    <section class="block">
+      <div class="block-title"><span>MATERIALS</span><h2>突破材料</h2></div>
+      <div class="material-row">
+        {{each materials ma}}
+          <div class="material-item">
+            {{if ma.img}}<img src="{{ma.img}}">{{/if}}
+            <span>{{ma.name}} x{{ma.amount}}</span>
+          </div>
+        {{/each}}
+      </div>
+    </section>
+    {{/if}}
+
+    {{if ascendMaterials && ascendMaterials.length}}
+    <section class="block">
+      <div class="block-title"><span>ASCEND</span><h2>突破材料</h2></div>
+      <div class="material-row">
+        {{each ascendMaterials ma}}
+          <div class="material-item">
+            {{if ma.img}}<img src="{{ma.img}}">{{/if}}
+            <span>{{ma.name}} x{{ma.amount}}</span>
+          </div>
+        {{/each}}
+      </div>
+    </section>
+    {{/if}}
+
+    {{if skillMaterials && skillMaterials.length}}
+    <section class="block">
+      <div class="block-title"><span>SKILL MAT</span><h2>技能材料</h2></div>
+      <div class="material-row">
+        {{each skillMaterials ma}}
+          <div class="material-item">
+            {{if ma.img}}<img src="{{ma.img}}">{{/if}}
+            <span>{{ma.name}} x{{ma.amount}}</span>
+          </div>
+        {{/each}}
+      </div>
+    </section>
+    {{/if}}
+
+    {{if expMaterials && expMaterials.length}}
+    <section class="block">
+      <div class="block-title"><span>EXP MAT</span><h2>升级材料</h2></div>
+      <div class="material-row">
+        {{each expMaterials ma}}
+          <div class="material-item">
+            {{if ma.img}}<img src="{{ma.img}}">{{/if}}
+            <span>{{ma.name}} x{{ma.amount}}</span>
+          </div>
+        {{/each}}
+      </div>
+    </section>
+    {{/if}}
+
+    {{if passiveMaterials && passiveMaterials.length}}
+    <section class="block">
+      <div class="block-title"><span>CORE SKILL</span><h2>核心技能材料</h2></div>
+      <div class="material-row">
+        {{each passiveMaterials ma}}
+          <div class="material-item">
+            {{if ma.img}}<img src="{{ma.img}}">{{/if}}
+            <span>{{ma.name}} x{{ma.amount}}</span>
+          </div>
         {{/each}}
       </div>
     </section>

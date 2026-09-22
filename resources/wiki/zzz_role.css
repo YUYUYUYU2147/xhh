@@ -1,57 +1,66 @@
 @font-face { font-family: 'yuan'; src: url('../font/yuan.ttf'); }
 @font-face { font-family: 'RareCJK'; src: url('../font/unifont.otf'); }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { width: 980px; min-width: 980px; color: #f6fbff; background: #090b10; font-family: 'yuan','RareCJK','Microsoft YaHei',sans-serif; transform-origin: top left; }
-.zzz-page { position: relative; width: 980px; min-height: 1120px; padding: 28px; overflow: hidden; background: radial-gradient(circle at 82% 8%, rgba(246,214,89,.25), transparent 32%), radial-gradient(circle at 8% 22%, rgba(59,227,255,.18), transparent 30%), linear-gradient(145deg,#15171f,#080a10 52%,#171209); }
-.grid-bg { position:absolute; inset:0; opacity:.2; background-image: linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px); background-size: 34px 34px; transform: rotate(-5deg) scale(1.2); }
+body { width: 980px; min-width: 980px; color: #464c3d; background: #0e1a30; font-family: 'yuan','RareCJK','Microsoft YaHei',sans-serif; transform-origin: top left; }
+
+/* 页面背景：与原神图鉴同款星空底图 */
+.zzz-page {
+  position: relative; width: 980px; min-height: 1120px; padding: 28px; overflow: hidden;
+  background-image: url('./imgs/bg.png');
+  background-size: cover; background-position: center top;
+}
+.grid-bg { position:absolute; inset:0; opacity:.1; background-image: linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px); background-size: 34px 34px; transform: rotate(-5deg) scale(1.2); }
 .zzz-card { position: relative; z-index: 1; }
-.hero,.block { border: 1px solid rgba(255,219,93,.28); background: linear-gradient(145deg,rgba(25,28,39,.9),rgba(11,13,20,.78)); box-shadow: 0 18px 58px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.08); }
-.hero { min-height: 300px; padding: 36px; border-radius: 30px; display:flex; justify-content:space-between; align-items:center; overflow:hidden; position:relative; }
-.hero::before { content:''; position:absolute; left:0; top:0; width:8px; height:100%; background:linear-gradient(#ffe36b,#45e4ff); }
-.eyebrow { color:#ffe36b; letter-spacing:2px; font-size:16px; margin-bottom:14px; text-transform:uppercase; }
-h1 { font-size:64px; line-height:1.05; text-shadow:0 0 26px rgba(255,221,88,.28); }
-.sub-name { margin-top:10px; color:#b7c4d8; font-size:22px; }
+
+/* 头部信息卡：浅蓝（与原神武器图鉴头卡一致） */
+.hero {
+  min-height: 300px; padding: 36px; border-radius: 18px; display:flex; justify-content:space-between; align-items:center; overflow:hidden; position:relative;
+  background-color: #8ecfdc;
+  box-shadow: 0 8px 32px 0 rgba(51,51,52,.5), inset 6px 6px 20px 0 rgba(255,255,255,.8);
+}
+.hero::before { content:''; position:absolute; left:0; top:0; width:8px; height:100%; background:linear-gradient(#f2a54a,#e0703c); }
+.eyebrow { color:#c0520e; letter-spacing:2px; font-size:16px; margin-bottom:14px; text-transform:uppercase; }
+h1 { font-size:64px; line-height:1.05; color:#b8470f; text-shadow:1px 1px 2px rgba(255,255,255,.55); }
+.sub-name { margin-top:10px; color:#54666a; font-size:22px; }
 .tags { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; max-width:620px; }
-.tag { padding:9px 16px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); color:#eaf6ff; font-size:16px; }
-.tag.primary { color:#111722; background:linear-gradient(90deg,#ffe36b,#58e8ff); font-weight:900; }
-.avatar-seal { width:210px; height:210px; border-radius:44px; display:flex; align-items:center; justify-content:center; background:linear-gradient(145deg,#ffe36b,#58e8ff); box-shadow:0 18px 44px rgba(0,0,0,.36); transform:rotate(4deg); }
-.avatar-seal span { width:176px; height:176px; border-radius:34px; display:flex; align-items:center; justify-content:center; color:#111722; background:rgba(255,255,255,.7); font-size:88px; font-weight:900; transform:rotate(-4deg); }
-.block { margin-top:22px; padding:24px; border-radius:24px; }
+.tag { padding:9px 16px; border-radius:999px; background:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.9); color:#3f4a52; font-size:16px; }
+.tag.primary { color:#fff; background:linear-gradient(90deg,#e8923f,#d95f3b); font-weight:900; }
+.avatar-seal { width:210px; height:210px; border-radius:36px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.5); box-shadow: inset 0 0 0 3px rgba(255,255,255,.65), 0 12px 30px rgba(30,60,80,.25); transform:rotate(3deg); }
+.avatar-seal span { width:176px; height:176px; border-radius:30px; display:flex; align-items:center; justify-content:center; color:#8a5a28; background:rgba(255,255,255,.75); font-size:88px; font-weight:900; transform:rotate(-3deg); }
+.avatar-img { width:190px; height:190px; object-fit: contain; border-radius:30px; transform:rotate(-3deg); filter: drop-shadow(0 10px 14px rgba(30,60,80,.3)); }
+
+/* 内容卡：米黄（与原神图鉴描述/材料卡一致） */
+.block {
+  margin-top:22px; padding:24px; border-radius:16px;
+  border: 4px solid #e2e8f0; outline: 1px solid #8ebde3; outline-offset: -6px;
+  background: rgba(243,221,176,.88);
+  box-shadow: 2px 6px 6px 0 rgba(49,48,48,.4);
+}
 .block-title { margin-bottom:16px; }
-.block-title span { color:#58e8ff; font-size:13px; letter-spacing:2px; }
-.block-title h2 { font-size:28px; margin-top:4px; }
-.profile-text { color:#d7e6f5; font-size:17px; line-height:1.75; white-space:pre-line; }
+.block-title span { color:#c0520e; font-size:13px; letter-spacing:2px; }
+.block-title h2 { font-size:28px; margin-top:4px; color:#8a4712; }
+.profile-text { color:#7a4a3a; font-size:17px; line-height:1.75; white-space:pre-line; }
 .info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-.info-item,.stat,.recommend-pill { padding:14px; border-radius:16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
-.info-item span,.stat span,.recommend-pill span { display:block; color:#94a8bd; font-size:14px; margin-bottom:6px; }
-.info-item b,.stat b,.recommend-pill b { color:#fff; font-size:18px; line-height:1.35; word-break:break-word; }
+.info-item,.stat,.recommend-pill { padding:14px; border-radius:12px; background:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.9); }
+.info-item span,.stat span,.recommend-pill span { display:block; color:#a06b3f; font-size:14px; margin-bottom:6px; }
+.info-item b,.stat b,.recommend-pill b { color:#5b4a2f; font-size:18px; line-height:1.35; word-break:break-word; }
 .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
 .strategy-list { display:grid; gap:10px; }
-.strategy-item { padding:13px 15px; border-radius:16px; color:#fff6c5; background:rgba(255,227,107,.1); border:1px solid rgba(255,227,107,.22); font-size:17px; }
+.strategy-item { padding:13px 15px; border-radius:12px; color:#a04b2a; background:rgba(255,246,197,.6); border:1px solid rgba(224,150,80,.45); font-size:17px; }
 .skill-grid,.talent-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
-.skill-card,.talent-card { min-height:112px; padding:15px; border-radius:18px; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.12); }
-.skill-card h3,.talent-card b { color:#fff; font-size:18px; }
-.skill-card p,.talent-card p { margin-top:8px; color:#bfd0e2; font-size:14px; line-height:1.48; white-space:pre-line; }
-.recommend-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-.footer { position:relative; z-index:1; text-align:center; color:#8090a8; font-size:16px; margin-top:18px; }
+.skill-card,.talent-card { min-height:112px; padding:15px; border-radius:12px; background:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.9); }
+.skill-card h3,.talent-card b { color:#c0520e; font-size:18px; }
+.skill-card p,.talent-card p { margin-top:8px; color:#5f5a45; font-size:14px; line-height:1.48; white-space:pre-line; }
+.refinement-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.refinement-card { padding:12px 10px; border-radius:12px; background:rgba(255,255,255,.58); border:1px solid rgba(255,255,255,.9); }
+.refinement-title { margin-bottom:8px; text-align:center; color:#7056a8; font-weight:700; font-size:15px; }
+.refinement-desc { color:#5f5a45; font-size:13px; line-height:1.55; word-break:break-word; }
+.refinement-desc span { font-weight:700; }
+.recommend-row { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.footer { position:relative; z-index:1; width:100%; text-align:center; color:#ee8e8e; font-size:18px; margin-top:18px; text-shadow:.5px .5px 1px rgba(45,44,44,.6); }
 
-.avatar-img { width: 190px; height: 190px; object-fit: contain; border-radius: 34px; background: rgba(255,255,255,.72); padding: 8px; transform: rotate(-4deg); filter: drop-shadow(0 12px 18px rgba(0,0,0,.28)); }
-
-/* xhh统一图鉴背景：绝区零角色/音擎/驱动盘/邦布共用 */
-.zzz-page {
-  background-image:
-    linear-gradient(145deg, rgba(8,13,28,.58), rgba(11,18,36,.50)),
-    url('../srlogs/imgs/bg.jpg');
-  background-size: cover;
-  background-position: center top;
-}
-.hero,.block {
-  background: linear-gradient(145deg, rgba(18,30,52,.92), rgba(9,13,26,.84));
-  backdrop-filter: blur(5px);
-}
-.hero { align-items: center; }
-.tags { max-width: 590px; }
-.profile-text,.skill-card p,.talent-card p { text-shadow: 0 1px 3px rgba(0,0,0,.42); }
-
-/* xhh footer align */
-.footer { width: 100%; text-align: center; color: #e6796d; text-shadow: 0 1px 2px rgba(255,255,255,.55), 0 2px 6px rgba(0,0,0,.28); }
+/* 突破材料（音擎） */
+.material-row { display:flex; flex-wrap:wrap; gap:12px; }
+.material-item { display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; background:rgba(255,255,255,.55); border:1px solid rgba(255,255,255,.9); }
+.material-item img { width:44px; height:44px; border-radius:8px; object-fit:contain; background:rgba(255,255,255,.65); }
+.material-item span { color:#5b4a2f; font-size:15px; word-break:break-all; line-height:1.3; }

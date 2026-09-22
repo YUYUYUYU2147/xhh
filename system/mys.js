@@ -5,8 +5,39 @@ import {
 } from '#xhh';
 import YAML from 'yaml';
 
-const ZZZ_NANOKA_VERSION = '3.1.3+17059869';
+const ZZZ_NANOKA_VERSION = '3.3.3+19110104';
 const ZZZ_NANOKA_BASE = `https://static.nanoka.cc/zzz/${ZZZ_NANOKA_VERSION}`;
+// 新版 nanoka 列表 icon：角色/武器为 key（如 IconRole01 / Weapon_B_Common_01），驱动盘/邦布为资源路径。
+// key 形态拼接 assets webp 得到可访问图片；已有 http 或含 / 的资源路径原样透传。
+const nanokaIcon = key => {
+    if (!key) return '';
+    if (/^https?:/i.test(key) || key.includes('/')) return key;
+    // 角色立绘 IconRole01 是竖版大立绘（1267×1715），列表格子会严重变形；
+    // 圆形头像 IconRoleCircle01 又会裁掉头部。改用绳网卡方形头像
+    // IconInterKnotRole0001（199×199，头部完整），序号补零到 4 位
+    if (/^IconRole\d/.test(key)) {
+        key = key.replace(/^IconRole(\d+)/, (m, n) => 'IconInterKnotRole' + n.padStart(4, '0'));
+    }
+    return `https://static.nanoka.cc/assets/zzz/${key}.webp`;
+};
+// 米游社图床缩略图：列表渲染几百张图时，把原图压成 100w webp（约 110KB -> 3KB），
+// 否则 puppeteer 全量下载几十 MB 原图会渲染 2 分钟并触发框架 Chromium 超时重启
+const thumbIcon = url => {
+    if (!url || typeof url !== 'string') return url;
+    if (url.includes('x-oss-process')) return url; // 已是缩略图
+    if (/act-upload\.mihoyo\.com|act-webstatic\.mihoyo\.com/.test(url)) {
+        return `${url}?x-oss-process=image/resize,w_100/format,webp`;
+    }
+    return url;
+};
+// nanoka 数据源故障冷却：一旦请求失败，1 小时内所有绝区零查询直接走米游社官方 Wiki，
+// 不再反复请求已失效的 nanoka（每次白打 4+ 个 404、多耗 1~2 秒并刷 ERRO）
+const NANOKA_RETRY_MS = 60 * 60 * 1000;
+let nanokaDownUntil = 0;
+const nanokaDown = () => Date.now() < nanokaDownUntil;
+const markNanokaDown = () => { nanokaDownUntil = Date.now() + NANOKA_RETRY_MS; };
+const ZZZ_ITEM_ICON_CACHE = './plugins/xhh/temp/zzz_item_icons';
+const localFileUrl = file => `file://${process.cwd()}/${String(file).replace(/^\.\//, '')}`;
 const ZZZ_WIKI_BASE = 'https://api-takumi-static.mihoyo.com/common/blackboard/zzz_wiki';
 const ZZZ_WIKI_APP_SN = 'zzz_wiki';
 const ZZZ_WIKI_CHANNEL_MAP = {
@@ -41,6 +72,170 @@ class mys {
             throw new Error(`${label || url} 返回非 JSON（HTTP ${response.status}）`);
         }
         return JSON.parse(text);
+    }
+
+    // 绝区零道具映射（zh/item.json），懒加载并缓存
+    async zzzItemMap() {
+        if (this._zzzItemMap) return this._zzzItemMap;
+        try {
+            this._zzzItemMap = await this.fetchJson(`${ZZZ_NANOKA_BASE}/zh/item.json`, 'ZZZ nanoka道具');
+        } catch (_) {
+            return {}; // 失败不缓存，下次重试
+        }
+        return this._zzzItemMap;
+    }
+
+    // 资源路径（Assets/.../xxx.png）或资源 key（ExBigBoss001 等）→ 可访问 webp 图标
+    zzzItemIcon(path = '') {
+        if (!path) return '';
+        if (/^https?:/i.test(path)) return path;
+        // nanoka 的部分核心技/周本材料图标不是完整路径，而是 ExSmallBoss001 / ExBigBoss001 这类资源 key。
+        // 之前这里直接跳过 ExBoss，导致艾莲图鉴最后两个核心技能材料没有图标。
+        // 虽然这两个资源是较大的 boss 素材图，但 nanoka 当前 item.json 没给更小的材料图标，只能先展示它，避免空图标。
+        const base = String(path).split('/').pop().replace(/\.(png|jpe?g|webp)$/i, '');
+        return base ? `https://static.nanoka.cc/assets/zzz/${base}.webp` : '';
+    }
+
+    // ExBigBoss / ExSmallBoss 是 2048×2048 序列帧图集，直接缩成 44px 会变成“马赛克宫格”。
+    // 裁出左上角第一帧后缓存成本地图标，显示效果与 nanoka 材料卡一致。
+    async zzzItemIconResolved(info = {}) {
+        const icon = info.icon || '';
+        const key = String(icon).split('/').pop().replace(/\.(png|jpe?g|webp)$/i, '');
+        if (!/^Ex(?:Small|Big)?Boss\d+/i.test(key)) return this.zzzItemIcon(icon);
+
+        try {
+            fs.mkdirSync(ZZZ_ITEM_ICON_CACHE, { recursive: true });
+            const file = `${ZZZ_ITEM_ICON_CACHE}/${key}.webp`;
+            if (fs.existsSync(file)) return localFileUrl(file);
+
+            const url = `https://static.nanoka.cc/assets/zzz/${key}.webp`;
+            const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            const sharp = (await import('sharp')).default;
+            await sharp(buffer)
+                .extract({ left: 0, top: 0, width: 150, height: 120 })
+                .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .resize(88, 88, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .webp()
+                .toFile(file);
+            return localFileUrl(file);
+        } catch (err) {
+            logger.warn?.(`[xhh] ZZZ boss材料图标裁剪失败 ${key}: ${err.message || err}`);
+            return this.zzzItemIcon(icon);
+        }
+    }
+
+    async zzzMaterialView(id, amount, map = {}) {
+        const info = map[id] || {};
+        return { name: info.name || id, img: await this.zzzItemIconResolved(info), amount };
+    }
+
+    // 解析音擎「Lv.60」升级/突破总素材（对齐 nanoka 官网口径）：
+    // 1) materials 字符串按阶段("|"分隔)累加 —— 丁尼 + 各阶突破组件
+    // 2) level 表键 1..60 的 exp 累加(排除键 0)，按面值换算经验道具：
+    //    301003 音擎能源模块 3000 / 301002 变频音擎电源 600 / 301001 音擎蓄电池 100
+    async zzzParseMaterials(str = '', level = null) {
+        const map = await this.zzzItemMap();
+        const acc = new Map();
+        String(str || '').split('|').filter(Boolean).forEach(stage => {
+            stage.split(',').filter(Boolean).forEach(kv => {
+                const [id, num] = kv.split(':');
+                const n = Number(num);
+                if (!Number.isFinite(n) || n <= 0) return;
+                acc.set(id, (acc.get(id) || 0) + n);
+            });
+        });
+        if (level && typeof level === 'object') {
+            let total = 0;
+            for (const [k, v] of Object.entries(level)) {
+                const lv = Number(k);
+                const exp = Number(v?.exp ?? 0);
+                if (Number.isFinite(lv) && lv > 0 && Number.isFinite(exp)) total += exp;
+            }
+            if (total > 0) {
+                const big = Math.floor(total / 3000);
+                const mid = Math.floor((total % 3000) / 600);
+                const small = Math.floor((total % 600) / 100);
+                if (small) acc.set('301001', (acc.get('301001') || 0) + small);
+                if (mid) acc.set('301002', (acc.get('301002') || 0) + mid);
+                if (big) acc.set('301003', (acc.get('301003') || 0) + big);
+            }
+        }
+        return await Promise.all([...acc.keys()].map(id => this.zzzMaterialView(id, acc.get(id), map)));
+    }
+
+    // 解析角色突破材料：level[1..5].materials（{材料id:数量}），全阶段累加（对齐 nanoka 官网 Lv.1→60 口径）
+    async zzzParseRoleAscendMaterials(level = null) {
+        const map = await this.zzzItemMap();
+        if (!level || typeof level !== 'object') return [];
+        const acc = new Map();
+        for (const [, lv] of Object.entries(level)) {
+            const mats = lv?.materials || {};
+            for (const [id, num] of Object.entries(mats)) {
+                const n = Number(num);
+                if (!Number.isFinite(n) || n <= 0) continue;
+                acc.set(id, (acc.get(id) || 0) + n);
+            }
+        }
+        return await Promise.all([...acc.keys()].map(id => this.zzzMaterialView(id, acc.get(id), map)));
+    }
+
+    // 解析角色技能材料：各技能 1→12 级全程累加（material 每个非空等级都计入），累加去重
+    async zzzParseRoleSkillMaterials(skill = null) {
+        const map = await this.zzzItemMap();
+        if (!skill || typeof skill !== 'object') return [];
+        const acc = new Map();
+        for (const [, sv] of Object.entries(skill)) {
+            const mat = sv?.material || {};
+            for (const [, lv] of Object.entries(mat)) {
+                if (!lv || typeof lv !== 'object') continue;
+                for (const [id, num] of Object.entries(lv)) {
+                    const n = Number(num);
+                    if (!Number.isFinite(n) || n <= 0) continue;
+                    acc.set(id, (acc.get(id) || 0) + n);
+                }
+            }
+        }
+        return await Promise.all([...acc.keys()].map(id => this.zzzMaterialView(id, acc.get(id), map)));
+    }
+
+    // 解析角色升级经验道具：level_exp 数组（index 0 为 0 级初始值，需排除），
+    // 面值同音擎经验道具：300003 资深调查员记录 3000 / 300002 正式调查员记录 600 / 300001 见习调查员记录 100
+    async zzzParseRoleExpMaterials(level_exp = null) {
+        const map = await this.zzzItemMap();
+        if (!Array.isArray(level_exp) || !level_exp.length) return [];
+        let total = 0;
+        level_exp.forEach((exp, i) => {
+            const e = Number(exp);
+            if (i > 0 && Number.isFinite(e) && e > 0) total += e;
+        });
+        if (total <= 0) return [];
+        const big = Math.floor(total / 3000);
+        const mid = Math.floor((total % 3000) / 600);
+        const small = Math.floor((total % 600) / 100);
+        const acc = new Map();
+        if (small) acc.set('300001', small);
+        if (mid) acc.set('300002', mid);
+        if (big) acc.set('300003', big);
+        return await Promise.all([...acc.keys()].map(id => this.zzzMaterialView(id, acc.get(id), map)));
+    }
+
+    // 解析角色核心技能（被动）材料：passive.materials 0→6 级全程累加（含周本 Boss 材料）
+    async zzzParseRolePassiveMaterials(passive = null) {
+        const map = await this.zzzItemMap();
+        if (!passive || typeof passive !== 'object') return [];
+        const mat = passive.materials || {};
+        const acc = new Map();
+        for (const [, lv] of Object.entries(mat)) {
+            if (!lv || typeof lv !== 'object') continue;
+            for (const [id, num] of Object.entries(lv)) {
+                const n = Number(num);
+                if (!Number.isFinite(n) || n <= 0) continue;
+                acc.set(id, (acc.get(id) || 0) + n);
+            }
+        }
+        return await Promise.all([...acc.keys()].map(id => this.zzzMaterialView(id, acc.get(id), map)));
     }
 
     async zzz_official_list(type) {
@@ -138,6 +333,8 @@ class mys {
     }
     // 绝区零图鉴（nanoka.cc 优先，米游社官方 Wiki 回退）
     async zzz_tujian() {
+        // 冷却期内直接走官方 Wiki，不再请求已失效的 nanoka
+        if (nanokaDown()) return await this.zzz_official_tujian();
         try {
             const [chars, weapons, equipments, bangboos] = await Promise.all([
                 this.fetchJson(`${ZZZ_NANOKA_BASE}/character.json`, 'ZZZ nanoka角色'),
@@ -145,70 +342,104 @@ class mys {
                 this.fetchJson(`${ZZZ_NANOKA_BASE}/equipment.json`, 'ZZZ nanoka驱动盘'),
                 this.fetchJson(`${ZZZ_NANOKA_BASE}/bangboo.json`, 'ZZZ nanoka邦布')
             ]);
+            // 官方 Wiki 代理人半身像（act-upload 图床支持缩略，覆盖新角色，构图同星铁官方图鉴卡片）
+            let officialIconMap = {};
+            try {
+                const cleanName = v => String(v || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '');
+                const officialChars = await this.zzz_official_list('js');
+                (officialChars || []).forEach(item => {
+                    const raw = String(item.title || '');
+                    const full = cleanName(raw);
+                    if (!full || full.length < 2 || !item.icon) return;
+                    const thumb = `${item.icon}?x-oss-process=image/resize,w_300/format,webp`;
+                    if (!officialIconMap[full]) officialIconMap[full] = thumb;
+                    const short = cleanName(raw.split('·')[0]);
+                    if (short && short.length >= 2 && !officialIconMap[short]) officialIconMap[short] = thumb;
+                });
+            } catch (_) {}
+            const matchOfficialIcon = zh => {
+                const key = String(zh || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '');
+                if (!key) return '';
+                if (officialIconMap[key]) return officialIconMap[key];
+                const hit = Object.keys(officialIconMap).find(k => key.includes(k) || k.includes(key));
+                return hit ? officialIconMap[hit] : '';
+            };
             return {
-                js_list: Object.entries(chars).map(([id, c]) => ({
+                js_list: Object.entries(chars).map(([id, c]) => {
+                    const squareIcon = matchOfficialIcon(c.zh) || nanokaIcon(c.icon);
+                    return {
                     content_id: id,
                     title: c.zh,
-                    icon: c.icon,
+                    icon: squareIcon,
+                    aliases: [c.code, c.en].filter(v => v && v !== c.zh),
                     ext: JSON.stringify({
-                        c_30: { picture: { list: [c.icon] } },
+                        c_30: { picture: { list: [squareIcon] } },
+                        fallbackIcon: `https://static.nanoka.cc/assets/zzz/${c.icon}.webp`,
                         filter: { text: JSON.stringify([
-                            `星级/${c.rank == 4 ? '四星' : '三星'}`,
+                            `星级/${c.rank == 4 ? 'S级' : 'A级'}`,
                             `属性/${this.zzz_element_map[c.element] || '未知'}`,
                             `强攻类型/${this.zzz_type_map[c.type] || '未知'}`
                         ])}
                     })
-                })),
+                    };
+                }),
                 wq_list: Object.entries(weapons).map(([id, w]) => ({
                     content_id: id,
                     title: w.zh,
-                    icon: w.icon,
+                    icon: nanokaIcon(w.icon),
+                    aliases: [w.code].filter(Boolean),
                     ext: JSON.stringify({
-                        c_30: { picture: { list: [w.icon] } },
+                        c_30: { picture: { list: [nanokaIcon(w.icon)] } },
                         filter: { text: JSON.stringify([
-                            `武器星级/${w.rank == 5 ? '五星' : w.rank == 4 ? '四星' : w.rank == 3 ? '三星' : '二星'}`,
-                            `武器类型/${this.zzz_weapon_type_map[w.type] || '未知'}`
+                            `武器星级/${w.rank == 4 ? 'S级' : w.rank == 3 ? 'A级' : 'B级'}`,
+                            `武器类型/${this.zzz_wq_type_map[w.type] || '未知'}`
                         ])}
                     })
                 })),
                 syw_list: Object.entries(equipments).map(([id, e]) => ({
                     content_id: id,
                     title: e.zh?.name || id,
-                    icon: e.icon,
+                    icon: nanokaIcon(e.icon),
                     ext: JSON.stringify({
-                        c_30: { picture: { list: [e.icon] } },
+                        c_30: { picture: { list: [nanokaIcon(e.icon)] } },
                         filter: { text: '[]' }
                     })
                 })),
                 yq_list: Object.entries(bangboos).map(([id, b]) => ({
                     content_id: id,
                     title: b.zh,
-                    icon: b.icon,
+                    icon: nanokaIcon(b.icon),
                     ext: JSON.stringify({
-                        c_30: { picture: { list: [b.icon] } },
+                        c_30: { picture: { list: [nanokaIcon(b.icon)] } },
                         filter: { text: '[]' }
                     })
                 }))
             };
         } catch (error) {
+            markNanokaDown();
             logger.error('ZZZ nanoka访问失败，切换米游社官方 Wiki:', error);
-            try {
-                const [chars, weapons, equipments, bangboos] = await Promise.all([
-                    this.zzz_official_list('js'),
-                    this.zzz_official_list('wq'),
-                    this.zzz_official_list('syw'),
-                    this.zzz_official_list('yq')
-                ]);
-                return {
-                    js_list: chars.map(v => this.zzz_official_item(v, 'js')),
-                    wq_list: weapons.map(v => this.zzz_official_item(v, 'wq')),
-                    syw_list: equipments.map(v => this.zzz_official_item(v, 'syw')),
-                    yq_list: bangboos.map(v => this.zzz_official_item(v, 'yq'))
-                };
-            } catch (fallbackError) {
-                logger.error('ZZZ 官方 Wiki 访问失败:', fallbackError);
-                return false;
-            }
+            return await this.zzz_official_tujian();
+        }
+    }
+
+    // 米游社官方 Wiki 版绝区零图鉴列表（nanoka 失效/冷却时的数据源）
+    async zzz_official_tujian() {
+        try {
+            const [chars, weapons, equipments, bangboos] = await Promise.all([
+                this.zzz_official_list('js'),
+                this.zzz_official_list('wq'),
+                this.zzz_official_list('syw'),
+                this.zzz_official_list('yq')
+            ]);
+            return {
+                js_list: chars.map(v => this.zzz_official_item(v, 'js')),
+                wq_list: weapons.map(v => this.zzz_official_item(v, 'wq')),
+                syw_list: equipments.map(v => this.zzz_official_item(v, 'syw')),
+                yq_list: bangboos.map(v => this.zzz_official_item(v, 'yq'))
+            };
+        } catch (fallbackError) {
+            logger.error('ZZZ 官方 Wiki 访问失败:', fallbackError);
+            return false;
         }
     }
 
@@ -217,16 +448,30 @@ class mys {
         201: '火',
         202: '冰',
         203: '电',
-        204: '以太',
-        205: '风'
+        204: '风',
+        205: '以太',
+        300: '流明'
     };
 
     zzz_type_map = {
         1: '强攻',
         2: '击破',
-        3: '防护',
+        3: '异常',
         4: '支援',
-        5: '异常'
+        5: '防护',
+        6: '命破',
+        7: '锋御'
+    };
+
+    // 音擎与角色使用同一套特性编码：3=异常、5=防护。
+    zzz_wq_type_map = {
+        1: '强攻',
+        2: '击破',
+        3: '异常',
+        4: '支援',
+        5: '防护',
+        6: '命破',
+        7: '锋御'
     };
 
     zzz_weapon_type_map = {
@@ -389,7 +634,7 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 data[i] = {
                     name: v,
                     id: ids[i],
-                    icon: JSON.parse(list[i].ext).c_30?.picture?.list[0] || icons[i],
+                    icon: thumbIcon(JSON.parse(list[i].ext).c_30?.picture?.list[0] || icons[i]),
                     ji: jis[i],
                     yuanshu: yuanshus[i],
                     wuqi: wuqis[i],
@@ -421,7 +666,9 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
         if (name) {
             const clean = v => String(v || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '').toLowerCase();
             const target = clean(name);
-            let found = list.find(va => clean(va.title) == target);
+            // 别名（英文名/代号）精确匹配优先，其次标题精确、再次标题包含兜底
+            let found = list.find(va => (va.aliases || []).some(a => clean(a) === target));
+            if (!found) found = list.find(va => clean(va.title) == target);
             // 兼容官方 Wiki 返回全名、nanoka 只用简称的情况，例如「雨果·维拉德」=>「雨果」
             if (!found) found = list.find(va => {
                 const title = clean(va.title);
@@ -443,16 +690,26 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 text = text.filter?.text || text.c_43?.filter?.text || '[]';
                 try { text = JSON.parse(text); } catch (_) { text = []; }
                 for (let s of text) {
-                    if (s.includes('星级')) jis.push(s.replace(/星级\//, ''));
-                    else if (s.includes('属性')) attributes.push(s.replace(/属性\//, ''));
-                    else if (s.includes('强攻类型')) types.push(s.replace(/强攻类型\//, ''));
+                    if (type === 'wq') {
+                        if (s.includes('武器星级')) jis.push(s.replace(/武器星级\//, ''));
+                        else if (s.includes('稀有度')) jis.push(s.replace(/稀有度\//, '') + '级');
+                        else if (s.includes('武器类型')) types.push(s.replace(/武器类型\//, ''));
+                        else if (s.includes('特性')) types.push(s.replace(/特性\//, ''));
+                    } else {
+                        if (s.includes('星级')) jis.push(s.replace(/星级\//, ''));
+                        else if (s.includes('属性')) attributes.push(s.replace(/属性\//, ''));
+                        else if (s.includes('强攻类型')) types.push(s.replace(/强攻类型\//, ''));
+                    }
                 }
             }
             names.map((v, i) => {
+                let extObj = {};
+                try { extObj = JSON.parse(list[i].ext || '{}'); } catch (_) {}
                 data[i] = {
                     name: v,
                     id: ids[i],
-                    icon: (() => { try { return JSON.parse(list[i].ext || '{}').c_30?.picture?.list[0] || icons[i]; } catch (_) { return icons[i]; } })(),
+                    icon: extObj.c_30?.picture?.list[0] || icons[i],
+                    iconFallback: extObj.fallbackIcon || '',
                     ji: jis[i],
                     yuanshu: attributes[i],
                     wuqi: types[i],
@@ -585,6 +842,15 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
             }
         }
         if (!type) return false;
+        // 冷却期内直接走官方 Wiki，不再请求已失效的 nanoka
+        if (nanokaDown()) {
+            try {
+                return await this.zzz_official_detail(id, type);
+            } catch (fallbackError) {
+                logger.error('ZZZ 官方 Wiki 详情访问失败:', fallbackError);
+                return false;
+            }
+        }
         try {
             let url;
             if (type === 'js') {
@@ -597,8 +863,15 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 url = `${ZZZ_NANOKA_BASE}/zh/bangboo/${id}.json`;
             }
             const res = await this.fetchJson(url, `ZZZ nanoka详情 ${id}`);
+            if (type === 'wq') {
+                try {
+                    const list = await this.fetchJson(`${ZZZ_NANOKA_BASE}/weapon.json`, 'ZZZ nanoka音擎列表');
+                    res.max_attack = list?.[String(id)]?.atk || 0;
+                } catch (_) {}
+            }
             return { content: res };
         } catch (error) {
+            markNanokaDown();
             logger.error('ZZZ nanoka详情访问失败，切换米游社官方 Wiki:', error);
             try {
                 return await this.zzz_official_detail(id, type);
