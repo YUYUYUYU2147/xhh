@@ -111,6 +111,7 @@ export class gs_logs extends plugin {
 
   async getmsg(type) {
     let data = await yaml.get(path);
+    if (!data || !data.date || !data.ver) return [];
     let date_list = Object.keys(data.date);
     let ver = Object.keys(data.ver);
     let date_name = [];
