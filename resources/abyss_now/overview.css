@@ -1,0 +1,69 @@
+*{box-sizing:border-box}
+/* 浅色主题：对齐 Alioth.wiki 官网白底卡片风格 */
+body{margin:0;min-width:1200px;font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;color:#3b4252;background:#f5f7fb;transform-origin:top left}
+.page{width:1200px;padding:32px;background:radial-gradient(circle at 16% 0%,#ffe9d6aa,transparent 26%),radial-gradient(circle at 90% 2%,#dbe7ffaa,transparent 24%),linear-gradient(180deg,#fbfcfe,#f3f6fb);overflow:hidden}
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:22px}
+.game{font-size:14px;letter-spacing:2px;color:#f97316;text-transform:uppercase}
+.hero-main h1{font-size:40px;font-weight:900;margin:6px 0 0;letter-spacing:2px;color:#1f2937}
+.period{margin-top:8px;font-size:15px;color:#8a94a6}
+.id-pill{margin-top:14px;min-width:150px;padding:12px 20px;border-radius:16px;background:#fff;border:1px solid #edf0f5;box-shadow:0 8px 24px rgba(31,41,55,.06);text-align:center}
+.id-pill b{display:block;font-size:15px;color:#f97316}
+.id-pill span{display:block;margin-top:4px;font-size:13px;color:#8a94a6}
+.panel{padding:22px 24px;border-radius:20px;background:#fff;border:1px solid #e9edf3;box-shadow:0 6px 24px rgba(31,41,55,.05);margin-bottom:20px}
+.panel-title{font-size:19px;font-weight:800;margin:0 0 16px;padding-left:12px;border-left:4px solid #ff8a3d;color:#1f2937}
+.elem-row{display:flex;flex-wrap:wrap;gap:10px}
+.elem-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:12px;background:#f8fafc;border:1px solid #e9edf3;font-size:16px;font-weight:800;color:#374151}
+.elem-pill img{width:22px;height:22px;object-fit:contain}
+.char-row{display:flex;flex-wrap:wrap;gap:10px}
+.char{width:56px;height:56px;border-radius:14px;overflow:hidden;background:#f1f5f9;border:1px solid #e9edf3}
+.char img{width:100%;height:100%;object-fit:cover}
+.buff-list{display:flex;flex-direction:column;gap:12px}
+.buff-row{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:14px;background:#fffaf5;border:1px solid #ffe6cf}
+.buff-num{width:28px;height:28px;border-radius:50%;background:#ff8a3d;color:#fff;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:13px;flex:0 0 auto}
+.buff-text{flex:1;min-width:0}
+/* 只有标题 <b> 独占一行；描述正文里的 <b class="hl"> 是行内高亮，必须保持 inline，否则每个数字都被强制换行 */
+.buff-text > b{display:block;font-size:16px;color:#ea580c;margin-bottom:4px}
+.buff-text p{margin:0;font-size:15px;line-height:1.55;color:#4b5563}
+.buff-text p b,.buff-text p span{display:inline;font-size:inherit;margin:0}
+.buff-text p b{font-weight:800}
+.hl{color:#ea580c;font-weight:800}
+.floor-header{display:flex;align-items:baseline;gap:16px;margin:0 0 16px}
+.floor-header h2{font-size:28px;font-weight:800;margin:0;color:#1f2937}
+.floor-meta{font-size:15px;color:#8a94a6}
+.disorder .panel-title{border-color:#f59e0b}
+.disorder-text{font-size:15px;line-height:1.6;color:#4b5563}
+.enemies .panel-title{border-color:#fb7185}
+.room-card{padding:18px;border-radius:18px;background:#f8fafc;border:1px solid #eef1f6;margin-bottom:16px}
+.room-title{font-size:18px;font-weight:800;color:#1f2937;margin-bottom:14px}
+.room-title span{margin-left:8px;font-size:13px;color:#8a94a6;font-weight:500}
+.room-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+.room-half{padding:14px;border-radius:14px;background:#fff;border:1px solid #eef1f6}
+.half-title{display:flex;align-items:center;gap:8px;font-size:14px;color:#8a94a6;letter-spacing:1px;margin-bottom:12px}
+.half-title b{font-size:15px;color:#475569;letter-spacing:0}
+.half-title span{font-size:13px;color:#94a3b8}
+.weak-tags{display:inline-flex;gap:6px;flex-wrap:wrap}
+.wave{margin-bottom:12px}
+.wave-name{font-size:13px;color:#7c6fd0;margin-bottom:8px;line-height:1.4}
+.monsters{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+/* 剧诗幕间只有图标没有名称/HP，用紧凑小方格避免大片空白 */
+.monsters.icon-only{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
+.monsters.icon-only .monster{min-height:0;padding:8px;justify-content:center}
+.monster{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:#fff;border:1px solid #e9edf3;min-height:78px}
+.monster-icon{position:relative;width:52px;height:52px;border-radius:12px;overflow:visible;flex:0 0 auto;background:#f1f5f9;display:flex;align-items:center;justify-content:center}
+.monster-icon img{width:100%;height:100%;object-fit:contain;border-radius:12px}
+.monster-icon span{font-size:18px;font-weight:900;color:#94a3b8}
+.monster-icon .count{position:absolute;top:-6px;right:-6px;padding:0 6px;border-radius:9px;background:#fb7185;color:#fff;font-size:12px;font-style:normal;font-weight:800;line-height:18px}
+.monster-info{min-width:0;flex:1}
+.monster-name{font-size:14px;font-weight:800;color:#1f2937;line-height:1.25;word-break:break-all}
+.monster-hp{font-size:12px;color:#2563eb;margin-top:3px;font-weight:700}
+.tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.tag-row i{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:8px;background:#f8fafc;border:1px solid #e5eaf1;font-style:normal;font-size:11px;color:#475569}
+.tag-row img{width:16px;height:16px;object-fit:contain}
+.tag-row.res i{border-color:#fecaca}
+.tag-row.res em{font-style:normal;color:#dc2626;font-weight:700}
+.tag-row.weak i{border-color:#bbf7d0}
+.tag-row.weak i{color:#15803d}
+.mech-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.mech-tags i{padding:2px 10px;border-radius:10px;background:#eef2ff;border:1px solid #c7d2fe;font-style:normal;font-size:12px;font-weight:700;color:#4f46e5}
+.monster-mech{font-size:11px;color:#6366f1;margin-top:4px;line-height:1.35}
+footer{text-align:center;margin-top:24px;color:#a3adbd;font-size:13px}

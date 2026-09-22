@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="{{ppath}}abyss_now/overview.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page">
+  <header class="hero">
+    <div class="hero-main">
+      <div class="game">{{gameName}} · {{gameShort}}</div>
+      <h1>{{title}}</h1>
+      <div class="period">{{if ver}}版本 {{ver}}{{/if}}{{if period}} · {{period}}{{/if}}</div>
+    </div>
+    <div class="id-pill">
+      <b>ID {{id}}</b>
+      <span>{{phaseTag || '当期'}}</span>
+    </div>
+  </header>
+
+  {{if elems && elems.length}}
+  <section class="panel">
+    <h3 class="panel-title">限制元素</h3>
+    <div class="elem-row">
+      {{each elems e}}<i class="elem-pill">{{if e.icon}}<img src="{{e.icon}}" alt="" />{{/if}}{{e.cn}}</i>{{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  {{if charRows && charRows.length}}
+  <section class="panel">
+    {{each charRows row}}
+    <h3 class="panel-title">{{row.label}}</h3>
+    <div class="char-row">
+      {{each row.chars c}}
+      <div class="char"><img src="{{c.icon}}" alt="" /></div>
+      {{/each}}
+    </div>
+    {{/each}}
+  </section>
+  {{/if}}
+
+  {{if buffs && buffs.length}}
+  <section class="panel">
+    <h3 class="panel-title">{{buffTitle}}</h3>
+    <div class="buff-list">
+      {{each buffs b i}}
+      <div class="buff-row">
+        <i class="buff-num">{{i + 1}}</i>
+        <div class="buff-text">
+          {{if b.name}}<b>{{b.name}}</b>{{/if}}
+          <p>{{@b.desc}}</p>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </section>
+  {{/if}}
+
+  {{if hasDisorder && disorder}}
+  <section class="panel disorder">
+    <h3 class="panel-title">地脉异常</h3>
+    <div class="disorder-text">{{@disorder}}</div>
+  </section>
+  {{/if}}
+
+  {{each sections s}}
+  <section class="floor-header">
+    <h2>{{s.title}}</h2>
+    {{if s.meta}}<span class="floor-meta">{{s.meta}}</span>{{/if}}
+  </section>
+
+  <section class="panel enemies">
+    {{each s.rooms room}}
+    <div class="room-card">
+      <div class="room-grid">
+        {{each room.halves half}}
+        <div class="room-half">
+          <div class="half-title">
+            <b>{{half.label}}</b>
+            {{if half.level}}<span>Lv.{{half.level}}</span>{{/if}}
+            {{if half.time}}<span>{{half.time}}</span>{{/if}}
+            {{if half.elems && half.elems.length}}
+            <span class="weak-tags">
+              {{each half.elems e}}<i>{{if e.icon}}<img src="{{e.icon}}" alt="" />{{/if}}{{e.cn}}</i>{{/each}}
+            </span>
+            {{/if}}
+          </div>
+          {{if half.mechTags && half.mechTags.length}}
+          <div class="mech-tags">
+            {{each half.mechTags t}}<i>{{t}}</i>{{/each}}
+          </div>
+          {{/if}}
+          {{each half.waves w}}
+          <div class="wave">
+            {{if w.name}}<div class="wave-name">{{w.name}}</div>{{/if}}
+            {{if w.monsters && w.monsters.length}}
+            <div class="monsters{{if w.monsters[0] && !w.monsters[0].name && !w.monsters[0].hp}} icon-only{{/if}}">
+              {{each w.monsters m}}
+              <div class="monster">
+                <div class="monster-icon">
+                  {{if m.icon}}<img src="{{m.icon}}" alt="" />{{else}}<span>{{m.name.slice(0, 1)}}</span>{{/if}}
+                  {{if m.count}}<i class="count">×{{m.count}}</i>{{/if}}
+                </div>
+                <div class="monster-info">
+                  {{if m.name}}<div class="monster-name">{{m.name}}</div>{{/if}}
+                  {{if m.hp}}<div class="monster-hp">{{m.hp}}</div>{{/if}}
+                  {{if m.weak && m.weak.length}}
+                  <div class="tag-row weak">
+                    {{each m.weak e}}<i>{{if e.icon}}<img src="{{e.icon}}" alt="" />{{/if}}{{e.cn}}</i>{{/each}}
+                  </div>
+                  {{/if}}
+                  {{if m.res && m.res.length}}
+                  <div class="tag-row res">
+                    {{each m.res r}}
+                    <i>
+                      {{each r.elems e}}{{if e.icon}}<img src="{{e.icon}}" alt="" />{{else}}{{e.cn}}{{/if}}{{/each}}
+                      <em>{{r.value}}</em>
+                    </i>
+                    {{/each}}
+                  </div>
+                  {{/if}}
+                  {{if m.mech}}<div class="monster-mech">{{m.mech}}</div>{{/if}}
+                </div>
+              </div>
+              {{/each}}
+            </div>
+            {{/if}}
+          </div>
+          {{/each}}
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/each}}
+  </section>
+  {{/each}}
+
+  <footer>数据来源：Alioth.wiki · 获取时间 {{generatedAt}} · from 小花火</footer>
+</div>
+</body>
+</html>

@@ -11,6 +11,82 @@ const ZZZ_ALIAS_FILES = {
   43: 'zzz_js_names.yaml',   // 代理人
   45: 'zzz_wq_names.yaml'    // 音擎
 };
+// nanoka 驱动盘推荐副词条（fairy_recommend.part_sub_list）只给属性 ID，
+// ID→名称映射只能从各角色 part4/5/6/part_sub 收集，覆盖不全时会漏（如安比的暴击伤害=21103），
+// 这里内置完整对照表兜底（11x/12x/13x 结尾 02 为百分比、03 为固定值）。
+const ZZZ_PROP_NAMES = {
+  11102: '生命值%', 11103: '生命值',
+  12102: '攻击力%', 12103: '攻击力',
+  13102: '防御力%', 13103: '防御力',
+  12202: '冲击力',
+  20103: '暴击率', 21103: '暴击伤害',
+  23103: '穿透率', 30502: '能量自动回复',
+  31203: '异常精通', 31402: '异常掌控',
+  31503: '物理伤害加成', 31603: '火属性伤害加成',
+  31703: '冰属性伤害加成', 31803: '电属性伤害加成',
+  31903: '以太伤害加成', 32303: '风属性伤害加成'
+};
+
+// 兼容 ZZZ-Plugin（ZZZure/ZZZ-Plugin）的代理人别名表：
+// 它的别名同样是「正式名: [别名列表]」，但存在 config/alias.yaml（用户自定义）与 defSet/alias.yaml（默认）两处，
+// 且会随版本更新补充新角色/英文别名。这里读它做补充，本地表优先。
+const ZZZ_PLUGIN_ALIAS_FILES = [
+  './plugins/ZZZ-Plugin/config/alias.yaml',
+  './plugins/ZZZ-Plugin/defSet/alias.yaml'
+];
+let _zzzPluginAlias = null;
+function zzzPluginAliasMap() {
+  if (_zzzPluginAlias) return _zzzPluginAlias;
+  const norm = v => String(v || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '').toLowerCase();
+  const map = {};
+  for (const file of ZZZ_PLUGIN_ALIAS_FILES) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      const data = yaml.get(file);
+      if (!data || typeof data !== 'object') continue;
+      for (const [formal, val] of Object.entries(data)) {
+        const fk = norm(formal);
+        if (!fk) continue;
+        // 数组是默认写法；对象形态（{name, full_name, alias}）也兼容一下
+        const list = Array.isArray(val) ? val : [val?.name, val?.full_name, val?.alias, ...(val?.aliases || [])];
+        for (const key of [fk, ...list.map(norm)].filter(Boolean)) {
+          if (!map[key]) map[key] = formal; // 先读 config，用户自定义优先
+        }
+      }
+    } catch (_) { /* 插件不存在或格式异常时忽略 */ }
+  }
+  _zzzPluginAlias = map;
+  return map;
+}
+
+// 兼容 喵喵插件（miao-plugin）的原神/星铁角色、武器别名：
+// 它的 Character/Weapon 模型自带完整别名表，get(name) 支持用别名反查正式名。
+// 本地 yaml 与官方 Wiki 都匹配不到时，用它兜底（本地表优先，加载失败静默降级）。
+let _miaoModels = null;
+async function miaoModels() {
+  if (_miaoModels !== null) return _miaoModels;
+  try {
+    _miaoModels = await import('../../miao-plugin/models/index.js');
+  } catch (err) {
+    _miaoModels = false;
+    if (config().debug) logger.mark(`[xhh] 未加载 miao-plugin 模型，跳过喵喵别名兜底: ${err?.message || err}`);
+  }
+  return _miaoModels;
+}
+// kind: 'char' | 'weapon'；game: 'gs' | 'sr'
+async function miaoResolve(raw = '', kind = 'char', game = 'gs') {
+  const models = await miaoModels();
+  if (!models) return '';
+  try {
+    const Model = kind === 'weapon' ? models.Weapon : models.Character;
+    if (!Model?.get) return '';
+    const hit = Model.get(raw, game === 'sr' ? 'sr' : 'gs');
+    return hit?.name || '';
+  } catch (_) {
+    return '';
+  }
+}
+
 function zzzAliasMap(channelId = 43) {
   const file = ZZZ_ALIAS_FILES[channelId] || ZZZ_ALIAS_FILES[43];
   const cacheKey = `__${file}`;
@@ -24,6 +100,12 @@ function zzzAliasMap(channelId = 43) {
     for (const a of (Array.isArray(aliases) ? aliases : [])) {
       const key = norm(a);
       if (key) map[key] = formal;
+    }
+  }
+  // 代理人（channel 43）再并入 ZZZ-Plugin 的别名，本地表已有的键不覆盖
+  if (Number(channelId) === 43) {
+    for (const [key, formal] of Object.entries(zzzPluginAliasMap())) {
+      if (key && !map[key]) map[key] = formal;
     }
   }
   _zzzAliasCache[cacheKey] = map;
@@ -701,7 +783,7 @@ export class Wiki extends plugin {
     // nanoka 的 part4/5/6 是「主词条推荐集合」，与实际 slot 不是一一对应
     // （如艾莲 part6=暴击伤害，但 6 号位并无此词条），按主词条/副词条两组展示，避免错误的号位标注
     const mainStats = [fr.part4?.name, fr.part5?.name, fr.part6?.name].filter(Boolean);
-    const propMap = {};
+    const propMap = { ...ZZZ_PROP_NAMES };
     [fr.part4, fr.part5, fr.part6, fr.part_sub].forEach(p => { if (p?.prop) propMap[p.prop] = p.name; });
     const subNames = [fr.part_sub?.name, ...(fr.part_sub_list || [])]
       .map(id => propMap[id] || id)
@@ -957,8 +1039,14 @@ export class Wiki extends plugin {
         break;
       }
     }
-    if (Object.keys(wq_name).includes(name)) {
-      const { id } = await mys.data(name, isZZZ ? 'wq' : isBH3 ? 'wq' : isSr ? 'gz' : 'wq', isSr, isZZZ, isBH3);
+    // 本地 yaml 没命中时，用喵喵插件的武器别名表兜底（仅原神/星铁，ZZZ/BH3 走各自流程）
+    let wq = Object.keys(wq_name).includes(name) ? name : '';
+    if (!wq && !isZZZ && !isBH3) {
+      const miao = await miaoResolve(name, 'weapon', isSr ? 'sr' : 'gs');
+      if (miao) wq = miao;
+    }
+    if (wq) {
+      const { id } = await mys.data(wq, isZZZ ? 'wq' : isBH3 ? 'wq' : isSr ? 'gz' : 'wq', isSr, isZZZ, isBH3);
       if (!id) return false;
       let data = await mys.detail(id, isSr, isZZZ, isBH3);
       if (isZZZ) this.zzz_wq_pictures(e, data);
@@ -995,8 +1083,14 @@ export class Wiki extends plugin {
         break;
       }
     }
-    if (Object.keys(role_name).includes(name)) {
-      const { id } = await mys.data(name, 'js', isSr, isZZZ, isBH3);
+    // 本地 yaml 没命中时，用喵喵插件的角色别名表兜底（仅原神/星铁，ZZZ/BH3 走各自流程）
+    let rname = Object.keys(role_name).includes(name) ? name : '';
+    if (!rname && !isZZZ && !isBH3) {
+      const miao = await miaoResolve(name, 'char', isSr ? 'sr' : 'gs');
+      if (miao) rname = miao;
+    }
+    if (rname) {
+      const { id } = await mys.data(rname, 'js', isSr, isZZZ, isBH3);
       if (!id) return false;
       let data = await mys.detail(id, isSr, isZZZ, isBH3);
       if (isZZZ) this.zzz_role_pictures(e, data);

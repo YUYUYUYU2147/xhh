@@ -1,4 +1,7 @@
-import { pluginPriority } from '#xhh';
+import { render, pluginPriority, yaml } from '#xhh';
+
+const HELP_PATH = './plugins/xhh/system/default/help.yaml';
+const HELP_URL = 'https://yuyu2147.dpdns.org/';
 
 export class help extends plugin {
   constructor(e) {
@@ -17,7 +20,18 @@ export class help extends plugin {
   }
 
   async help(e) {
-    const url = 'https://yuyu2147.dpdns.org/';
-    await e.reply(`【小花火命令帮助】\n在线查看：${url}`);
+    try {
+      const raw = yaml.get(HELP_PATH) || [];
+      const data = Array.isArray(raw) ? raw : (raw.list || raw.data || []);
+      if (!data.length) {
+        return e.reply('帮助内容为空，可在线查看：' + HELP_URL, true, { recallMsg: 60 });
+      }
+      // au 为主人时才展示「主人专用指令」分组
+      const img = await render('help/help', { data, au: !!e.isMaster }, { e, pct: 1 });
+      return e.reply(img);
+    } catch (err) {
+      logger.warn(`[xhh][help] 帮助图渲染失败: ${err?.message || err}`);
+      return e.reply(`小花火命令帮助：${HELP_URL}`, true, { recallMsg: 60 });
+    }
   }
 }
