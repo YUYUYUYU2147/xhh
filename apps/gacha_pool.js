@@ -1249,7 +1249,15 @@ export class xhh_gacha_pool extends plugin {
   // 例：「本期活动祈愿时间为 2026/09/01 18:00 ~ 2026/09/22 14:59 。」
   // 返回 '2026/09/01 18:00~2026/09/22 14:59'；解析失败返回空串（调用方回退到估算）。
   parseGsPreviewTime(text = '') {
-    const seg = String(text || '').match(/活动祈愿时间[为:：]?([^。\n]{0,120})/)?.[1] || '';
+    const raw = String(text || '');
+    // 「X.X版本更新后 ~ 2026/10/13 17:59」：开始端无具体日期（版本更新前发布的预告）。
+    // 保留「版本更新后」占位——parseGsDateKey 解析不到开始时间，当前卡池不会误匹配未开池的预录条目。
+    const rel = raw.match(/祈愿时间[\s\S]{0,300}?版本更新后[^0-9]{0,20}?(\d{4}\/\d{1,2}\/\d{1,2})(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?/);
+    if (rel) {
+      const nd = rel[1].split('/').map((v, i) => (i === 0 ? v : String(v).padStart(2, '0'))).join('/');
+      return `版本更新后~${nd} ${rel[2] ? rel[2].slice(0, 5) : '17:59'}`;
+    }
+    const seg = raw.match(/活动祈愿时间[为:：]?([^。\n]{0,120})/)?.[1] || '';
     if (!seg) return '';
     const times = [...seg.matchAll(/(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?/g)];
     if (times.length < 2) return '';
@@ -1385,8 +1393,28 @@ export class xhh_gacha_pool extends plugin {
     // 即使 date 已存在，如果该版本的 imgs 数组为空或缺失，也允许重新同步补图。
     const existingImgs = data.imgs?.[`【${version}下半】`] || data.imgs?.[`【${version}上半】`] || [];
     const imgsComplete = existingImgs.filter(Boolean).length >= 3;
-    if (latestVer === version && latestPhase === '下半' && imgsComplete) return `原神：本地库已是最新 v${version}`; // 当前版本已同步完整
-    const phase = latestVer === version ? '下半' : '上半';
+    // 官方提前发布下一版本祈愿公告时（版本更新前 1~2 天），只预录、不推进当前版本。
+    const isPreview = Number(version) > Number(CURRENT_VERSION.gs || 0);
+    let phase;
+    if (latestVer !== version) {
+      phase = '上半';
+    } else if (isPreview) {
+      // 版本未上线但本地已有该版本条目：旧代码曾把开始时间错误估算成公告发布时间（落在过去），
+      // 导致预录条目在版本上线前就被当成当前卡池。这里自动修正为「版本更新后」占位。
+      return this.repairGsPreviewEntry(data, version, latestPhase, records);
+    } else {
+      const latestKey = Object.keys(data.date)[0] || '';
+      const { end: latestEnd } = this.parseGsDateKey(latestKey);
+      if (latestPhase === '上半' && latestEnd && new Date() < latestEnd) {
+        // 上半仍在进行中：不推进下半，仅在缺图时继续走下方流程补图（sameVerKey 防重复写入）
+        if (CURRENT_VERSION.gs !== version) CURRENT_VERSION.gs = version;
+        if (imgsComplete) return `原神：本地库已是最新 v${version}上半`;
+        phase = '上半';
+      } else {
+        if (latestPhase === '下半' && imgsComplete) return `原神：本地库已是最新 v${version}`;
+        phase = '下半';
+      }
+    }
     const ver = `${version}${phase}`;
     const gacha = records
       .filter(r => /概率UP/.test(r.title || '') && /「.+」/.test(r.title || ''))
@@ -1400,32 +1428,39 @@ export class xhh_gacha_pool extends plugin {
     const wpnPools = [];
     for (const r of current) {
       const title = r.title || '';
-      if (/集录|混池/.test(title)) continue;
-      if (/^祈愿：/.test(title)) wpnPools.push(r);
-      else charPools.push(r);
+      // 特殊卡池（集录/混池/溯光等）是并行池，不计入当期「角色池+武器池」结构，避免误判为结构异常
+      if (/集录|混池|溯光|常驻|新手|祈愿预告|活动祈愿预告/.test(title)) continue;
+      // 武器池：神铸赋形 / 祈愿： 开头；角色池：祈愿：「限定5星」
+      if (/神铸赋形|武器祈愿|武器活动祈愿/.test(title) || /^祈愿：/.test(title)) wpnPools.push(r);
+      else if (/祈愿：「[^」]+」/.test(title)) charPools.push(r);
     }
-    // 当期通常为 2 个角色池 + 1 个武器池；结构异常时跳过，避免写入脏数据
-    if (charPools.length < 1 || charPools.length > 2 || wpnPools.length !== 1) {
-      return '原神：官方公告结构异常（角色/武器池数量不符），跳过本地同步';
+    // 米游社公告标题格式时有变动（新增特殊池类型等），不再硬性要求「2 角色池 + 1 武器池」完全匹配：
+    // 取最新的一批（最多 2 个角色池 + 1 个武器池）参与同步，只要两端都有就写入，避免整期跳过。
+    const useChar = charPools.slice(0, 2);
+    const useWpn = wpnPools.slice(0, 1);
+    if (!useChar.length || !useWpn.length) {
+      return `原神：当期公告未识别到角色/武器祈愿（角色池 ${charPools.length} / 武器池 ${wpnPools.length}），跳过本地同步`;
     }
     const roleLine = [];
     const imgs = [];
-    for (const r of charPools) {
+    for (const r of useChar) {
       const m = (r.title || '').match(/祈愿：「([^」]+)」/);
       const five = m ? this.gsLocalShortName(m[1]) : '';
+      if (!five) continue;
       const fours = (r.up?.a || []).map(n => this.gsLocalShortName(n)).filter(Boolean).slice(0, 3);
-      if (!five) return '';
       roleLine.push([five, ...fours].join(','));
       imgs.push(r.images?.[0] || r.cover || '');
     }
+    if (!roleLine.length) return '';
     const names = [];
-    for (const m of (wpnPools[0]?.title || '').matchAll(/「([^」]+)」/g)) {
+    for (const m of (useWpn[0]?.title || '').matchAll(/「([^」]+)」/g)) {
       const n = this.gsLocalShortName(m[1]);
       if (n) names.push(n);
     }
-    if (names.length < 2) return '';
-    const wpnLine = [...names, ...(wpnPools[0]?.up?.a || []).map(n => this.gsLocalShortName(n)).filter(Boolean).slice(0, 5)].join(',');
-    imgs.push(wpnPools[0]?.images?.[0] || wpnPools[0]?.cover || '');
+    const wpnFours = (useWpn[0]?.up?.a || []).map(n => this.gsLocalShortName(n)).filter(Boolean).slice(0, 5);
+    if (!names.length && !wpnFours.length) return '';
+    const wpnLine = [...names, ...wpnFours].join(',');
+    imgs.push(useWpn[0]?.images?.[0] || useWpn[0]?.cover || '');
     // 时间：优先解析官方「活动祈愿预告」公告正文里的真实起止时间；
     // 解析不到时回退到「公告发布时间 + 3 周」估算（可人工修正）。
     let timeRange = '';
@@ -1439,7 +1474,10 @@ export class xhh_gacha_pool extends plugin {
     }
     if (!timeRange) {
       const startTs = charPools[0]?.createdAt || Date.now();
-      timeRange = `${this.fmtTs(startTs, '11:00')}~${this.fmtTs(startTs + 21 * 86400000, '15:00')}`;
+      // 预录下一版本时开始时间未知：用「版本更新后」占位（不参与当前卡池时间匹配），只估算结束时间
+      timeRange = isPreview
+        ? `版本更新后~${this.fmtTs(startTs + 21 * 86400000, '15:00')}`
+        : `${this.fmtTs(startTs, '11:00')}~${this.fmtTs(startTs + 21 * 86400000, '15:00')}`;
     }
     const key = `【${ver}】${timeRange}`;
     try {
@@ -1448,11 +1486,43 @@ export class xhh_gacha_pool extends plugin {
       const nextDate = sameVerKey ? data.date : { [key]: [...roleLine, wpnLine], ...data.date };
       const nextImgs = { [`【${ver}】`]: imgs.filter(Boolean), ...(data.imgs || {}) };
       fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: nextImgs }), 'utf-8');
-      if (CURRENT_VERSION.gs !== version) CURRENT_VERSION.gs = version;
-      return sameVerKey ? `原神：本地库已含 v${ver} 记录，跳过重复写入` : `原神：本地库已自动同步至 v${ver}`;
+      if (!isPreview && CURRENT_VERSION.gs !== version) CURRENT_VERSION.gs = version;
+      if (sameVerKey) return `原神：本地库已含 v${ver} 记录，跳过重复写入`;
+      return isPreview
+        ? `原神：已预录 v${ver}（${version}版本更新后生效，当前仍为 v${CURRENT_VERSION.gs}）`
+        : `原神：本地库已自动同步至 v${ver}`;
     } catch (err) {
       logger.error('[xhh][gacha_pool] gslogs.yaml 自动同步写入失败:', err);
       return '';
+    }
+  }
+
+  // 预录条目修复：旧版本同步曾把开始时间错误估算成「公告发布时间」（版本上线前就落在过去），
+  // 导致预录条目被当成当前卡池。这里把开始时间统一改回「版本更新后」占位（不参与当前卡池时间匹配）。
+  repairGsPreviewEntry(data, version, phase, records = []) {
+    const latestKey = Object.keys(data.date)[0] || '';
+    const { start } = this.parseGsDateKey(latestKey);
+    let timeRange = '';
+    const previews = records
+      .filter(r => /活动祈愿预告/.test(r.title || ''))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (previews.length) timeRange = this.parseGsPreviewTime(previews[0].contentText || '');
+    const endPart = latestKey.replace(/^【.*?】/, '').split('~')[1]?.trim() || '';
+    if (!timeRange) timeRange = `版本更新后~${endPart || this.fmtTs(Date.now() + 21 * 86400000, '15:00')}`;
+    const fixedKey = `【${version}${phase}】${timeRange}`;
+    const note = `原神：v${version}${phase} 已预录（${version}版本更新后生效，当前仍为 v${CURRENT_VERSION.gs}）`;
+    // 开始时间未过期（占位/未来时间）且 key 已一致时无需重写
+    if (fixedKey === latestKey || (start && start > new Date())) return note;
+    try {
+      const nextDate = { [fixedKey]: data.date[latestKey] };
+      for (const [k, v] of Object.entries(data.date)) {
+        if (k !== latestKey) nextDate[k] = v;
+      }
+      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: data.imgs || {} }), 'utf-8');
+      return `原神：已修正 v${version}${phase} 预录时间（${version}版本更新后生效，当前仍为 v${CURRENT_VERSION.gs}）`;
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] gslogs.yaml 预录时间修正失败:', err);
+      return note;
     }
   }
 
@@ -3103,7 +3173,9 @@ ${r.summary || ''}`;
         })
         .filter(v => v.ver);
       const matched = parsed.filter(v => v.start && v.end && now >= v.start && now <= v.end);
-      const pool = matched.length ? matched : parsed.slice(0, 1);
+      // 兜底时跳过「未上线版本的预录条目」（版本号大于当前版本且无有效开始时间），避免预告期被当成当前卡池
+      const pool = matched.length ? matched
+        : parsed.filter(v => !(Number(v.ver) > Number(CURRENT_VERSION.gs || 0) && !v.start)).slice(0, 1);
       const best = new Map();
       for (const item of pool) {
         const prev = best.get(item.ver);
