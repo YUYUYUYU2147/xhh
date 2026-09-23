@@ -70,6 +70,8 @@ export const supportGuoba = () => ({
     showInMenu: 'auto',
     icon: 'mdi:fire',
     iconColor: '#ff6b35',
+    // 显示成图片：使用插件自带的花火立绘（绝对路径，锅巴优先展示 iconPath）
+    iconPath: process.cwd() + '/plugins/xhh/resources/Tl/imgs/小花火.png',
   },
   configInfo: {
     schemas: [
@@ -491,7 +493,7 @@ export const supportGuoba = () => ({
       },
       {
         component: 'SOFT_GROUP_BEGIN',
-        label: '崩坏3攻略源',
+        label: '攻略源',
       },
       {
         field: 'mys_global_guide_search',
@@ -518,10 +520,6 @@ export const supportGuoba = () => ({
         component: 'InputTextArea',
       },
       {
-        component: 'SOFT_GROUP_BEGIN',
-        label: '绝区零攻略源',
-      },
-      {
         field: 'zzz_guide_defense_sources',
         label: '防卫战攻略源',
         helpMessage: '每行：关键词|米游社UID|图片序号|作者名；如 式舆防卫战|4068738|0,1,2|洗礼酱',
@@ -532,10 +530,6 @@ export const supportGuoba = () => ({
         label: '危局强袭战攻略源',
         helpMessage: '每行：关键词|米游社UID|图片序号|作者名；危局会优先识别当前Boss',
         component: 'InputTextArea',
-      },
-      {
-        component: 'SOFT_GROUP_BEGIN',
-        label: '自定义攻略源',
       },
       {
         field: 'custom_guide_enable',
@@ -603,10 +597,6 @@ export const supportGuoba = () => ({
         helpMessage: '默认 -9999999999（极高优先级，确保优先于其它攻略插件抢到指令）；数字越小越优先，修改后需重启',
         component: 'InputNumber',
         componentProps: { min: -9999999999, max: 9999999999, step: 1 },
-      },
-      {
-        component: 'SOFT_GROUP_BEGIN',
-        label: '原神/星铁深渊速报',
       },
       {
         field: 'abyss_report_repos',
@@ -682,7 +672,7 @@ export const supportGuoba = () => ({
       },
       {
         component: 'SOFT_GROUP_BEGIN',
-        label: '插件优先级（修改后需重启Bot）',
+        label: '插件优先级',
       },
       {
         field: 'tl_priority',

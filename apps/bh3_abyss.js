@@ -42,6 +42,13 @@ function getSettleTs(r = {}) {
 
 const ICON_BASE = 'https://api-takumi-static.mihoyo.com';
 
+// 详细日志：调试模式开启时打印取号/接口轮询/渲染过程，便于排查「查不出来」的原因
+function bh3Dbg(...args) {
+  try {
+    if ((yaml?.get?.('./plugins/xhh/config/config.yaml') || {}).debug) logger.mark('[xhh][bh3_abyss]', ...args);
+  } catch (_) {}
+}
+
 function absIcon(iconPath) {
   if (!iconPath) return '';
   if (iconPath.startsWith('http://') || iconPath.startsWith('https://')) return iconPath;
@@ -183,10 +190,12 @@ async abyss(e) {
 
   async _abyss(e, apiList) {
     const auth = await this.getAuth(e);
+    bh3Dbg('取号:', `qq=${auth.qq || e.user_id}`, `uid=${auth.uid || '(无)'}`, `region=${auth.region || '(无)'}`, `ck=${auth.ck ? '有' : '无'}`);
     if (!auth.uid) return sendMsg(e, '请先扫码绑定崩坏3账号');
     if (!auth.ck) return sendMsg(e, '未找到有效Cookie，请先扫码绑定');
 
     const { uid, region, ck } = auth;
+    bh3Dbg('查询目标:', apiList.map(v => v.label).join(' / '));
     const headers = mhy.getHeaders(e, ck);
 
     let indexRes;
@@ -196,28 +205,40 @@ async abyss(e) {
       logger.error('[bh3_abyss] API error:', err);
       return sendMsg(e, '查询失败，请稍后重试');
     }
-    if (!indexRes || indexRes.retcode !== 0) return sendMsg(e, `UID${uid} 获取玩家信息失败`);
+    if (!indexRes || indexRes.retcode !== 0) {
+      bh3Dbg('bh3_index 失败:', `retcode=${indexRes?.retcode}`, `message=${indexRes?.message || ''}`);
+      return sendMsg(e, `UID${uid} 获取玩家信息失败`);
+    }
 
     const role = indexRes.data?.role || {};
     const level = Number(role.level || 0);
+    bh3Dbg('玩家信息:', `昵称=${role.nickname || '(无)'}`, `等级=${level}`);
     const queryList = level > 0 && level <= 80 && apiList.some(ap => ap.type === 'bh3_old_abyss')
       ? [{ type: 'bh3_old_abyss', label: '量子流形' }, ...apiList.filter(ap => ap.type !== 'bh3_old_abyss')]
       : apiList;
 
     let abyssRes, label = queryList[0].label;
     // Try multiple server values: bound region, inferred official/B服. 80级未突破玩家优先查量子流形。
+    let hitServer = '';
     const serverValues = [...new Set([region, mhy.getServer(uid, 'bh3'), 'cn_gf01', 'cn_qd01'].filter(Boolean))];
     for (const sv of serverValues) {
       for (const ap of queryList) {
         label = ap.label;
         try {
           abyssRes = await api(e, { type: ap.type, uid, headers, game: 'bh3', server: sv, silent: true });
-          if (abyssRes?.retcode === 0) break;
-        } catch (_) {}
+          bh3Dbg('接口尝试:', `server=${sv}`, `label=${ap.label}`, `retcode=${abyssRes?.retcode}`, `message=${abyssRes?.message || ''}`);
+          if (abyssRes?.retcode === 0) { hitServer = sv; break; }
+        } catch (err) {
+          bh3Dbg('接口异常:', `server=${sv}`, `label=${ap.label}`, err?.message || err);
+        }
       }
       if (abyssRes?.retcode === 0) break;
     }
-    if (!abyssRes || abyssRes.retcode !== 0) return sendMsg(e, `UID${uid} 获取${label}数据失败`);
+    if (!abyssRes || abyssRes.retcode !== 0) {
+      bh3Dbg(`${label} 全部 server/接口均未取到数据`);
+      return sendMsg(e, `UID${uid} 获取${label}数据失败`);
+    }
+    bh3Dbg('命中数据:', `server=${hitServer}`, `label=${label}`, `reports=${(abyssRes.data?.reports || []).length}`);
 
     const stats = indexRes.data?.stats || {};
     const pref = indexRes.data?.preference || {};
@@ -306,6 +327,7 @@ async abyss(e) {
     };
 
     let buf;
+    const t0 = Date.now();
     try {
       buf = await puppeteer.render('小花火/bh3_abyss/abyss', {
         ...data,
@@ -318,6 +340,7 @@ async abyss(e) {
     } catch (err) {
       logger.error('[bh3_abyss] render failed:', err);
     }
+    bh3Dbg('渲染:', buf && Buffer.isBuffer(buf) ? `图片 ${Math.round((buf.length || 0) / 1024)}KB ${Date.now() - t0}ms` : `失败，降级为文本 ${Date.now() - t0}ms`);
 
     if (buf && Buffer.isBuffer(buf)) return sendMsg(e, buf);
 

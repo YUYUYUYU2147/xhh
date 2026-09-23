@@ -113,5 +113,34 @@ body {
   color: #ee8e8ef8;
 }
 .badge-row { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 2px; margin-top: 3px; }
+/* 星级描边：原神五星/绝区零S级=金色，四星/A级=紫色，三星/B级=蓝色 */
+.box_ img.r5 {
+  border: 2px solid #e8b53a;
+  box-shadow:
+    0 0 7px 0 rgba(232, 181, 58, 0.85),
+    inset 0 0 8px 0 rgba(232, 181, 58, 0.3);
+  background: rgba(232, 181, 58, 0.22);
+}
+
+.box_ img.r4 {
+  border: 2px solid #a874e0;
+  box-shadow:
+    0 0 7px 0 rgba(168, 116, 224, 0.85),
+    inset 0 0 8px 0 rgba(168, 116, 224, 0.28);
+  background: rgba(168, 116, 224, 0.2);
+}
+
+.box_ img.r3 {
+  border: 2px solid #5fa8e8;
+  box-shadow: 0 0 6px 0 rgba(95, 168, 232, 0.7);
+  background: rgba(95, 168, 232, 0.16);
+}
+
+.box_ img.r2,
+.box_ img.r1 {
+  border: 2px solid #9fb6a8;
+  box-shadow: 0 0 5px 0 rgba(159, 182, 168, 0.6);
+}
+
 .mini-badge { display: inline-flex; align-items: center; gap: 1px; max-width: 40px; padding: 1px 4px; border-radius: 999px; background: rgba(255,255,255,.68); color: #3f4a42; font-size: 8px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini-badge img { width: 10px; height: 10px; object-fit: contain; flex: 0 0 10px; }

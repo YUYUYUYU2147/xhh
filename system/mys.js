@@ -255,10 +255,22 @@ class mys {
         try { parsed = JSON.parse(ext || '{}'); } catch (_) {}
         const channelExt = parsed[`c_${channelId}`] || {};
         const filterText = channelExt.filter?.text || parsed.filter?.text || '[]';
+        // 官方 Wiki 的筛选文案与 nanoka 不一致：角色用「稀有度/S」「特性/强攻」，
+        // 而 zzz_data / 图鉴列表只认「星级/S级」「强攻类型/强攻」，不归一会导致列表星级、属性徽章全空且排序失效
+        let filterArr = [];
+        try { filterArr = typeof filterText === 'string' ? JSON.parse(filterText) : (Array.isArray(filterText) ? filterText : []); } catch (_) { filterArr = []; }
+        const filterList = filterArr.map(entry => {
+            const s = String(entry || '');
+            if (type === 'js') {
+                if (s.includes('稀有度/')) return `星级/${s.split('/').slice(1).join('/')}级`;
+                if (s.includes('特性/')) return `强攻类型/${s.split('/').slice(1).join('/')}`;
+            }
+            return s;
+        });
         // 保留旧版 xhh 读取 ext.filter.text 的兼容格式。
         const normalizedExt = JSON.stringify({
             ...parsed,
-            filter: { text: typeof filterText === 'string' ? filterText : JSON.stringify(filterText || []) },
+            filter: { text: JSON.stringify(filterList) },
             c_30: parsed.c_30 || { picture: { list: [item?.icon || ''] } }
         });
         return {
@@ -283,7 +295,9 @@ class mys {
             const [key, ...rest] = String(entry).split('/');
             if (key && rest.length) values[key] = rest.join('/');
         }
-        const rarity = values['稀有度'] === 'S' ? 4 : values['稀有度'] === 'A' ? 3 : undefined;
+        // 角色条目已被归一成「星级/S级」，此处两种写法都要认
+        const rarityRaw = values['稀有度'] || String(values['星级'] || '').replace('级', '');
+        const rarity = rarityRaw === 'S' ? 4 : rarityRaw === 'A' ? 3 : undefined;
         const content = {
             name: normalized.title,
             title: normalized.title,
@@ -293,7 +307,7 @@ class mys {
             story: normalized.summary,
             rarity,
             element_type: values['属性'] ? [values['属性']] : [],
-            weapon_type: values['特性'] ? [values['特性']] : [],
+            weapon_type: values['特性'] || values['强攻类型'] ? [values['特性'] || values['强攻类型']] : [],
             camp: values['阵营'] ? [values['阵营']] : [],
             ext: normalized.ext
         };
@@ -674,6 +688,34 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 const title = clean(va.title);
                 return target && title && (title.includes(target) || target.includes(title));
             });
+            // nanoka 数据版本滞后未收录新内容时，退回官方 Wiki 列表再匹配一次（如新代理人「菲欧妮·蕾法爱菈」）
+            // official: true 标记 id 是官方 content_id，detail 应直接走官方源，避免拿官方 id 请求 nanoka 误触发冷却
+            if (!found) {
+                try {
+                    const offList = (await this.zzz_official_tujian())?.[`${type}_list`] || [];
+                    found = offList.find(va => {
+                        const title = clean(va.title);
+                        return target && title && target.length >= 2 && (title === target || title.includes(target) || target.includes(title));
+                    });
+                    if (found) {
+                        // 官方详情缺星级/属性数值/技能等模板字段，优先回 nanoka 按简称匹配同一角色拿完整数据
+                        // （如官方「菲欧妮·蕾法爱菈」→ nanoka「菲欧妮」；nanoka 不可用时才走官方详情）
+                        if (!nanokaDown()) {
+                            try {
+                                const short = clean(String(found.title || '').split('·')[0]);
+                                const cand = (data?.[`${type}_list`] || [])
+                                    .filter(va => {
+                                        const t = clean(va.title);
+                                        return short && short.length >= 2 && (t === short || t.includes(short));
+                                    })
+                                    .sort((a, b) => clean(a.title).length - clean(b.title).length)[0];
+                                if (cand) return { id: cand.content_id };
+                            } catch (_) {}
+                        }
+                        return { id: found.content_id, official: true };
+                    }
+                } catch (_) {}
+            }
             if (found) return { id: found.content_id };
             return false;
         } else {
@@ -802,9 +844,9 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
     }
 
     //获取详细信息
-    async detail(id, isSr = false, isZZZ = false, isBH3 = false) {
+    async detail(id, isSr = false, isZZZ = false, isBH3 = false, zzzOfficial = false) {
         if (isZZZ) {
-            return await this.zzz_detail(id);
+            return await this.zzz_detail(id, zzzOfficial);
         }
         if (isBH3) {
             return await this.bh3_detail(id);
@@ -823,7 +865,8 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
     }
 
     // 绝区零详细信息（nanoka.cc 优先，米游社官方 Wiki 回退）
-    async zzz_detail(id) {
+    // forceOfficial=true：id 已知是官方 content_id（来自 zzz_data 的官方兜底匹配），跳过 nanoka 直接走官方
+    async zzz_detail(id, forceOfficial = false) {
         let type = id >= 1000 && id < 2000 ? 'js'
             : id >= 12000 && id < 20000 ? 'wq'
             : id >= 31000 && id < 40000 ? 'syw'
@@ -843,7 +886,7 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
         }
         if (!type) return false;
         // 冷却期内直接走官方 Wiki，不再请求已失效的 nanoka
-        if (nanokaDown()) {
+        if (nanokaDown() || forceOfficial) {
             try {
                 return await this.zzz_official_detail(id, type);
             } catch (fallbackError) {
