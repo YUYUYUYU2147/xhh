@@ -1,1229 +1,1198 @@
-# 崩坏3卡池历史数据（本地可手动修正）
-# type: char=角色补给，weapon=装备补给；s=主UP，a=副UP/圣痕套装；target=装备对应角色，便于按角色名查询到专属装备。
-version: '1.0'
-updated: '2026-07-23'
+version: "1.0"
+updated: 2026-09-23
 source: 米游社官方公告+社区整理
 pools:
-- version: '9.0'
-  phase: 版本更新
-  start: '2026-07-23 11:00:00'
-  end: '2026-09-04 12:00:00'
-  pools:
-  - name: 协同补给丨协同者「希娜狄雅」
-    type: char
-    s: 希娜狄雅
-    a: []
-  - name: 「朱炎继往」神之键主题补给
-    type: weapon
-    s: 琉璃朱燧
-    a:
-    - 赫拉克利特
-    target: 浮生·渡尘之羽
-- version: '8.9'
-  phase: 末期
-  start: '2026-07-10 12:00:00'
-  end: '2026-07-23 04:00:00'
-  pools:
-  - name: 「窈窕谍影」角色补给
-    type: char
-    s: 窈窕谍影
-    a:
-    - 女武神·巡矢
-  - name: 「代号：丽影&天命特工」装备补给
-    type: weapon
-    s: 代号：丽影
-    a:
-    - 天命特工
-    target: 窈窕谍影
-  - name: 「一客逍游」跃升补给
-    type: char
-    s: 一客逍游
-    a:
-    - 真炎幸魂
-  - name: 「翻翠袖&顺时而乐」跃升武装
-    type: weapon
-    s: 翻翠袖
-    a:
-    - 顺时而乐
-    target: 一客逍游
-  - name: 「苍雷星梭EX19&天文学大成」装备补给
-    type: weapon
-    s: 苍雷星梭EX19
-    a:
-    - 天文学大成
-    target: 次生银翼
-- version: '8.9'
-  phase: 末期
-  start: '2026-06-26 12:00:00'
-  end: '2026-07-10 12:00:00'
-  pools:
-  - name: 「嗨♪爱愿妖精♥」角色补给
-    type: char
-    s: 嗨♪爱愿妖精♥
-    a:
-    - 月下初拥
-  - name: 「澄爱挚语&芳时晏然」装备补给
-    type: weapon
-    s: 澄爱挚语
-    a:
-    - 芳时晏然
-    target: 嗨♪爱愿妖精♥
-  - name: 协同者「德丽莎·阿波卡利斯」协同补给
-    type: char
-    s: 德丽莎·阿波卡利斯
-    a: []
-- version: '8.9'
-  phase: 下半
-  start: '2026-06-13 10:00:00'
-  end: '2026-07-03 11:59:59'
-  pools:
-  - name: 「镇×偃月叩晓」角色补给
-    type: char
-    s: 镇×偃月叩晓
-    a:
-    - 女武神·重机
-  - name: 「晦夜麟光&岁岁如新」装备补给
-    type: weapon
-    s: 晦夜麟光
-    a:
-    - 岁岁如新
-    target: 镇×偃月叩晓
-- version: '8.9'
-  phase: 主题
-  start: '2026-05-28 10:00:00'
-  end: '2026-07-10 12:00:00'
-  pools:
-  - name: 「愈生佑翎」主题补给
-    type: char
-    s: 愈生佑翎
-    a:
-    - 幻海梦蝶
-  - name: 「垂曦净蕊&花愈朝夕」装备补给
-    type: weapon
-    s: 垂曦净蕊
-    a:
-    - 花愈朝夕
-    target: 愈生佑翎
-- version: '8.8'
-  phase: 后期
-  start: '2026-05-13 10:00:00'
-  end: '2026-05-28 04:00:00'
-  pools:
-  - name: 「逆命魔龙·降临！」角色补给
-    type: char
-    s: 逆命魔龙·降临！
-    a:
-    - 午夜苦艾
-  - name: 「龙威燎天烈&游戏人生」装备补给
-    type: weapon
-    s: 龙威燎天烈
-    a:
-    - 游戏人生
-    target: 逆命魔龙·降临！
-- version: '8.8'
-  phase: 跃升
-  start: '2026-05-01 12:00:00'
-  end: '2026-05-28 04:00:00'
-  pools:
-  - name: 「咚！炽愿吉星」跃升补给
-    type: char
-    s: 咚！炽愿吉星
-    a: []
-  - name: 「吉运绛天&来日亦然」跃升武装
-    type: weapon
-    s: 吉运绛天
-    a:
-    - 来日亦然
-    target: 咚！炽愿吉星
-- version: '8.8'
-  phase: 真我装备
-  start: '2026-05-01 12:00:00'
-  end: '2026-05-28 04:00:00'
-  pools:
-  - name: 「无瑕之眷&度法衡诗」装备补给
-    type: weapon
-    s: 无瑕之眷
-    a:
-    - 度法衡诗
-    target: 真我·人之律者
-- version: '8.8'
-  phase: 初期
-  start: '2026-04-02 10:00:00'
-  end: '2026-05-01 12:00:00'
-  pools:
-  - name: 「诡戏千役「友情出演！」」跃升补给
-    type: char
-    s: 诡戏千役「友情出演！」
-    a:
-    - 断罪皇女！！
-  - name: 「飞游星&花火·诡戏千役」跃升武装
-    type: weapon
-    s: 飞游星
-    a:
-    - 花火·诡戏千役
-    target: 诡戏千役「友情出演！」
-- version: '8.8'
-  phase: 死生装备
-  start: '2026-04-17 12:00:00'
-  end: '2026-05-28 04:00:00'
-  pools:
-  - name: 「濯海之蕊&谐谑奇锋」装备补给
-    type: weapon
-    s: 濯海之蕊
-    a:
-    - 阿里斯托芬
-    target: 死生之律者
-- version: '8.7'
-  phase: 天光跃升
-  start: '2026-03-20 12:00:00'
-  end: '2026-04-02 04:00:00'
-  pools:
-  - name: 「天光驰彻」跃升补给
-    type: char
-    s: 天光驰彻
-    a: []
-  - name: 「炽光无前&寰宇取映」跃升武装
-    type: weapon
-    s: 炽光无前
-    a:
-    - 寰宇取映
-    target: 天光驰彻
-- version: '8.5'
-  phase: 天光复刻
-  start: '2025-11-07 12:00:00'
-  end: '2025-12-04 04:00:00'
-  pools:
-  - name: 「天光驰彻」角色补给
-    type: char
-    s: 天光驰彻
-    a:
-    - 女武神·荣光
-  - name: 「炽光无前&寰宇取映」装备补给
-    type: weapon
-    s: 炽光无前
-    a:
-    - 寰宇取映
-    target: 天光驰彻
-- version: '8.4'
-  phase: 天光复刻
-  start: '2025-08-22 12:00:00'
-  end: '2025-09-05 12:00:00'
-  pools:
-  - name: 「天光驰彻」角色补给
-    type: char
-    s: 天光驰彻
-    a:
-    - 女武神·誓约
-  - name: 「炽光无前&寰宇取映」装备补给
-    type: weapon
-    s: 炽光无前
-    a:
-    - 寰宇取映
-    target: 天光驰彻
-- version: '8.3'
-  phase: 天光复刻
-  start: '2025-05-09 12:00:00'
-  end: '2025-05-29 04:00:00'
-  pools:
-  - name: 「天光驰彻」角色补给
-    type: char
-    s: 天光驰彻
-    a:
-    - 圣仪装·今样
-  - name: 「炽光无前&寰宇取映」装备补给
-    type: weapon
-    s: 炽光无前
-    a:
-    - 寰宇取映
-    target: 天光驰彻
-- version: '8.2'
-  phase: 炽愿复刻
-  start: '2025-04-11 12:00:00'
-  end: '2025-04-25 12:00:00'
-  pools:
-  - name: 「咚！炽愿吉星」角色补给
-    type: char
-    s: 咚！炽愿吉星
-    a:
-    - 女武神·誓约
-  - name: 「吉运绛天&来日亦然」装备补给
-    type: weapon
-    s: 吉运绛天
-    a:
-    - 来日亦然
-    target: 咚！炽愿吉星
-- version: '8.1'
-  phase: 叙愿今宵
-  start: '2025-01-23 10:00:00'
-  end: '2025-03-07 12:00:00'
-  pools:
-  - name: 「叙愿今宵」角色补给
-    type: char
-    s: 咚！炽愿吉星
-    a:
-    - 女武神·重机
-  - name: 「吉运绛天&来日亦然」装备补给
-    type: weapon
-    s: 吉运绛天
-    a:
-    - 来日亦然
-    target: 咚！炽愿吉星
-- version: '8.1'
-  phase: 天光复刻
-  start: '2025-03-07 12:00:00'
-  end: '2025-03-27 04:00:00'
-  pools:
-  - name: 「天光驰彻」角色补给
-    type: char
-    s: 天光驰彻
-    a:
-    - 月下初拥
-  - name: 「炽光无前&寰宇取映」装备补给
-    type: weapon
-    s: 炽光无前
-    a:
-    - 寰宇取映
-    target: 天光驰彻
-- version: '8.0'
-  phase: 光绽天霄
-  start: '2024-12-12 10:00:00'
-  end: '2025-01-10 12:00:00'
-  pools:
-  - name: 「光绽天霄」角色补给
-    type: char
-    s: 天光驰彻
-    a:
-    - 圣女祈祷
-  - name: 「炽光无前&寰宇取映」装备补给
-    type: weapon
-    s: 炽光无前
-    a:
-    - 寰宇取映
-    target: 天光驰彻
-- version: '8.7'
-  phase: 爱愿复刻
-  start: '2026-02-27 12:00:00'
-  end: '2026-03-20 12:00:00'
-  pools:
-  - name: 「嗨♪爱愿妖精♥」角色补给
-    type: char
-    s: 嗨♪爱愿妖精♥
-    a:
-    - 女武神·誓约
-  - name: 「澄爱挚语&芳时晏然」装备补给
-    type: weapon
-    s: 澄爱挚语
-    a:
-    - 芳时晏然
-    target: 嗨♪爱愿妖精♥
-- version: '8.7'
-  phase: 大月下主题
-  start: '2026-02-05 10:00:00'
-  end: '2026-02-27 12:00:00'
-  pools:
-  - name: 「偕月续篇」主题补给
-    type: weapon
-    s: 相偕之契
-    a:
-    - 尤利乌斯·凯撒
-    target: 月下誓约·予爱以心
-- version: '8.6'
-  phase: 孑遗跃升
-  start: '2025-12-26 12:00:00'
-  end: '2026-01-16 12:00:00'
-  pools:
-  - name: 「孑遗千星」跃升补给
-    type: char
-    s: 孑遗千星
-    a: []
-  - name: 「羽蔽诸天&薇塔·孑遗千星」跃升武装
-    type: weapon
-    s: 羽蔽诸天
-    a:
-    - 薇塔·孑遗千星
-    target: 孑遗千星
-- version: '8.6'
-  phase: 上半
-  start: '2026-01-18 10:00:00'
-  end: '2026-02-08 11:59:59'
-  pools:
-  - name: 「天命难逃」角色补给
-    type: char
-    s: 天命难逃
-    a: []
-  - name: 「瞒天乐游·曙影」武器补给
-    type: weapon
-    s: 瞒天乐游·曙影
-    a:
-    - 远吕羽氏·贰型
-    - 原罪·双生
-- version: '8.5'
-  phase: 梦圃莳爱
-  start: '2025-09-25 10:00:00'
-  end: '2025-11-07 12:00:00'
-  pools:
-  - name: 「梦圃莳爱」角色补给
-    type: char
-    s: 嗨♪爱愿妖精♥
-    a:
-    - 女武神·巡矢
-  - name: 「澄爱挚语&芳时晏然」装备补给
-    type: weapon
-    s: 澄爱挚语
-    a:
-    - 芳时晏然
-    target: 嗨♪爱愿妖精♥
-- version: '8.5'
-  phase: 周年庆典
-  start: '2025-09-29 12:00:00'
-  end: '2025-10-24 12:00:00'
-  pools:
-  - name: 「孑遗千星」庆典角色补给
-    type: char
-    s: 孑遗千星
-    a: []
-  - name: 「羽蔽诸天&独行于星」庆典装备补给
-    type: weapon
-    s: 羽蔽诸天
-    a:
-    - 独行于星
-    target: 孑遗千星
-  - name: 「咚！炽愿吉星」庆典角色补给
-    type: char
-    s: 咚！炽愿吉星
-    a: []
-  - name: 「吉运绛天&来日亦然」庆典装备补给
-    type: weapon
-    s: 吉运绛天
-    a:
-    - 来日亦然
-    target: 咚！炽愿吉星
-- version: '8.5'
-  phase: 下半
-  start: '2025-12-28 10:00:00'
-  end: '2026-01-18 11:59:59'
-  pools:
-  - name: 「破弃孤光·逐影」角色补给
-    type: char
-    s: 破弃孤光·逐影
-    a: []
-  - name: 「夜宴蔷薇&珀凝华影」装备补给
-    type: weapon
-    s: 夜宴蔷薇
-    a:
-    - 珀凝华影
-    target: 享乐狂宴·邀影
-- version: '8.5'
-  phase: 上半
-  start: '2025-12-07 10:00:00'
-  end: '2025-12-28 11:59:59'
-  pools:
-  - name: 「深空定锚·曙光」角色补给
-    type: char
-    s: 深空定锚·曙光
-    a: []
-  - name: 「女武神·巡矢」武器补给
-    type: weapon
-    s: 女武神·巡矢
-    a:
-    - 远吕羽氏·贰型
-    - 原罪·双生
-- version: '8.4'
-  phase: 下半
-  start: '2025-11-16 10:00:00'
-  end: '2025-12-07 11:59:59'
-  pools:
-  - name: 「女武神·重机」角色补给
-    type: char
-    s: 女武神·重机
-    a: []
-  - name: 「月之恒&征服王」装备补给
-    type: weapon
-    s: 月之恒
-    a:
-    - 征服王
-    target: 终焉之律者
-- version: '8.4'
-  phase: 上半
-  start: '2025-10-26 10:00:00'
-  end: '2025-11-16 11:59:59'
-  pools:
-  - name: 「天行·绘星之卷」角色补给
-    type: char
-    s: 天行·绘星之卷
-    a: []
-  - name: 「月下誓约·予爱以心」武器补给
-    type: weapon
-    s: 月下誓约·予爱以心
-    a:
-    - 远吕羽氏·贰型
-    - 原罪·双生
-- version: '8.3'
-  phase: 下半
-  start: '2025-10-05 10:00:00'
-  end: '2025-10-26 11:59:59'
-  pools:
-  - name: 「奇迹☆魔法少女」角色补给
-    type: char
-    s: 奇迹☆魔法少女
-    a: []
-  - name: 「死生之律者」武器补给
-    type: weapon
-    s: 死生之律者
-    a:
-    - 原罪·双生
-    - 远吕羽氏·贰型
-- version: '8.3'
-  phase: 上半
-  start: '2025-09-14 10:00:00'
-  end: '2025-10-05 11:59:59'
-  pools:
-  - name: 「糖露星霜」角色补给
-    type: char
-    s: 糖露星霜
-    a: []
-  - name: 「织羽梦旌」武器补给
-    type: weapon
-    s: 织羽梦旌
-    a:
-    - 远吕羽氏·贰型
-    - 原罪·双生
-- version: '8.2'
-  phase: 下半
-  start: '2025-08-24 10:00:00'
-  end: '2025-09-14 11:59:59'
-  pools:
-  - name: 「终末协理0017」角色补给
-    type: char
-    s: 终末协理0017
-    a: []
-  - name: 「真理之律者」武器补给
-    type: weapon
-    s: 真理之律者
-    a:
-    - 原罪·双生
-    - 远吕羽氏·贰型
-- version: '8.1'
-  phase: 孑遗复刻
-  start: '2025-02-07 12:00:00'
-  end: '2025-02-21 12:00:00'
-  pools:
-  - name: 「孑遗千星」角色补给
-    type: char
-    s: 孑遗千星
-    a:
-    - 圣仪装·今样
-  - name: 「羽蔽诸天&独行于星」装备补给
-    type: weapon
-    s: 羽蔽诸天
-    a:
-    - 独行于星
-    target: 孑遗千星
-- version: '7.9'
-  phase: 孑遗复刻
-  start: '2024-11-15 12:00:00'
-  end: '2024-11-29 12:00:00'
-  pools:
-  - name: 「孑遗千星」角色补给
-    type: char
-    s: 孑遗千星
-    a:
-    - 女武神·重机
-  - name: 「羽蔽诸天&薇塔·孑遗千星」装备补给
-    type: weapon
-    s: 羽蔽诸天
-    a:
-    - 薇塔·孑遗千星
-    target: 孑遗千星
-- version: '7.9'
-  phase: 大月下进阶
-  start: '2024-11-29 12:00:00'
-  end: '2024-12-12 04:00:00'
-  pools:
-  - name: 「月下誓约·予爱以心」进阶补给
-    type: char
-    s: 月下誓约·予爱以心
-    a: []
-- version: '7.8'
-  phase: 星间踱步
-  start: '2024-09-19 10:00:00'
-  end: '2024-10-18 12:00:00'
-  pools:
-  - name: 「星间踱步」角色补给
-    type: char
-    s: 孑遗千星
-    a:
-    - 女武神·重机
-  - name: 「羽蔽诸天&独行于星」装备补给
-    type: weapon
-    s: 羽蔽诸天
-    a:
-    - 独行于星
-    target: 孑遗千星
-
-- version: '8.0'
-  phase: 浮生进阶
-  start: '2025-01-10 12:00:00'
-  end: '2025-01-23 04:00:00'
-  pools:
-  - name: 「浮生·渡尘之羽」进阶补给
-    type: char
-    s: 浮生·渡尘之羽
-    a: []
-  - name: 「万古一炬&岁华至味」演武精备
-    type: weapon
-    s: 万古一炬
-    a:
-    - 岁华至味
-    target: 浮生·渡尘之羽
-- version: '7.7'
-  phase: 死生进阶
-  start: '2024-08-23 12:00:00'
-  end: '2024-09-06 12:00:00'
-  pools:
-  - name: 「死生之律者」进阶补给
-    type: char
-    s: 死生之律者
-    a: []
-  - name: 「撷生之谣&希儿·死生之律者」演武精备
-    type: weapon
-    s: 撷生之谣
-    a:
-    - 希儿·死生之律者
-    target: 死生之律者
-- version: '7.7'
-  phase: 真我进阶
-  start: '2024-08-02 12:00:00'
-  end: '2024-08-08 04:00:00'
-  pools:
-  - name: 「真我·人之律者」进阶补给
-    type: char
-    s: 真我·人之律者
-    a: []
-  - name: 「真我之钥&爱莉希雅·无瑕之人」演武精备
-    type: weapon
-    s: 真我之钥
-    a:
-    - 爱莉希雅·无瑕之人
-    target: 真我·人之律者
-- version: '7.6'
-  phase: 浮生复刻
-  start: '2024-11-08 12:00:00'
-  end: '2024-11-15 12:00:00'
-  pools:
-  - name: 「浮生·渡尘之羽」角色补给
-    type: char
-    s: 浮生·渡尘之羽
-    a:
-    - 女武神·迅羽
-  - name: 「万古一炬&符华·凡常时岁」精准补给
-    type: weapon
-    s: 万古一炬
-    a:
-    - 符华·凡常时岁
-    target: 浮生·渡尘之羽
-- version: '7.5'
-  phase: 浮生复刻
-  start: '2024-07-12 12:00:00'
-  end: '2024-07-26 12:00:00'
-  pools:
-  - name: 「浮生·渡尘之羽」角色补给
-    type: char
-    s: 浮生·渡尘之羽
-    a:
-    - 女武神·荣光
-  - name: 「万古一炬&符华·凡常时岁」精准补给
-    type: weapon
-    s: 万古一炬
-    a:
-    - 符华·凡常时岁
-    target: 浮生·渡尘之羽
-- version: '7.4'
-  phase: 与影共舞
-  start: '2024-03-28 10:00:00'
-  end: '2024-04-26 12:00:00'
-  pools:
-  - name: 「享乐狂宴·邀影」角色补给
-    type: char
-    s: 享乐狂宴·邀影
-    a:
-    - 女武神·迅羽
-  - name: 「夜宴蔷薇&珀凝华影」精准补给
-    type: weapon
-    s: 夜宴蔷薇
-    a:
-    - 珀凝华影
-    target: 享乐狂宴·邀影
-- version: '7.4'
-  phase: 浮生复刻
-  start: '2024-04-05 12:00:00'
-  end: '2024-04-19 12:00:00'
-  pools:
-  - name: 「浮生·渡尘之羽」角色补给
-    type: char
-    s: 浮生·渡尘之羽
-    a:
-    - 圣仪装·今样
-  - name: 「万古一炬&符华·凡常时岁」精准补给
-    type: weapon
-    s: 万古一炬
-    a:
-    - 符华·凡常时岁
-    target: 浮生·渡尘之羽
-- version: '7.2'
-  phase: 鸢火重燃
-  start: '2023-12-21 10:00:00'
-  end: '2024-01-19 12:00:00'
-  pools:
-  - name: 「鸢火重燃」扩充补给
-    type: char
-    s: 浮生·渡尘之羽
-    a:
-    - 影舞冲击
-  - name: 「万古一炬&符华·凡常时岁」精准补给A
-    type: weapon
-    s: 万古一炬
-    a:
-    - 符华·凡常时岁
-    target: 浮生·渡尘之羽
-- version: '7.5'
-  phase: 真我进阶
-  start: '2024-05-05 12:00:00'
-  end: '2024-05-09 04:00:00'
-  pools:
-  - name: 「真我·人之律者」进阶补给
-    type: char
-    s: 真我·人之律者
-    a: []
-  - name: 「真我之钥&爱莉希雅·无瑕之人」精准补给
-    type: weapon
-    s: 真我之钥
-    a:
-    - 爱莉希雅·无瑕之人
-    target: 真我·人之律者
-- version: '7.4'
-  phase: 真我复刻
-  start: '2024-03-08 12:00:00'
-  end: '2024-03-15 12:00:00'
-  pools:
-  - name: 「真我·人之律者」角色补给
-    type: char
-    s: 真我·人之律者
-    a:
-    - 女武神·迅羽
-  - name: 「真我之钥&爱莉希雅·无瑕之人」精准补给
-    type: weapon
-    s: 真我之钥
-    a:
-    - 爱莉希雅·无瑕之人
-    target: 真我·人之律者
-- version: '7.2'
-  phase: 真我进阶
-  start: '2024-01-05 12:00:00'
-  end: '2024-01-19 12:00:00'
-  pools:
-  - name: 「真我·人之律者」进阶补给
-    type: char
-    s: 真我·人之律者
-    a: []
-  - name: 「真我之钥&爱莉希雅·无瑕之人」精准补给B
-    type: weapon
-    s: 真我之钥
-    a:
-    - 爱莉希雅·无瑕之人
-    target: 真我·人之律者
-- version: '6.7'
-  phase: 真我复刻
-  start: '2023-06-01 10:00:00'
-  end: '2023-06-09 12:00:00'
-  pools:
-  - name: 「真我·人之律者」扩充补给
-    type: char
-    s: 真我·人之律者
-    a:
-    - 女武神·迅羽
-- version: '7.4'
-  phase: 死生复刻
-  start: '2024-04-19 12:00:00'
-  end: '2024-04-26 12:00:00'
-  pools:
-  - name: 「死生之律者」角色补给
-    type: char
-    s: 死生之律者
-    a:
-    - 圣仪装·今样
-  - name: 「撷生之谣&希儿·死生之律者」精准补给
-    type: weapon
-    s: 撷生之谣
-    a:
-    - 希儿·死生之律者
-    target: 死生之律者
-- version: '7.1'
-  phase: 死生复刻
-  start: '2023-11-17 12:00:00'
-  end: '2023-12-01 12:00:00'
-  pools:
-  - name: 「死生之律者」扩充补给
-    type: char
-    s: 死生之律者
-    a:
-    - 女武神·凯旋
-- version: '7.8'
-  phase: 月下复刻角色
-  start: '2024-09-06 12:00:00'
-  end: '2024-09-19 04:00:00'
-  pools:
-  - name: 「月下誓约·予爱以心」角色补给
-    type: char
-    s: 月下誓约·予爱以心
-    a:
-    - 女武神·荣光
-- version: '7.8'
-  phase: 月下复刻装备
-  start: '2024-09-06 12:00:00'
-  end: '2024-09-13 12:00:00'
-  pools:
-  - name: 「血染赤匣&长夜将明」精准补给
-    type: weapon
-    s: 血染赤匣
-    a:
-    - 长夜将明
-    target: 月下誓约·予爱以心
-- version: '7.5'
-  phase: 月下复刻角色
-  start: '2024-05-17 12:00:00'
-  end: '2024-05-31 12:00:00'
-  pools:
-  - name: 「月下誓约·予爱以心」角色补给
-    type: char
-    s: 月下誓约·予爱以心
-    a:
-    - 圣仪装·今样
-- version: '7.5'
-  phase: 月下复刻装备
-  start: '2024-05-17 12:00:00'
-  end: '2024-05-24 12:00:00'
-  pools:
-  - name: 「血染赤匣&长夜将明」精准补给
-    type: weapon
-    s: 血染赤匣
-    a:
-    - 长夜将明
-    target: 月下誓约·予爱以心
-- version: '7.4'
-  phase: 月下复刻
-  start: '2024-03-15 12:00:00'
-  end: '2024-03-22 12:00:00'
-  pools:
-  - name: 「月下誓约·予爱以心」角色补给
-    type: char
-    s: 月下誓约·予爱以心
-    a:
-    - 圣仪装·今样
-  - name: 「血染赤匣&长夜将明」精准补给
-    type: weapon
-    s: 血染赤匣
-    a:
-    - 长夜将明
-    target: 月下誓约·予爱以心
-- version: '7.5'
-  phase: 终焉复刻
-  start: '2024-06-21 12:00:00'
-  end: '2024-06-27 04:00:00'
-  pools:
-  - name: 「终焉之律者」角色补给
-    type: char
-    s: 终焉之律者
-    a:
-    - 融核装·深红
-  - name: 「无名之钥&琪亚娜·卡斯兰娜」精准补给
-    type: weapon
-    s: 无名之钥
-    a:
-    - 琪亚娜·卡斯兰娜
-    target: 终焉之律者
-
-- version: '7.2'
-  phase: 始源复刻
-  start: '2024-01-19 12:00:00'
-  end: '2024-01-26 12:00:00'
-  pools:
-  - name: 「始源之律者」扩充补给
-    type: char
-    s: 始源之律者
-    a:
-    - 雪地狙击
-- version: '7.1'
-  phase: 始源复刻
-  start: '2023-12-15 12:00:00'
-  end: '2023-12-21 04:00:00'
-  pools:
-  - name: 「始源之律者」扩充补给
-    type: char
-    s: 始源之律者
-    a:
-    - 女武神·强袭
-- version: '6.7'
-  phase: 始源复刻
-  start: '2023-06-23 12:00:00'
-  end: '2023-06-30 12:00:00'
-  pools:
-  - name: 「始源之律者」扩充补给
-    type: char
-    s: 始源之律者
-    a:
-    - 断罪皇女！！
-- version: '6.4'
-  phase: 始源的重光
-  start: '2023-01-18 10:00:00'
-  end: '2023-02-17 12:00:00'
-  pools:
-  - name: 「始源的重光」限时活动补给
-    type: char
-    s: 始源之律者
-    a: []
-  - name: 「素心沉影」限时活动补给
-    type: weapon
-    s: 澄凝之境：自性纯一
-    a:
-    - 雷电芽衣
-    target: 始源之律者
-
-- version: '7.6'
-  phase: 真理进阶
-  start: '2024-07-26 12:00:00'
-  end: '2024-08-02 12:00:00'
-  pools:
-  - name: 「真理之律者」进阶补给
-    type: char
-    s: 真理之律者
-    a: []
-  - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」演武精备
-    type: weapon
-    s: 升恒之境：存理交续
-    a:
-    - 布洛妮娅·扎伊切克
-    target: 真理之律者
-- version: '7.4'
-  phase: 真理进阶
-  start: '2024-05-01 12:00:00'
-  end: '2024-05-05 12:00:00'
-  pools:
-  - name: 「真理之律者」进阶补给
-    type: char
-    s: 真理之律者
-    a: []
-  - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给
-    type: weapon
-    s: 升恒之境：存理交续
-    a:
-    - 布洛妮娅·扎伊切克
-    target: 真理之律者
-- version: '7.3'
-  phase: 真理进阶
-  start: '2024-02-23 12:00:00'
-  end: '2024-03-08 12:00:00'
-  pools:
-  - name: 「真理之律者」进阶补给
-    type: char
-    s: 真理之律者
-    a: []
-  - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给
-    type: weapon
-    s: 升恒之境：存理交续
-    a:
-    - 布洛妮娅·扎伊切克
-    target: 真理之律者
-- version: '7.1'
-  phase: 真理复刻
-  start: '2023-12-08 12:00:00'
-  end: '2023-12-15 12:00:00'
-  pools:
-  - name: 「真理之律者」扩充补给
-    type: char
-    s: 真理之律者
-    a:
-    - 猎袭装·影铁
-  - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给
-    type: weapon
-    s: 升恒之境：存理交续
-    a:
-    - 布洛妮娅·扎伊切克
-    target: 真理之律者
-- version: '7.0'
-  phase: 真理装备
-  start: '2023-10-20 12:00:00'
-  end: '2023-10-27 12:00:00'
-  pools:
-  - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给B
-    type: weapon
-    s: 升恒之境：存理交续
-    a:
-    - 布洛妮娅·扎伊切克
-    target: 真理之律者
-- version: '6.7'
-  phase: 真理复刻
-  start: '2023-06-16 12:00:00'
-  end: '2023-06-23 12:00:00'
-  pools:
-  - name: 「真理之律者」扩充补给
-    type: char
-    s: 真理之律者
-    a:
-    - 月下初拥
-  - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给A
-    type: weapon
-    s: 升恒之境：存理交续
-    a:
-    - 布洛妮娅·扎伊切克
-    target: 真理之律者
-- version: '6.3'
-  phase: 真理的名字
-  start: '2022-12-15 10:00:00'
-  end: '2023-01-06 12:00:00'
-  pools:
-  - name: 「真理的名字」扩充补给
-    type: char
-    s: 真理之律者
-    a:
-    - 女武神·凯旋
-  - name: 「极值创构」精准补给A
-    type: weapon
-    s: 升恒之境：存理交续
-    a:
-    - 布洛妮娅·扎伊切克
-    target: 真理之律者
-
-- version: '6.8'
-  phase: 天元进阶
-  start: '2023-07-14 12:00:00'
-  end: '2023-07-28 12:00:00'
-  pools:
-  - name: 「天元骑英」进阶补给
-    type: char
-    s: 天元骑英
-    a: []
-- version: '6.0'
-  phase: 周年自选三期
-  start: '2022-09-28 12:00:00'
-  end: '2022-09-30 12:00:00'
-  pools:
-  - name: 「天元骑英」自选扩充补给
-    type: char
-    s: 天元骑英
-    a: []
-- version: '6.0'
-  phase: 周年自选六期
-  start: '2022-10-05 12:00:00'
-  end: '2022-10-07 12:00:00'
-  pools:
-  - name: 「天元骑英」自选扩充补给
-    type: char
-    s: 天元骑英
-    a: []
-- version: '5.5'
-  phase: 天命不灭
-  start: '2022-01-27 10:00:00'
-  end: '2022-02-25 12:00:00'
-  pools:
-  - name: 「天元骑英」扩充角色补给
-    type: char
-    s: 天元骑英
-    a:
-    - 月下初拥
-  - name: 「天元骑英」扩充装备补给
-    type: weapon
-    s: 子夜的阿塔吉娜
-    a:
-    - 比安卡·舞台
-    target: 天元骑英
-
-- version: '8.1'
-  phase: 诡戏复刻
-  start: '2025-03-07 12:00:00'
-  end: '2025-03-27 04:00:00'
-  pools:
-  - name: 「诡戏千役「友情出演！」」角色补给
-    type: char
-    s: 诡戏千役「友情出演！」
-    a:
-    - 女武神·巡矢
-  - name: 「飞游星&花火·诡戏千役」装备补给
-    type: weapon
-    s: 飞游星
-    a:
-    - 花火·诡戏千役
-    target: 诡戏千役「友情出演！」
-- version: '8.0'
-  phase: 诡戏复刻
-  start: '2024-12-27 12:00:00'
-  end: '2025-01-10 12:00:00'
-  pools:
-  - name: 「诡戏千役「友情出演！」」角色补给
-    type: char
-    s: 诡戏千役「友情出演！」
-    a:
-    - 女武神·重机
-  - name: 「飞游星&花火·诡戏千役」装备补给
-    type: weapon
-    s: 飞游星
-    a:
-    - 花火·诡戏千役
-    target: 诡戏千役「友情出演！」
-- version: '7.9'
-  phase: 绚烂共演
-  start: '2024-10-31 10:00:00'
-  end: '2024-11-29 12:00:00'
-  pools:
-  - name: 「绚烂共演」角色补给
-    type: char
-    s: 诡戏千役「友情出演！」
-    a:
-    - 女武神·巡矢
-  - name: 「飞游星&花火·诡戏千役」装备补给
-    type: weapon
-    s: 飞游星
-    a:
-    - 花火·诡戏千役
-    target: 诡戏千役「友情出演！」
-
-- version: '8.6'
-  phase: 一客复刻
-  start: '2026-01-16 12:00:00'
-  end: '2026-02-05 04:00:00'
-  pools:
-  - name: 「一客逍游」角色补给
-    type: char
-    s: 一客逍游
-    a:
-    - 原罪猎人
-  - name: 「翻翠袖&顺时而乐」装备补给
-    type: weapon
-    s: 翻翠袖
-    a:
-    - 顺时而乐
-    target: 一客逍游
-- version: '8.2'
-  phase: 逍游云间
-  start: '2025-03-27 10:00:00'
-  end: '2025-05-09 12:00:00'
-  pools:
-  - name: 「逍游云间」角色补给
-    type: char
-    s: 一客逍游
-    a:
-    - 女武神·巡矢
-  - name: 「翻翠袖&顺时而乐」装备补给
-    type: weapon
-    s: 翻翠袖
-    a:
-    - 顺时而乐
-    target: 一客逍游
-
-- version: '6.5'
-  phase: 识律进阶
-  start: '2023-03-09 10:00:00'
-  end: '2023-03-24 12:00:00'
-  pools:
-  - name: 「识之律者」进阶补给
-    type: char
-    s: 识之律者
-    a: []
-- version: '6.0'
-  phase: 识律进阶特别篇
-  start: '2022-08-26 12:00:00'
-  end: '2022-09-09 12:00:00'
-  pools:
-  - name: 「识之律者」进阶补给·特别篇
-    type: char
-    s: 识之律者
-    a: []
-- version: '5.7'
-  phase: 黄金旋律
-  start: '2022-04-21 10:00:00'
-  end: '2022-05-06 12:00:00'
-  pools:
-  - name: 「黄金·璀耀之歌」SP角色补给
-    type: char
-    s: 黄金·璀耀之歌
-    a: []
-  - name: 「往世的华章&亨德尔」精准补给
-    type: weapon
-    s: 往世的华章
-    a:
-    - 亨德尔
-    target: 黄金·璀耀之歌
-- version: '5.7'
-  phase: 识律复刻
-  start: '2022-06-02 12:00:00'
-  end: '2022-06-13 12:00:00'
-  pools:
-  - name: 「识之律者」扩充补给
-    type: char
-    s: 识之律者
-    a:
-    - 驱动装·山吹
-- version: '5.3'
-  phase: 识律复刻
-  start: '2021-11-19 12:00:00'
-  end: '2021-12-03 12:00:00'
-  pools:
-  - name: 「识之律者」扩充补给
-    type: char
-    s: 识之律者
-    a:
-    - 女武神·凯旋
-- version: '5.0'
-  phase: 识律复刻
-  start: '2021-08-13 12:00:00'
-  end: '2021-08-19 04:00:00'
-  pools:
-  - name: 「识之律者」扩充补给
-    type: char
-    s: 识之律者
-    a:
-    - 断罪皇女！！
-- version: '4.8'
-  phase: 识律复刻
-  start: '2021-05-14 12:00:00'
-  end: '2021-05-28 12:00:00'
-  pools:
-  - name: 「识之律者」扩充补给
-    type: char
-    s: 识之律者
-    a:
-    - 驱动装·山吹
-- version: '4.6'
-  phase: 睥睨天下
-  start: '2021-02-05 12:00:00'
-  end: '2021-02-26 12:00:00'
-  pools:
-  - name: 「识之律者」扩充角色补给
-    type: char
-    s: 识之律者
-    a:
-    - 月下初拥
-  - name: 「识之律者」扩充装备补给
-    type: weapon
-    s: 拂手阴晴
-    a:
-    - 神州折剑
-    target: 识之律者
-
-- version: '5.2'
-  phase: 初登场
-  start: '2021-09-23 11:00:00'
-  end: '2021-10-22 12:00:00'
-  pools:
-  - name: 「无限·噬界之蛇」扩充补给
-    type: char
-    s: 无限·噬界之蛇
-    a: []
-  - name: 「往世的蛇影·死之衣&林奈」装备补给
-    type: weapon
-    s: 往世的蛇影·死之衣
-    a:
-    - 林奈
-    target: 无限·噬界之蛇
-    related:
-    - 梅比乌斯
+  - version: "9.1"
+    start: 2026-09-24 12:00:00
+    end: 2026-11-26 04:00:00
+    pools:
+      - name: 【补给】协同者补给丨周年庆典限时轮替开启
+        type: char
+        s: 协同者轮替
+        a: []
+        start: 2026-09-24 12:00:00
+        end: 2026-11-06 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/09/22/73565430/918cb9a43e981a123dcd02f39de96d76_131245899418570931.png
+      - name: 【补给】镌刻于黎明的誓约丨服装补给限时开启！
+        type: outfit
+        s: 镌刻于黎明的誓约
+        a: []
+        start: 2026-09-24 12:00:00
+        end: 2026-10-16 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/09/22/73565430/ac49b54e2314c8b335f3838901e18248_4317177761258249451.png
+      - name: 【补给】装备补给丨镜见之钥&名以时序
+        type: weapon
+        s: 镜见之钥
+        a:
+          - 名以时序
+        target: 时序之律者
+        start: 2026-09-24 12:00:00
+        end: 2026-11-06 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/09/21/73565430/ede09fbf649eb69b7279c7cf8529f54c_4006160392099755356.png
+      - name: 【补给】角色补给丨「时序之律者」主题补给限时开启
+        type: char
+        s: 时序之律者
+        a:
+          - 女武神·荣光
+        start: 2026-09-24 12:00:00
+        end: 2026-11-06 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/09/21/73565430/96d3e09f35623e4099f0cd0bdf002e5b_3955589193858714490.png
+  - version: "9.0"
+    start: 2026-07-23 12:00:00
+    end: 2026-09-24 04:00:00
+    pools:
+      - name: 【补给】跃升补给丨位面武器·失序时空
+        type: char
+        s: 失序时空
+        a: []
+        start: 2026-09-04 12:00:00
+        end: 2026-09-24 04:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/09/02/73565430/ba060e278c472362a35afde8890c0b60_2065170413474194717.png
+      - name: 【补给】装备补给丨无瑕之眷&度法衡诗
+        type: weapon
+        s: 无瑕之眷
+        a:
+          - 度法衡诗
+        target: 真我·人之律者
+        start: 2026-09-04 12:00:00
+        end: 2026-09-24 04:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/09/01/73565430/9e0f5826d7a99fa95c98f677228821df_9118559785717560629.png
+      - name: 【补给】跃升武装丨长夜锋焰&灯华如淬
+        type: weapon
+        s: 长夜锋焰
+        a:
+          - 灯华如淬
+        start: 2026-08-14 12:00:00
+        end: 2026-09-04 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/08/12/73565430/16d2db491f06e6a42b6a741c647426d9_7998975835900909688.png
+      - name: 【补给】跃升补给丨破弃孤光·逐影
+        type: char
+        s: 破弃孤光·逐影
+        a: []
+        start: 2026-08-14 12:00:00
+        end: 2026-09-04 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/08/12/73565430/48e24a4b715b4df314b081a74ea79d69_8742491278810379339.png
+      - name: 【补给】苍峦白羽丨服装补给限时开启！
+        type: outfit
+        s: 苍峦白羽
+        a: []
+        start: 2026-07-31 12:00:00
+        end: 2026-08-14 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/07/29/73565430/1e72136573ab02c52af6cfe594b61da5_2156726163036284651.png
+      - name: 协同补给丨协同者「希娜狄雅」
+        type: char
+        s: 希娜狄雅
+        a: []
+        start: 2026-07-23 12:00:00
+        end: 2026-09-04 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/07/21/73565430/919346893776a59ddc33b86bcbc75756_4753295151371243016.png
+      - name: 「朱炎继往」神之键主题补给
+        type: weapon
+        s: 琉璃朱燧
+        a:
+          - 赫拉克利特
+        target: 浮生·渡尘之羽
+        start: 2026-07-23 12:00:00
+        end: 2026-09-04 12:00:00
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2026/07/20/73565430/95ad5d8c5fc8fe0fedd58b23bdd89625_8539920152080896002.png
+      - name: 【补给】跃升武装丨劫烬归虹&命运抉择
+        type: weapon
+        s: 劫烬归虹
+        a:
+          - 命运抉择
+        imgs:
+          - https://upload-bbs.miyoushe.com/upload/2025/05/26/73565430/c3a00bec3b015947365cc5d8d036703e_5476116367896889234.png
+        start: 2026-09-04 12:00:00
+        end: 2026-09-24 04:00:00
+  - version: "8.9"
+    start: 2026-07-10 12:00:00
+    end: 2026-07-23 04:00:00
+    pools:
+      - name: 「窈窕谍影」角色补给
+        type: char
+        s: 窈窕谍影
+        a:
+          - 女武神·巡矢
+      - name: 「代号：丽影&天命特工」装备补给
+        type: weapon
+        s: 代号：丽影
+        a:
+          - 天命特工
+        target: 窈窕谍影
+      - name: 「一客逍游」跃升补给
+        type: char
+        s: 一客逍游
+        a:
+          - 真炎幸魂
+      - name: 「翻翠袖&顺时而乐」跃升武装
+        type: weapon
+        s: 翻翠袖
+        a:
+          - 顺时而乐
+        target: 一客逍游
+      - name: 「苍雷星梭EX19&天文学大成」装备补给
+        type: weapon
+        s: 苍雷星梭EX19
+        a:
+          - 天文学大成
+        target: 次生银翼
+  - version: "8.9"
+    start: 2026-06-26 12:00:00
+    end: 2026-07-10 12:00:00
+    pools:
+      - name: 「嗨♪爱愿妖精♥」角色补给
+        type: char
+        s: 嗨♪爱愿妖精♥
+        a:
+          - 月下初拥
+      - name: 「澄爱挚语&芳时晏然」装备补给
+        type: weapon
+        s: 澄爱挚语
+        a:
+          - 芳时晏然
+        target: 嗨♪爱愿妖精♥
+      - name: 协同者「德丽莎·阿波卡利斯」协同补给
+        type: char
+        s: 德丽莎·阿波卡利斯
+        a: []
+  - version: "8.9"
+    start: 2026-06-13 10:00:00
+    end: 2026-07-03 11:59:59
+    pools:
+      - name: 「镇×偃月叩晓」角色补给
+        type: char
+        s: 镇×偃月叩晓
+        a:
+          - 女武神·重机
+      - name: 「晦夜麟光&岁岁如新」装备补给
+        type: weapon
+        s: 晦夜麟光
+        a:
+          - 岁岁如新
+        target: 镇×偃月叩晓
+  - version: "8.9"
+    start: 2026-05-28 10:00:00
+    end: 2026-07-10 12:00:00
+    pools:
+      - name: 「愈生佑翎」主题补给
+        type: char
+        s: 愈生佑翎
+        a:
+          - 幻海梦蝶
+      - name: 「垂曦净蕊&花愈朝夕」装备补给
+        type: weapon
+        s: 垂曦净蕊
+        a:
+          - 花愈朝夕
+        target: 愈生佑翎
+  - version: "8.8"
+    start: 2026-05-13 10:00:00
+    end: 2026-05-28 04:00:00
+    pools:
+      - name: 「逆命魔龙·降临！」角色补给
+        type: char
+        s: 逆命魔龙·降临！
+        a:
+          - 午夜苦艾
+      - name: 「龙威燎天烈&游戏人生」装备补给
+        type: weapon
+        s: 龙威燎天烈
+        a:
+          - 游戏人生
+        target: 逆命魔龙·降临！
+  - version: "8.8"
+    start: 2026-05-01 12:00:00
+    end: 2026-05-28 04:00:00
+    pools:
+      - name: 「咚！炽愿吉星」跃升补给
+        type: char
+        s: 咚！炽愿吉星
+        a: []
+      - name: 「吉运绛天&来日亦然」跃升武装
+        type: weapon
+        s: 吉运绛天
+        a:
+          - 来日亦然
+        target: 咚！炽愿吉星
+  - version: "8.8"
+    start: 2026-05-01 12:00:00
+    end: 2026-05-28 04:00:00
+    pools:
+      - name: 「无瑕之眷&度法衡诗」装备补给
+        type: weapon
+        s: 无瑕之眷
+        a:
+          - 度法衡诗
+        target: 真我·人之律者
+  - version: "8.8"
+    start: 2026-04-02 10:00:00
+    end: 2026-05-01 12:00:00
+    pools:
+      - name: 「诡戏千役「友情出演！」」跃升补给
+        type: char
+        s: 诡戏千役「友情出演！」
+        a:
+          - 断罪皇女！！
+      - name: 「飞游星&花火·诡戏千役」跃升武装
+        type: weapon
+        s: 飞游星
+        a:
+          - 花火·诡戏千役
+        target: 诡戏千役「友情出演！」
+  - version: "8.8"
+    start: 2026-04-17 12:00:00
+    end: 2026-05-28 04:00:00
+    pools:
+      - name: 「濯海之蕊&谐谑奇锋」装备补给
+        type: weapon
+        s: 濯海之蕊
+        a:
+          - 阿里斯托芬
+        target: 死生之律者
+  - version: "8.7"
+    start: 2026-03-20 12:00:00
+    end: 2026-04-02 04:00:00
+    pools:
+      - name: 「天光驰彻」跃升补给
+        type: char
+        s: 天光驰彻
+        a: []
+      - name: 「炽光无前&寰宇取映」跃升武装
+        type: weapon
+        s: 炽光无前
+        a:
+          - 寰宇取映
+        target: 天光驰彻
+  - version: "8.5"
+    start: 2025-11-07 12:00:00
+    end: 2025-12-04 04:00:00
+    pools:
+      - name: 「天光驰彻」角色补给
+        type: char
+        s: 天光驰彻
+        a:
+          - 女武神·荣光
+      - name: 「炽光无前&寰宇取映」装备补给
+        type: weapon
+        s: 炽光无前
+        a:
+          - 寰宇取映
+        target: 天光驰彻
+  - version: "8.4"
+    start: 2025-08-22 12:00:00
+    end: 2025-09-05 12:00:00
+    pools:
+      - name: 「天光驰彻」角色补给
+        type: char
+        s: 天光驰彻
+        a:
+          - 女武神·誓约
+      - name: 「炽光无前&寰宇取映」装备补给
+        type: weapon
+        s: 炽光无前
+        a:
+          - 寰宇取映
+        target: 天光驰彻
+  - version: "8.3"
+    start: 2025-05-09 12:00:00
+    end: 2025-05-29 04:00:00
+    pools:
+      - name: 「天光驰彻」角色补给
+        type: char
+        s: 天光驰彻
+        a:
+          - 圣仪装·今样
+      - name: 「炽光无前&寰宇取映」装备补给
+        type: weapon
+        s: 炽光无前
+        a:
+          - 寰宇取映
+        target: 天光驰彻
+  - version: "8.2"
+    start: 2025-04-11 12:00:00
+    end: 2025-04-25 12:00:00
+    pools:
+      - name: 「咚！炽愿吉星」角色补给
+        type: char
+        s: 咚！炽愿吉星
+        a:
+          - 女武神·誓约
+      - name: 「吉运绛天&来日亦然」装备补给
+        type: weapon
+        s: 吉运绛天
+        a:
+          - 来日亦然
+        target: 咚！炽愿吉星
+  - version: "8.1"
+    start: 2025-01-23 10:00:00
+    end: 2025-03-07 12:00:00
+    pools:
+      - name: 「叙愿今宵」角色补给
+        type: char
+        s: 咚！炽愿吉星
+        a:
+          - 女武神·重机
+      - name: 「吉运绛天&来日亦然」装备补给
+        type: weapon
+        s: 吉运绛天
+        a:
+          - 来日亦然
+        target: 咚！炽愿吉星
+  - version: "8.1"
+    start: 2025-03-07 12:00:00
+    end: 2025-03-27 04:00:00
+    pools:
+      - name: 「天光驰彻」角色补给
+        type: char
+        s: 天光驰彻
+        a:
+          - 月下初拥
+      - name: 「炽光无前&寰宇取映」装备补给
+        type: weapon
+        s: 炽光无前
+        a:
+          - 寰宇取映
+        target: 天光驰彻
+  - version: "8.0"
+    start: 2024-12-12 10:00:00
+    end: 2025-01-10 12:00:00
+    pools:
+      - name: 「光绽天霄」角色补给
+        type: char
+        s: 天光驰彻
+        a:
+          - 圣女祈祷
+      - name: 「炽光无前&寰宇取映」装备补给
+        type: weapon
+        s: 炽光无前
+        a:
+          - 寰宇取映
+        target: 天光驰彻
+  - version: "8.7"
+    start: 2026-02-27 12:00:00
+    end: 2026-03-20 12:00:00
+    pools:
+      - name: 「嗨♪爱愿妖精♥」角色补给
+        type: char
+        s: 嗨♪爱愿妖精♥
+        a:
+          - 女武神·誓约
+      - name: 「澄爱挚语&芳时晏然」装备补给
+        type: weapon
+        s: 澄爱挚语
+        a:
+          - 芳时晏然
+        target: 嗨♪爱愿妖精♥
+  - version: "8.7"
+    start: 2026-02-05 10:00:00
+    end: 2026-02-27 12:00:00
+    pools:
+      - name: 「偕月续篇」主题补给
+        type: weapon
+        s: 相偕之契
+        a:
+          - 尤利乌斯·凯撒
+        target: 月下誓约·予爱以心
+  - version: "8.6"
+    start: 2025-12-26 12:00:00
+    end: 2026-01-16 12:00:00
+    pools:
+      - name: 「孑遗千星」跃升补给
+        type: char
+        s: 孑遗千星
+        a: []
+      - name: 「羽蔽诸天&薇塔·孑遗千星」跃升武装
+        type: weapon
+        s: 羽蔽诸天
+        a:
+          - 薇塔·孑遗千星
+        target: 孑遗千星
+  - version: "8.6"
+    start: 2026-01-18 10:00:00
+    end: 2026-02-08 11:59:59
+    pools:
+      - name: 「天命难逃」角色补给
+        type: char
+        s: 天命难逃
+        a: []
+  - version: "8.5"
+    start: 2025-09-25 10:00:00
+    end: 2025-11-07 12:00:00
+    pools:
+      - name: 「梦圃莳爱」角色补给
+        type: char
+        s: 嗨♪爱愿妖精♥
+        a:
+          - 女武神·巡矢
+      - name: 「澄爱挚语&芳时晏然」装备补给
+        type: weapon
+        s: 澄爱挚语
+        a:
+          - 芳时晏然
+        target: 嗨♪爱愿妖精♥
+  - version: "8.5"
+    start: 2025-09-29 12:00:00
+    end: 2025-10-24 12:00:00
+    pools:
+      - name: 「孑遗千星」庆典角色补给
+        type: char
+        s: 孑遗千星
+        a: []
+      - name: 「羽蔽诸天&独行于星」庆典装备补给
+        type: weapon
+        s: 羽蔽诸天
+        a:
+          - 独行于星
+        target: 孑遗千星
+      - name: 「咚！炽愿吉星」庆典角色补给
+        type: char
+        s: 咚！炽愿吉星
+        a: []
+      - name: 「吉运绛天&来日亦然」庆典装备补给
+        type: weapon
+        s: 吉运绛天
+        a:
+          - 来日亦然
+        target: 咚！炽愿吉星
+  - version: "8.5"
+    start: 2025-12-28 10:00:00
+    end: 2026-01-18 11:59:59
+    pools:
+      - name: 「破弃孤光·逐影」角色补给
+        type: char
+        s: 破弃孤光·逐影
+        a: []
+      - name: 「夜宴蔷薇&珀凝华影」装备补给
+        type: weapon
+        s: 夜宴蔷薇
+        a:
+          - 珀凝华影
+        target: 享乐狂宴·邀影
+  - version: "8.5"
+    start: 2025-12-07 10:00:00
+    end: 2025-12-28 11:59:59
+    pools:
+      - name: 「深空定锚·曙光」角色补给
+        type: char
+        s: 深空定锚·曙光
+        a: []
+  - version: "8.4"
+    start: 2025-11-16 10:00:00
+    end: 2025-12-07 11:59:59
+    pools:
+      - name: 「女武神·重机」角色补给
+        type: char
+        s: 女武神·重机
+        a: []
+      - name: 「月之恒&征服王」装备补给
+        type: weapon
+        s: 月之恒
+        a:
+          - 征服王
+        target: 终焉之律者
+  - version: "8.4"
+    start: 2025-10-26 10:00:00
+    end: 2025-11-16 11:59:59
+    pools:
+      - name: 「天行·绘星之卷」角色补给
+        type: char
+        s: 天行·绘星之卷
+        a: []
+  - version: "8.3"
+    start: 2025-10-05 10:00:00
+    end: 2025-10-26 11:59:59
+    pools:
+      - name: 「奇迹☆魔法少女」角色补给
+        type: char
+        s: 奇迹☆魔法少女
+        a: []
+  - version: "8.3"
+    start: 2025-09-14 10:00:00
+    end: 2025-10-05 11:59:59
+    pools:
+      - name: 「糖露星霜」角色补给
+        type: char
+        s: 糖露星霜
+        a: []
+  - version: "8.2"
+    start: 2025-08-24 10:00:00
+    end: 2025-09-14 11:59:59
+    pools:
+      - name: 「终末协理0017」角色补给
+        type: char
+        s: 终末协理0017
+        a: []
+  - version: "8.1"
+    start: 2025-02-07 12:00:00
+    end: 2025-02-21 12:00:00
+    pools:
+      - name: 「孑遗千星」角色补给
+        type: char
+        s: 孑遗千星
+        a:
+          - 圣仪装·今样
+      - name: 「羽蔽诸天&独行于星」装备补给
+        type: weapon
+        s: 羽蔽诸天
+        a:
+          - 独行于星
+        target: 孑遗千星
+  - version: "7.9"
+    start: 2024-11-15 12:00:00
+    end: 2024-11-29 12:00:00
+    pools:
+      - name: 「孑遗千星」角色补给
+        type: char
+        s: 孑遗千星
+        a:
+          - 女武神·重机
+      - name: 「羽蔽诸天&薇塔·孑遗千星」装备补给
+        type: weapon
+        s: 羽蔽诸天
+        a:
+          - 薇塔·孑遗千星
+        target: 孑遗千星
+  - version: "7.9"
+    start: 2024-11-29 12:00:00
+    end: 2024-12-12 04:00:00
+    pools:
+      - name: 「月下誓约·予爱以心」进阶补给
+        type: char
+        s: 月下誓约·予爱以心
+        a: []
+  - version: "7.8"
+    start: 2024-09-19 10:00:00
+    end: 2024-10-18 12:00:00
+    pools:
+      - name: 「星间踱步」角色补给
+        type: char
+        s: 孑遗千星
+        a:
+          - 女武神·重机
+      - name: 「羽蔽诸天&独行于星」装备补给
+        type: weapon
+        s: 羽蔽诸天
+        a:
+          - 独行于星
+        target: 孑遗千星
+  - version: "8.0"
+    start: 2025-01-10 12:00:00
+    end: 2025-01-23 04:00:00
+    pools:
+      - name: 「浮生·渡尘之羽」进阶补给
+        type: char
+        s: 浮生·渡尘之羽
+        a: []
+      - name: 「万古一炬&岁华至味」演武精备
+        type: weapon
+        s: 万古一炬
+        a:
+          - 岁华至味
+        target: 浮生·渡尘之羽
+  - version: "7.7"
+    start: 2024-08-23 12:00:00
+    end: 2024-09-06 12:00:00
+    pools:
+      - name: 「死生之律者」进阶补给
+        type: char
+        s: 死生之律者
+        a: []
+      - name: 「撷生之谣&希儿·死生之律者」演武精备
+        type: weapon
+        s: 撷生之谣
+        a:
+          - 希儿·死生之律者
+        target: 死生之律者
+  - version: "7.7"
+    start: 2024-08-02 12:00:00
+    end: 2024-08-08 04:00:00
+    pools:
+      - name: 「真我·人之律者」进阶补给
+        type: char
+        s: 真我·人之律者
+        a: []
+      - name: 「真我之钥&爱莉希雅·无瑕之人」演武精备
+        type: weapon
+        s: 真我之钥
+        a:
+          - 爱莉希雅·无瑕之人
+        target: 真我·人之律者
+  - version: "7.6"
+    start: 2024-11-08 12:00:00
+    end: 2024-11-15 12:00:00
+    pools:
+      - name: 「浮生·渡尘之羽」角色补给
+        type: char
+        s: 浮生·渡尘之羽
+        a:
+          - 女武神·迅羽
+      - name: 「万古一炬&符华·凡常时岁」精准补给
+        type: weapon
+        s: 万古一炬
+        a:
+          - 符华·凡常时岁
+        target: 浮生·渡尘之羽
+  - version: "7.5"
+    start: 2024-07-12 12:00:00
+    end: 2024-07-26 12:00:00
+    pools:
+      - name: 「浮生·渡尘之羽」角色补给
+        type: char
+        s: 浮生·渡尘之羽
+        a:
+          - 女武神·荣光
+      - name: 「万古一炬&符华·凡常时岁」精准补给
+        type: weapon
+        s: 万古一炬
+        a:
+          - 符华·凡常时岁
+        target: 浮生·渡尘之羽
+  - version: "7.4"
+    start: 2024-03-28 10:00:00
+    end: 2024-04-26 12:00:00
+    pools:
+      - name: 「享乐狂宴·邀影」角色补给
+        type: char
+        s: 享乐狂宴·邀影
+        a:
+          - 女武神·迅羽
+      - name: 「夜宴蔷薇&珀凝华影」精准补给
+        type: weapon
+        s: 夜宴蔷薇
+        a:
+          - 珀凝华影
+        target: 享乐狂宴·邀影
+  - version: "7.4"
+    start: 2024-04-05 12:00:00
+    end: 2024-04-19 12:00:00
+    pools:
+      - name: 「浮生·渡尘之羽」角色补给
+        type: char
+        s: 浮生·渡尘之羽
+        a:
+          - 圣仪装·今样
+      - name: 「万古一炬&符华·凡常时岁」精准补给
+        type: weapon
+        s: 万古一炬
+        a:
+          - 符华·凡常时岁
+        target: 浮生·渡尘之羽
+  - version: "7.2"
+    start: 2023-12-21 10:00:00
+    end: 2024-01-19 12:00:00
+    pools:
+      - name: 「鸢火重燃」扩充补给
+        type: char
+        s: 浮生·渡尘之羽
+        a:
+          - 影舞冲击
+      - name: 「万古一炬&符华·凡常时岁」精准补给A
+        type: weapon
+        s: 万古一炬
+        a:
+          - 符华·凡常时岁
+        target: 浮生·渡尘之羽
+  - version: "7.5"
+    start: 2024-05-05 12:00:00
+    end: 2024-05-09 04:00:00
+    pools:
+      - name: 「真我·人之律者」进阶补给
+        type: char
+        s: 真我·人之律者
+        a: []
+      - name: 「真我之钥&爱莉希雅·无瑕之人」精准补给
+        type: weapon
+        s: 真我之钥
+        a:
+          - 爱莉希雅·无瑕之人
+        target: 真我·人之律者
+  - version: "7.4"
+    start: 2024-03-08 12:00:00
+    end: 2024-03-15 12:00:00
+    pools:
+      - name: 「真我·人之律者」角色补给
+        type: char
+        s: 真我·人之律者
+        a:
+          - 女武神·迅羽
+      - name: 「真我之钥&爱莉希雅·无瑕之人」精准补给
+        type: weapon
+        s: 真我之钥
+        a:
+          - 爱莉希雅·无瑕之人
+        target: 真我·人之律者
+  - version: "7.2"
+    start: 2024-01-05 12:00:00
+    end: 2024-01-19 12:00:00
+    pools:
+      - name: 「真我·人之律者」进阶补给
+        type: char
+        s: 真我·人之律者
+        a: []
+      - name: 「真我之钥&爱莉希雅·无瑕之人」精准补给B
+        type: weapon
+        s: 真我之钥
+        a:
+          - 爱莉希雅·无瑕之人
+        target: 真我·人之律者
+  - version: "6.7"
+    start: 2023-06-01 10:00:00
+    end: 2023-06-09 12:00:00
+    pools:
+      - name: 「真我·人之律者」扩充补给
+        type: char
+        s: 真我·人之律者
+        a:
+          - 女武神·迅羽
+  - version: "7.4"
+    start: 2024-04-19 12:00:00
+    end: 2024-04-26 12:00:00
+    pools:
+      - name: 「死生之律者」角色补给
+        type: char
+        s: 死生之律者
+        a:
+          - 圣仪装·今样
+      - name: 「撷生之谣&希儿·死生之律者」精准补给
+        type: weapon
+        s: 撷生之谣
+        a:
+          - 希儿·死生之律者
+        target: 死生之律者
+  - version: "7.1"
+    start: 2023-11-17 12:00:00
+    end: 2023-12-01 12:00:00
+    pools:
+      - name: 「死生之律者」扩充补给
+        type: char
+        s: 死生之律者
+        a:
+          - 女武神·凯旋
+  - version: "7.8"
+    start: 2024-09-06 12:00:00
+    end: 2024-09-19 04:00:00
+    pools:
+      - name: 「月下誓约·予爱以心」角色补给
+        type: char
+        s: 月下誓约·予爱以心
+        a:
+          - 女武神·荣光
+  - version: "7.8"
+    start: 2024-09-06 12:00:00
+    end: 2024-09-13 12:00:00
+    pools:
+      - name: 「血染赤匣&长夜将明」精准补给
+        type: weapon
+        s: 血染赤匣
+        a:
+          - 长夜将明
+        target: 月下誓约·予爱以心
+  - version: "7.5"
+    start: 2024-05-17 12:00:00
+    end: 2024-05-31 12:00:00
+    pools:
+      - name: 「月下誓约·予爱以心」角色补给
+        type: char
+        s: 月下誓约·予爱以心
+        a:
+          - 圣仪装·今样
+  - version: "7.5"
+    start: 2024-05-17 12:00:00
+    end: 2024-05-24 12:00:00
+    pools:
+      - name: 「血染赤匣&长夜将明」精准补给
+        type: weapon
+        s: 血染赤匣
+        a:
+          - 长夜将明
+        target: 月下誓约·予爱以心
+  - version: "7.4"
+    start: 2024-03-15 12:00:00
+    end: 2024-03-22 12:00:00
+    pools:
+      - name: 「月下誓约·予爱以心」角色补给
+        type: char
+        s: 月下誓约·予爱以心
+        a:
+          - 圣仪装·今样
+      - name: 「血染赤匣&长夜将明」精准补给
+        type: weapon
+        s: 血染赤匣
+        a:
+          - 长夜将明
+        target: 月下誓约·予爱以心
+  - version: "7.5"
+    start: 2024-06-21 12:00:00
+    end: 2024-06-27 04:00:00
+    pools:
+      - name: 「终焉之律者」角色补给
+        type: char
+        s: 终焉之律者
+        a:
+          - 融核装·深红
+      - name: 「无名之钥&琪亚娜·卡斯兰娜」精准补给
+        type: weapon
+        s: 无名之钥
+        a:
+          - 琪亚娜·卡斯兰娜
+        target: 终焉之律者
+  - version: "7.2"
+    start: 2024-01-19 12:00:00
+    end: 2024-01-26 12:00:00
+    pools:
+      - name: 「始源之律者」扩充补给
+        type: char
+        s: 始源之律者
+        a:
+          - 雪地狙击
+  - version: "7.1"
+    start: 2023-12-15 12:00:00
+    end: 2023-12-21 04:00:00
+    pools:
+      - name: 「始源之律者」扩充补给
+        type: char
+        s: 始源之律者
+        a:
+          - 女武神·强袭
+  - version: "6.7"
+    start: 2023-06-23 12:00:00
+    end: 2023-06-30 12:00:00
+    pools:
+      - name: 「始源之律者」扩充补给
+        type: char
+        s: 始源之律者
+        a:
+          - 断罪皇女！！
+  - version: "6.4"
+    start: 2023-01-18 10:00:00
+    end: 2023-02-17 12:00:00
+    pools:
+      - name: 「始源的重光」限时活动补给
+        type: char
+        s: 始源之律者
+        a: []
+      - name: 「素心沉影」限时活动补给
+        type: weapon
+        s: 澄凝之境：自性纯一
+        a:
+          - 雷电芽衣
+        target: 始源之律者
+  - version: "7.6"
+    start: 2024-07-26 12:00:00
+    end: 2024-08-02 12:00:00
+    pools:
+      - name: 「真理之律者」进阶补给
+        type: char
+        s: 真理之律者
+        a: []
+      - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」演武精备
+        type: weapon
+        s: 升恒之境：存理交续
+        a:
+          - 布洛妮娅·扎伊切克
+        target: 真理之律者
+  - version: "7.4"
+    start: 2024-05-01 12:00:00
+    end: 2024-05-05 12:00:00
+    pools:
+      - name: 「真理之律者」进阶补给
+        type: char
+        s: 真理之律者
+        a: []
+      - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给
+        type: weapon
+        s: 升恒之境：存理交续
+        a:
+          - 布洛妮娅·扎伊切克
+        target: 真理之律者
+  - version: "7.3"
+    start: 2024-02-23 12:00:00
+    end: 2024-03-08 12:00:00
+    pools:
+      - name: 「真理之律者」进阶补给
+        type: char
+        s: 真理之律者
+        a: []
+      - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给
+        type: weapon
+        s: 升恒之境：存理交续
+        a:
+          - 布洛妮娅·扎伊切克
+        target: 真理之律者
+  - version: "7.1"
+    start: 2023-12-08 12:00:00
+    end: 2023-12-15 12:00:00
+    pools:
+      - name: 「真理之律者」扩充补给
+        type: char
+        s: 真理之律者
+        a:
+          - 猎袭装·影铁
+      - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给
+        type: weapon
+        s: 升恒之境：存理交续
+        a:
+          - 布洛妮娅·扎伊切克
+        target: 真理之律者
+  - version: "7.0"
+    start: 2023-10-20 12:00:00
+    end: 2023-10-27 12:00:00
+    pools:
+      - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给B
+        type: weapon
+        s: 升恒之境：存理交续
+        a:
+          - 布洛妮娅·扎伊切克
+        target: 真理之律者
+  - version: "6.7"
+    start: 2023-06-16 12:00:00
+    end: 2023-06-23 12:00:00
+    pools:
+      - name: 「真理之律者」扩充补给
+        type: char
+        s: 真理之律者
+        a:
+          - 月下初拥
+      - name: 「升恒之境：存理交续&布洛妮娅·扎伊切克」精准补给A
+        type: weapon
+        s: 升恒之境：存理交续
+        a:
+          - 布洛妮娅·扎伊切克
+        target: 真理之律者
+  - version: "6.3"
+    start: 2022-12-15 10:00:00
+    end: 2023-01-06 12:00:00
+    pools:
+      - name: 「真理的名字」扩充补给
+        type: char
+        s: 真理之律者
+        a:
+          - 女武神·凯旋
+      - name: 「极值创构」精准补给A
+        type: weapon
+        s: 升恒之境：存理交续
+        a:
+          - 布洛妮娅·扎伊切克
+        target: 真理之律者
+  - version: "6.8"
+    start: 2023-07-14 12:00:00
+    end: 2023-07-28 12:00:00
+    pools:
+      - name: 「天元骑英」进阶补给
+        type: char
+        s: 天元骑英
+        a: []
+  - version: "6.0"
+    start: 2022-09-28 12:00:00
+    end: 2022-09-30 12:00:00
+    pools:
+      - name: 「天元骑英」自选扩充补给
+        type: char
+        s: 天元骑英
+        a: []
+  - version: "6.0"
+    start: 2022-10-05 12:00:00
+    end: 2022-10-07 12:00:00
+    pools:
+      - name: 「天元骑英」自选扩充补给
+        type: char
+        s: 天元骑英
+        a: []
+  - version: "5.5"
+    start: 2022-01-27 10:00:00
+    end: 2022-02-25 12:00:00
+    pools:
+      - name: 「天元骑英」扩充角色补给
+        type: char
+        s: 天元骑英
+        a:
+          - 月下初拥
+      - name: 「天元骑英」扩充装备补给
+        type: weapon
+        s: 子夜的阿塔吉娜
+        a:
+          - 比安卡·舞台
+        target: 天元骑英
+  - version: "8.1"
+    start: 2025-03-07 12:00:00
+    end: 2025-03-27 04:00:00
+    pools:
+      - name: 「诡戏千役「友情出演！」」角色补给
+        type: char
+        s: 诡戏千役「友情出演！」
+        a:
+          - 女武神·巡矢
+      - name: 「飞游星&花火·诡戏千役」装备补给
+        type: weapon
+        s: 飞游星
+        a:
+          - 花火·诡戏千役
+        target: 诡戏千役「友情出演！」
+  - version: "8.0"
+    start: 2024-12-27 12:00:00
+    end: 2025-01-10 12:00:00
+    pools:
+      - name: 「诡戏千役「友情出演！」」角色补给
+        type: char
+        s: 诡戏千役「友情出演！」
+        a:
+          - 女武神·重机
+      - name: 「飞游星&花火·诡戏千役」装备补给
+        type: weapon
+        s: 飞游星
+        a:
+          - 花火·诡戏千役
+        target: 诡戏千役「友情出演！」
+  - version: "7.9"
+    start: 2024-10-31 10:00:00
+    end: 2024-11-29 12:00:00
+    pools:
+      - name: 「绚烂共演」角色补给
+        type: char
+        s: 诡戏千役「友情出演！」
+        a:
+          - 女武神·巡矢
+      - name: 「飞游星&花火·诡戏千役」装备补给
+        type: weapon
+        s: 飞游星
+        a:
+          - 花火·诡戏千役
+        target: 诡戏千役「友情出演！」
+  - version: "8.6"
+    start: 2026-01-16 12:00:00
+    end: 2026-02-05 04:00:00
+    pools:
+      - name: 「一客逍游」角色补给
+        type: char
+        s: 一客逍游
+        a:
+          - 原罪猎人
+      - name: 「翻翠袖&顺时而乐」装备补给
+        type: weapon
+        s: 翻翠袖
+        a:
+          - 顺时而乐
+        target: 一客逍游
+  - version: "8.2"
+    start: 2025-03-27 10:00:00
+    end: 2025-05-09 12:00:00
+    pools:
+      - name: 「逍游云间」角色补给
+        type: char
+        s: 一客逍游
+        a:
+          - 女武神·巡矢
+      - name: 「翻翠袖&顺时而乐」装备补给
+        type: weapon
+        s: 翻翠袖
+        a:
+          - 顺时而乐
+        target: 一客逍游
+  - version: "6.5"
+    start: 2023-03-09 10:00:00
+    end: 2023-03-24 12:00:00
+    pools:
+      - name: 「识之律者」进阶补给
+        type: char
+        s: 识之律者
+        a: []
+  - version: "6.0"
+    start: 2022-08-26 12:00:00
+    end: 2022-09-09 12:00:00
+    pools:
+      - name: 「识之律者」进阶补给·特别篇
+        type: char
+        s: 识之律者
+        a: []
+  - version: "5.7"
+    start: 2022-04-21 10:00:00
+    end: 2022-05-06 12:00:00
+    pools:
+      - name: 「黄金·璀耀之歌」SP角色补给
+        type: char
+        s: 黄金·璀耀之歌
+        a: []
+      - name: 「往世的华章&亨德尔」精准补给
+        type: weapon
+        s: 往世的华章
+        a:
+          - 亨德尔
+        target: 黄金·璀耀之歌
+  - version: "5.7"
+    start: 2022-06-02 12:00:00
+    end: 2022-06-13 12:00:00
+    pools:
+      - name: 「识之律者」扩充补给
+        type: char
+        s: 识之律者
+        a:
+          - 驱动装·山吹
+  - version: "5.3"
+    start: 2021-11-19 12:00:00
+    end: 2021-12-03 12:00:00
+    pools:
+      - name: 「识之律者」扩充补给
+        type: char
+        s: 识之律者
+        a:
+          - 女武神·凯旋
+  - version: "5.0"
+    start: 2021-08-13 12:00:00
+    end: 2021-08-19 04:00:00
+    pools:
+      - name: 「识之律者」扩充补给
+        type: char
+        s: 识之律者
+        a:
+          - 断罪皇女！！
+  - version: "4.8"
+    start: 2021-05-14 12:00:00
+    end: 2021-05-28 12:00:00
+    pools:
+      - name: 「识之律者」扩充补给
+        type: char
+        s: 识之律者
+        a:
+          - 驱动装·山吹
+  - version: "4.6"
+    start: 2021-02-05 12:00:00
+    end: 2021-02-26 12:00:00
+    pools:
+      - name: 「识之律者」扩充角色补给
+        type: char
+        s: 识之律者
+        a:
+          - 月下初拥
+      - name: 「识之律者」扩充装备补给
+        type: weapon
+        s: 拂手阴晴
+        a:
+          - 神州折剑
+        target: 识之律者
+  - version: "5.2"
+    start: 2021-09-23 11:00:00
+    end: 2021-10-22 12:00:00
+    pools:
+      - name: 「无限·噬界之蛇」扩充补给
+        type: char
+        s: 无限·噬界之蛇
+        a: []
+      - name: 「往世的蛇影·死之衣&林奈」装备补给
+        type: weapon
+        s: 往世的蛇影·死之衣
+        a:
+          - 林奈
+        target: 无限·噬界之蛇
+        related:
+          - 梅比乌斯

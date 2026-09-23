@@ -134,6 +134,23 @@ zzz_guide_deadly_sources: |-
   危局强袭战|4068738|0,1,2,3,4,5,6,7,8,9|洗礼酱
   危局攻略|285802042|0,1,2,3,4,5|HoYo青枫
 
+#自定义攻略源（锅巴可视化修改）
+#===== 自定义攻略源（极简模式）=====
+#发指令：#角色名攻略 / #角色名一图流 / #角色名配对 / #角色名配队（前缀 xhh/ 或 小花火 也可，可省略）
+#只需填各游戏作者UID，角色名即关键词（自动用别名表归一成正式名，无需列角色）
+#合并转发模式：on=合并转发(带标题)，off=逐条拼接(不带标题)
+custom_guide_enable: true
+custom_guide_forward: on
+#默认源(兜底作者UID)：某游戏未单独填、或角色不在别名表时使用；内置默认 74019947
+custom_guide_uid: 74019947
+#各游戏作者UID（留空则用默认源）；index 留空取帖全部图，如 0 或 0,2
+custom_guide_gs_uid: ''
+custom_guide_gs_index: ''
+custom_guide_sr_uid: ''
+custom_guide_sr_index: ''
+custom_guide_zzz_uid: ''
+custom_guide_zzz_index: ''
+
 #原神/星铁深渊速报图片仓库（每行一个，留空用默认Abyss仓库）
 abyss_report_repos: |-
   https://cnb.cool/JIUXJIU/Abyss/-/git/raw/main
@@ -194,3 +211,4 @@ role_combat_priority: 100
 zzz_md_priority: 100
 currency_balance_priority: 100
 meme_priority: 50
+custom_guide_priority: -9999999999

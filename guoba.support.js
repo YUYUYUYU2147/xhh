@@ -535,6 +535,77 @@ export const supportGuoba = () => ({
       },
       {
         component: 'SOFT_GROUP_BEGIN',
+        label: '自定义攻略源',
+      },
+      {
+        field: 'custom_guide_enable',
+        label: '自定义攻略源开关',
+        helpMessage: '开启后可用 #角色名攻略 触发（也支持 xhh/小花火 前缀）；角色名即关键词，自动用别名表归一成正式名，无需手填角色列表',
+        component: 'Switch',
+      },
+      {
+        field: 'custom_guide_forward',
+        label: '合并转发模式',
+        helpMessage: '开启=合并转发发送（带标题）；关闭=逐条拼接消息发送（不带标题文字，直接发 作者/标题/发布时间/原帖+图片）',
+        component: 'Select',
+        componentProps: {
+          options: [
+            { label: '开启合并转发', value: 'on' },
+            { label: '关闭合并转发(拼接消息)', value: 'off' },
+          ],
+        },
+      },
+      {
+        field: 'custom_guide_uid',
+        label: '全局兜底源(作者UID)',
+        helpMessage: '仅当对应游戏没填下面的默认源、或角色不在别名表时才用它；代码内置默认 74019947',
+        component: 'Input',
+      },
+      {
+        field: 'custom_guide_gs_uid',
+        label: '原神默认源(作者UID)',
+        helpMessage: '原神角色的默认攻略作者；发 #原神角色名攻略 时自动以角色正式名搜索该UID',
+        component: 'Input',
+      },
+      {
+        field: 'custom_guide_gs_index',
+        label: '原神默认图片序号',
+        helpMessage: '留空取该帖全部图片；填序号取指定张，如 0 或 0,2,3（从0开始，英文逗号分隔）',
+        component: 'Input',
+      },
+      {
+        field: 'custom_guide_sr_uid',
+        label: '星铁默认源(作者UID)',
+        helpMessage: '星铁角色的默认攻略作者；发 #星铁角色名攻略 时自动以角色正式名搜索该UID',
+        component: 'Input',
+      },
+      {
+        field: 'custom_guide_sr_index',
+        label: '星铁默认图片序号',
+        helpMessage: '留空取该帖全部图片；如 0 或 0,2',
+        component: 'Input',
+      },
+      {
+        field: 'custom_guide_zzz_uid',
+        label: '绝区零默认源(作者UID)',
+        helpMessage: '绝区零角色的默认攻略作者；发 #绝区零角色名攻略 时自动以角色正式名搜索该UID',
+        component: 'Input',
+      },
+      {
+        field: 'custom_guide_zzz_index',
+        label: '绝区零默认图片序号',
+        helpMessage: '留空取该帖全部图片；如 0 或 0,2',
+        component: 'Input',
+      },
+      {
+        field: 'custom_guide_priority',
+        label: '自定义攻略源优先级',
+        helpMessage: '默认 -9999999999（极高优先级，确保优先于其它攻略插件抢到指令）；数字越小越优先，修改后需重启',
+        component: 'InputNumber',
+        componentProps: { min: -9999999999, max: 9999999999, step: 1 },
+      },
+      {
+        component: 'SOFT_GROUP_BEGIN',
         label: '原神/星铁深渊速报',
       },
       {
@@ -921,6 +992,16 @@ export const supportGuoba = () => ({
         bh3_guide_godwar_sources: cfg.bh3_guide_godwar_sources || defaultBh3GuideSources.godwar,
         zzz_guide_defense_sources: cfg.zzz_guide_defense_sources || defaultBh3GuideSources.zzzDefense,
         zzz_guide_deadly_sources: cfg.zzz_guide_deadly_sources || defaultBh3GuideSources.zzzDeadly,
+        custom_guide_enable: cfg.custom_guide_enable !== false,
+        custom_guide_forward: cfg.custom_guide_forward || 'on',
+        custom_guide_uid: cfg.custom_guide_uid || '74019947',
+        custom_guide_gs_uid: cfg.custom_guide_gs_uid || '',
+        custom_guide_gs_index: cfg.custom_guide_gs_index || '',
+        custom_guide_sr_uid: cfg.custom_guide_sr_uid || '',
+        custom_guide_sr_index: cfg.custom_guide_sr_index || '',
+        custom_guide_zzz_uid: cfg.custom_guide_zzz_uid || '',
+        custom_guide_zzz_index: cfg.custom_guide_zzz_index || '',
+        custom_guide_priority: cfg.custom_guide_priority ?? -9999999999,
         abyss_report_repos: cfg.abyss_report_repos || 'https://cnb.cool/JIUXJIU/Abyss/-/git/raw/main\nhttps://cnb.cool/JIUXJIU/AbyssBeta/-/git/raw/main',
         abyss_report_gs_version: cfg.abyss_report_gs_version || '',
         abyss_report_sr_version: cfg.abyss_report_sr_version || '',
@@ -1049,6 +1130,15 @@ export const supportGuoba = () => ({
       yaml.set(_path + 'config.yaml', 'bh3_guide_godwar_sources', String(data.bh3_guide_godwar_sources || '').trim())
       yaml.set(_path + 'config.yaml', 'zzz_guide_defense_sources', String(data.zzz_guide_defense_sources || '').trim())
       yaml.set(_path + 'config.yaml', 'zzz_guide_deadly_sources', String(data.zzz_guide_deadly_sources || '').trim())
+      yaml.set(_path + 'config.yaml', 'custom_guide_enable', !!data.custom_guide_enable)
+      yaml.set(_path + 'config.yaml', 'custom_guide_forward', data.custom_guide_forward === 'off' ? 'off' : 'on')
+      yaml.set(_path + 'config.yaml', 'custom_guide_uid', String(data.custom_guide_uid || '').trim())
+      yaml.set(_path + 'config.yaml', 'custom_guide_gs_uid', String(data.custom_guide_gs_uid || '').trim())
+      yaml.set(_path + 'config.yaml', 'custom_guide_gs_index', String(data.custom_guide_gs_index || '').trim())
+      yaml.set(_path + 'config.yaml', 'custom_guide_sr_uid', String(data.custom_guide_sr_uid || '').trim())
+      yaml.set(_path + 'config.yaml', 'custom_guide_sr_index', String(data.custom_guide_sr_index || '').trim())
+      yaml.set(_path + 'config.yaml', 'custom_guide_zzz_uid', String(data.custom_guide_zzz_uid || '').trim())
+      yaml.set(_path + 'config.yaml', 'custom_guide_zzz_index', String(data.custom_guide_zzz_index || '').trim())
       yaml.set(_path + 'config.yaml', 'abyss_report_repos', String(data.abyss_report_repos || '').trim())
       yaml.set(_path + 'config.yaml', 'abyss_report_gs_version', String(data.abyss_report_gs_version || '').trim())
       yaml.set(_path + 'config.yaml', 'abyss_report_sr_version', String(data.abyss_report_sr_version || '').trim())
@@ -1069,6 +1159,7 @@ export const supportGuoba = () => ({
         'video_priority', 'voice_priority', 'update_priority', 'config_priority', 'tlp_priority',
         'help_priority', 'picture_priority', 'npc_wt_priority', 'huobi_priority',
         'role_combat_priority', 'zzz_md_priority', 'currency_balance_priority',
+        'custom_guide_priority',
         'meme_priority',
       ]
       for (const f of priorityFields) {

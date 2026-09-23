@@ -10,6 +10,25 @@ const ZZZ_RAW_BASE = 'https://raw.githubusercontent.com/iaoongin/GachaClock/main
 const ZZZ_CACHE_KEY = 'xhh:zzz:pool_history:data:v2';
 const ZZZ_CACHE_EXPIRE_KEY = 'xhh:zzz:pool_history:expire:v2';
 const ZZZ_POOL_HISTORY_YAML_PATH = './plugins/xhh/system/default/zzz_gacha_pool_history.yaml';
+const ZZZ_BWIKI_URL = 'https://wiki.biligame.com/zzz/%E8%B0%83%E9%A2%91';
+// 星铁只认「历史跃迁」页：当期「跃迁」页只列当前版本的少数几期，且联动池（长期）与常规池共用同一版本标签，
+// 用它同步会把「长期」时间写进常规池条目（4.4上半被改成 07/24 ~ 长期）。
+const SR_BWIKI_URL = 'https://wiki.biligame.com/sr/' + encodeURIComponent('历史跃迁');
+// 米游社「官方号搜索接口」：按标题关键词搜某个官方号发的公告，再按图片索引取图。
+// 结构参考社区插件：['帖子标题关键字段', 作者uid, [图片索引数组], '作者名']
+const MYS_SEARCH_API = 'https://bbs-api.miyoushe.com/painter/api/user_instant/search/list';
+const MYS_OFFICIAL_UID = { gs: '75276539', sr: '288909600', zzz: '152039148', bh3: '73565430' };
+// 各游戏卡池公告的标题特征：只认带这些词的帖子，避免匹配到「版本更新说明/问题反馈」之类
+const MYS_TITLE_MATCH = {
+  gs: /祈愿/,
+  sr: /跃迁/,
+  zzz: /频段|调频/,
+  bh3: /补给|跃升|协同|神之键|服装|扩充|精准/
+};
+const MYS_MAX_IMAGES = 10;
+const MYS_COVER_CACHE = new Map();
+const MYS_ASPECT_CACHE = new Map();
+const YS_BWIKI_URL = 'https://wiki.biligame.com/ys/' + encodeURIComponent('往期祈愿');
 const GS_POOL_HISTORY_YAML_PATH = './plugins/xhh/system/default/gslogs.yaml';
 const SR_POOL_HISTORY_YAML_PATH = './plugins/xhh/system/default/sr_logs.yaml';
 const BH3_POOL_HISTORY_YAML_PATH = './plugins/xhh/system/default/bh3_gacha_pool_history.yaml';
@@ -20,12 +39,65 @@ const ZZZ_MARK_ICON = 'zzz_md/imgs/ellen.png';
 const GS_MARK_ICON = 'gs_mark/paimon.png';
 const SR_MARK_ICON = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
 const MYS_MARK_ICON = 'gacha_pool/mys.png';
-const CURRENT_VERSION = { gs: '7.0', sr: '4.5', zzz: '3.1', bh3: '9.0' };
+const CURRENT_VERSION = { gs: '7.1', sr: '4.5', zzz: '3.1', bh3: '9.0' };
 const ZZZ_VERSION_UP_NAMES = {
   '3.0上半': ['维琳娜', '叶瞬光'],
   '3.0下半': ['诺姆', '千夏'],
   '3.0': ['维琳娜', '叶瞬光', '诺姆', '千夏']
 };
+
+// —— 崩三版本更新时间 ——
+// 优先用自动抓取的结果（落盘 bh3_version_start.json，来源：米游社「X.X版本更新公告」），
+// 抓不到时用种子表，最后按 BH3_VERSION_DAYS（约 63 天）外推。
+// bh3_calendar.js 也从这里取，崩三日历与卡池同步共用一份，无需手工维护版本号。
+const BH3_VERSION_START_FILE = './plugins/xhh/system/default/bh3_version_start.json';
+const BH3_VERSION_START_SEED = {
+  // 崩三补给节奏：12:00 开、04:00 收（如 9月4日12:00~9月24日04:00）
+  '9.0': '2026-07-23 12:00',
+  '9.1': '2026-09-24 12:00'
+};
+// 注意：这里一律不要 export —— Yunzai 的插件加载器会遍历本模块的导出项，
+// 普通函数也有 prototype，会被误当成插件类实例化，导致真正的插件类没被注册（指令全部失效）。
+const BH3_VERSION_DAYS = 63;
+
+function readBh3VersionStartMap() {
+  try {
+    const json = JSON.parse(fs.readFileSync(BH3_VERSION_START_FILE, 'utf-8'));
+    return (json && typeof json === 'object' && !Array.isArray(json)) ? json : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+// 合并写入：{ '9.1': '2026-09-24 06:00' }
+function writeBh3VersionStarts(map = {}) {
+  const merged = { ...readBh3VersionStartMap() };
+  for (const [k, v] of Object.entries(map || {})) {
+    if (k && v) merged[String(k)] = String(v);
+  }
+  try {
+    fs.writeFileSync(BH3_VERSION_START_FILE, JSON.stringify(merged, null, 2), 'utf-8');
+    return merged;
+  } catch (_) {
+    return null;
+  }
+}
+
+// 取版本开始时间戳：自动抓取结果 > 种子表；都没有返回 null（由调用方按节奏外推）
+function bh3VersionStart(version = '') {
+  const raw = String(version ?? '').trim();
+  const num = Number(raw);
+  const keys = [raw, Number.isNaN(num) ? '' : num.toFixed(1)];
+  const file = readBh3VersionStartMap();
+  for (const k of keys) {
+    if (!k) continue;
+    const val = file[k] || BH3_VERSION_START_SEED[k];
+    if (!val) continue;
+    const ts = new Date(String(val).replace(/-/g, '/')).getTime();
+    if (!Number.isNaN(ts)) return ts;
+  }
+  return null;
+}
 
 export class xhh_gacha_pool extends plugin {
   constructor(e) {
@@ -43,6 +115,8 @@ export class xhh_gacha_pool extends plugin {
         { reg: '^#*(?:xhh)?(小花火)?(崩三|崩坏3|崩坏三|BH3)(当前|本期|当期)?(卡池|补给)$', fnc: 'bh3CurrentPool' },
         { reg: '^#*(?:xhh)?(小花火)?(崩三|崩坏3|崩坏三|BH3)v?(\\d+\\.\\d+)(上半|下半)?(卡池|补给)$', fnc: 'bh3VersionPool' },
         { reg: '^#*(?:xhh)?(小花火)?(崩三|崩坏3|崩坏三|BH3)(卡池|补给)(统计|记录|历史|全)$', fnc: 'bh3AllPool' },
+        // 「崩三历史卡池 / 崩三全部卡池」：历史/全部 在前的新叫法，与绝区零「绝区零历史卡池」保持一致
+        { reg: '^#*(?:xhh)?(小花火)?(崩三|崩坏3|崩坏三|BH3)(历史|全部|统计|记录)(卡池|补给)$', fnc: 'bh3AllPool' },
         // 原神卡池
         { reg: '^[#＃井]*(?:xhh)?\\s*(?:小花火)?\\s*原神\\s*(?:当前|本期|当期)?\\s*卡池$', fnc: 'gsCurrentPool' },
         { reg: '^[#＃井]*(?:xhh)?\\s*(?:小花火)?\\s*原神\\s*v?(\\d+\\.\\d+)\\s*(上半|下半)?\\s*卡池$', fnc: 'gsVersionPool' },
@@ -55,6 +129,8 @@ export class xhh_gacha_pool extends plugin {
         { reg: '^#*(?:xhh)?(小花火)?(星铁|崩铁|星穹铁道)(统计|记录|历史|全部|全|时间轴)(卡池|跃迁)$', fnc: 'srAllPool' },
         { reg: '^#*(?:xhh)?(小花火)?(星铁|崩铁|星穹铁道)(?!v?\\d+\\.\\d+)(?!官方|米游社)(.+)(卡池|跃迁)$', fnc: 'srNameHistory' },
         // 官方/米游社卡池必须在 bh3NameHistory 之前，否则"崩三官方卡池"会被误判为角色名
+        // 强制刷新：绕过风控冷却，用来确认米游社是否已解除风控
+        { reg: '^#*(?:xhh)?(小花火)?(强制|立即)(更新|刷新)卡池(数据)?$', fnc: 'refreshOfficialPools' },
         { reg: '^#*(?:xhh)?(小花火)?((原神|星铁|崩铁|星穹铁道|绝区零|ZZZ|崩三|崩坏3|崩坏三|BH3))?(米游社|官方)?(更新|刷新)卡池(数据)?$', fnc: 'refreshOfficialPools' },
         { reg: '^#*(?:xhh)?(小花火)?(全游戏|全部|所有)?(当前|本期|当期)卡池$', fnc: 'allCurrentPool' },
         { reg: '^#*(?:xhh)?(小花火)?(原神|星铁|崩铁|星穹铁道|绝区零|ZZZ|崩三|崩坏3|崩坏三|BH3)?(米游社|官方)(当前|本期|当期)?卡池$', fnc: 'officialCurrentPool' },
@@ -70,6 +146,13 @@ export class xhh_gacha_pool extends plugin {
         { reg: '^(?!#*(?:xhh)?(?:小花火)?(?:原神|星铁|崩铁|崩三|崩坏3|崩坏三|BH3|绝区零|ZZZ))#*(?:xhh)?(小花火)?([\u4e00-\u9fa5A-Za-z0-9·・•!！「」『』（）()]{1,16})(卡池|复刻)(统计|记录|历史)?$', fnc: 'genericNameHistory' }
       ]
     });
+    // 每 24 小时自动跑一次「#刷新卡池」的等价逻辑（不回复消息，只打日志）
+    this.task = {
+      cron: '0 30 5 * * *', // 每天 05:30（秒 分 时 日 月 周）
+      name: '[小花火]全游戏卡池数据自动刷新',
+      fnc: () => this.autoRefreshPools(),
+      log: true
+    };
   }
 
   async accept(e) {
@@ -396,7 +479,7 @@ export class xhh_gacha_pool extends plugin {
   poolToCard(pool = {}) {
     return {
       version: pool.version || '-',
-      title: pool.title || this.poolTypeName(pool),
+      title: pool.title || (pool.s ? `${this.poolTypeName(pool)}·${pool.s}` : this.poolTypeName(pool)),
       type: this.poolTypeName(pool),
       time: this.zzzPoolTime(pool),
       s: pool.s || '-',
@@ -854,6 +937,29 @@ export class xhh_gacha_pool extends plugin {
             card.a = aList.map(v => String(v).trim()).filter(Boolean).join(' / ');
           }
         }
+        // 背景图兜底：本地库没配公告图、且本地立绘缺质量档时，用官方公告封面补背景
+        // （如 7.1上半 沃雅妮莎：无公告图 + 无立绘，掉到 face 小头像被拉伸糊掉）。
+        for (const card of cards) {
+          // 本地库没配公告图（用的是本地资源拼的立绘）时，用官方公告封面覆盖，保证各卡池用各自公告的图
+          if (card.img && !card.imgFallback) continue;
+          const isWpnCard = /武器|神铸/.test(card.title || '');
+          const cardS = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+          if (!cardS.length) continue;
+          const hit = records.find(r => {
+            const t = r.title || '';
+            // 池类型必须一致，且排除「活动祈愿预告」这类汇总公告：
+            // 否则武器卡会匹配到角色/预告公告的封面（角色立绘），导致和角色卡撞图。
+            if (/预告/.test(t)) return false;
+            const rWpn = /神铸赋形|武器/.test(t);
+            if (isWpnCard !== rWpn) return false;
+            const rS = (r.up?.s || []).map(v => String(v).trim());
+            if (rS.some(n => cardS.some(cs => cs && (cs.includes(n) || n.includes(cs))))) return true;
+            const rText = `${t}${r.summary || ''}`;
+            return cardS.some(cs => cs && rText.includes(cs));
+          });
+          const cover = hit ? (hit.cover || hit.images?.[0] || '') : '';
+          if (cover) card.img = cover;
+        }
       }
     } catch (err) {
       logger.warn('[xhh][gacha_pool] 原神四星公告自动解析失败，回退硬编码:', err?.message || err);
@@ -1032,10 +1138,23 @@ export class xhh_gacha_pool extends plugin {
 
       // 汇总页也优先使用各游戏“当前期”的本地结构化数据，避免米游社公告列表混入旧版本公告。
       const gsCards = await this.loadGsLocalCards('current');
-      if (gsCards.length) cards.push(...gsCards);
-      else cards.push(...(resultOf('gs').records || [])
-        .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.gs))
-        .slice(0, 5).map(v => this.officialCard(v, '原神')));
+      if (gsCards.length) {
+        // 封面统一走米游社：本地库没有公告图时会退回 miao-plugin 竖版立绘（塞进横卡面被放大裁成特写），
+        // 先用公告图覆盖，列表里没有祈愿公告时再用搜索接口补横版图
+        try {
+          const gsRecords = resultOf('gs').records || [];
+          if (gsRecords.length) this.applyGsOfficialCovers(gsCards, gsRecords);
+        } catch (_) {}
+        await this.attachGsOfficialCovers(gsCards, true);
+        cards.push(...gsCards);
+      } else {
+        // 本地库没数据时走公告，米游社列表常不带封面，用搜索接口补回来
+        const gsOfficialCards = (resultOf('gs').records || [])
+          .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.gs))
+          .slice(0, 5).map(v => this.officialCard(v, '原神'));
+        await this.attachGsOfficialCovers(gsOfficialCards);
+        cards.push(...gsOfficialCards);
+      }
 
       const srCards = await this.loadSrLocalCards('current', resultOf('sr').records || []);
       if (srCards.length) cards.push(...srCards);
@@ -1050,7 +1169,7 @@ export class xhh_gacha_pool extends plugin {
           const { start, end } = this.parseTime(p);
           return start && end && now >= start && now <= end;
         });
-        if (zzzCurrent.length) cards.push(...this.applyZzzCardBackgrounds(zzzCurrent.map(p => this.poolToCard(p)), resultOf('zzz').records || []));
+        if (zzzCurrent.length) cards.push(...await this.applyZzzCardBackgrounds(zzzCurrent.map(p => this.poolToCard(p)), resultOf('zzz').records || []));
       }
       if (!cards.some(c => c.type === '代理人频段' || c.type === '音擎频段')) {
         cards.push(...(resultOf('zzz').records || [])
@@ -1067,6 +1186,8 @@ export class xhh_gacha_pool extends plugin {
       }
 
       if (!cards.length) return e.reply('暂未从米游社官方公告匹配到卡池/补给信息。');
+      // 排查用：打印每张卡最终使用的封面链接，确认封面来源（公告图 / 本地立绘 / 无图）
+      logger.mark('[xhh][gacha_pool] 汇总卡池封面:', '\n  ' + cards.map(c => `${c.title} => ${c.img || '(无图)'}${c.imgFallback ? ' [Fallback]' : ''}`).join('\n  '));
       return this.renderPoolImage(e, {
         game: '米游社',
         title: '官方当前卡池',
@@ -1122,8 +1243,11 @@ export class xhh_gacha_pool extends plugin {
     const { records, error, cache } = await officialPool.fetch(game);
     if (!records.length) return e.reply(`${meta.name}米游社公告卡池数据获取失败${error ? '：' + error : ''}`);
     const cards = records.map(r => this.officialCard(r, meta.name));
-    // 原神官方公告若没解析出 4 星，用本地库同池数据兜底补齐
-    if (game === 'gs') await this.patchGsOfficialCards(cards);
+    // 原神官方公告若没解析出 4 星，用本地库同池数据兜底补齐；封面缺失时用搜索接口找回公告 banner
+    if (game === 'gs') {
+      await this.patchGsOfficialCards(cards);
+      await this.attachGsOfficialCovers(cards);
+    }
     // 绝区零官方公告若没解析出 UP 信息，用本地卡池库兜底补齐
     else if (game === 'zzz') await this.patchZzzOfficialCards(cards);
     const markIcon = game === 'zzz'
@@ -1179,8 +1303,11 @@ export class xhh_gacha_pool extends plugin {
     const { records, error, cache } = await officialPool.fetch(game, { version });
     if (!records.length) return e.reply(`${meta.name} v${version} 未找到米游社官方卡池公告${error ? '：' + error : ''}`);
     const cards = records.map(r => this.officialCard(r, meta.name));
-    // 原神官方公告若没解析出 4 星，用本地库同池数据兜底补齐
-    if (game === 'gs') await this.patchGsOfficialCards(cards);
+    // 原神官方公告若没解析出 4 星，用本地库同池数据兜底补齐；封面缺失时用搜索接口找回公告 banner
+    if (game === 'gs') {
+      await this.patchGsOfficialCards(cards);
+      await this.attachGsOfficialCovers(cards);
+    }
     // 绝区零官方公告若没解析出 UP 信息，用本地卡池库兜底补齐
     else if (game === 'zzz') await this.patchZzzOfficialCards(cards);
     const markIcon = game === 'zzz'
@@ -1197,8 +1324,46 @@ export class xhh_gacha_pool extends plugin {
     });
   }
 
+  // 定时任务：24 小时自动刷新一次，与 #刷新卡池 等价但不回复消息。
+  // 米游社风控冷却期内自动跳过，避免定时任务加重风控；同步结果只写本地库 + 打日志。
+  async autoRefreshPools() {
+    try {
+      if (await redis.get('xhh:gacha_pool:risk_control')) {
+        logger.mark('[xhh][gacha_pool] 米游社风控冷却中，跳过本次自动刷新');
+        return;
+      }
+    } catch (_) {}
+    try {
+      await redis.del(ZZZ_CACHE_KEY);
+      await redis.del(ZZZ_CACHE_EXPIRE_KEY);
+    } catch (_) {}
+    try {
+      const results = await officialPool.refreshAll();
+      if (results.some(r => r.riskControl)) {
+        try {
+          await redis.set('xhh:gacha_pool:risk_control', '1', { EX: 30 * 60 });
+        } catch (_) {}
+        logger.warn('[xhh][gacha_pool] 自动刷新命中米游社风控(1034)，已跳过本地卡池库同步');
+        await this.fillBh3TimesOnRisk(results);
+        return;
+      }
+      const lines = await this.syncLocalPoolsFromOfficial(results);
+      logger.mark(`[xhh][gacha_pool] 卡池自动刷新完成：${results.map(r => `${r.game} ${r.records.length} 条`).join('，')}` +
+        (lines.length ? ` | ${lines.join(' | ')}` : ''));
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] 卡池自动刷新失败:', err);
+    }
+  }
+
   async refreshOfficialPools(e) {
     logger.mark('[xhh][gacha_pool] 刷新米游社官方卡池数据:', e.msg);
+    // 风控冷却期内默认拒绝刷新（继续请求会加重风控），但主人或「强制刷新」可绕过，方便随时验证是否已解除
+    const force = /强制|立即|force/i.test(String(e?.msg || ''));
+    try {
+      if (!force && !e?.isMaster && await redis.get('xhh:gacha_pool:risk_control')) {
+        return e.reply('米游社接口处于风控冷却期（触发后 10 分钟内不再刷新）；确认要试可用「#强制刷新卡池数据」，卡池查询不受影响。');
+      }
+    } catch (_) {}
     // 刷新官方公告时，同时清理绝区零本地历史缓存，避免旧缓存遮住新版本数据。
     try {
       await redis.del(ZZZ_CACHE_KEY);
@@ -1209,6 +1374,22 @@ export class xhh_gacha_pool extends plugin {
       const meta = officialPool.games[r.game];
       return `${meta?.name || r.game}：${r.records.length} 条${r.error ? '（' + r.error + '）' : ''}`;
     });
+    // 米游社详情接口风控（1034）时公告正文拿不全：本次不做本地库同步，
+    // 避免用残缺数据覆盖好数据；并进入冷却，防止继续猛刷加重风控。
+    const risk = results.some(r => r.riskControl);
+    if (risk) {
+      try {
+        await redis.set('xhh:gacha_pool:risk_control', '1', { EX: 10 * 60 });
+      } catch (_) {}
+      // 详情接口被风控时同步整体跳过，但崩三的开放时间走「瞬间搜索」接口（不受影响），单独补录一次
+      const bh3Note = await this.fillBh3TimesOnRisk(results);
+      return e.reply('米游社官方卡池数据已刷新：\n' + lines.join('\n') + bh3Note +
+        '\n\n【注意】米游社详情接口命中风控(1034)，本次已跳过本地卡池库同步（避免写入残缺数据），10 分钟内请不要重复刷新；确认已解除可用「#强制刷新卡池数据」，查询指令不受影响。');
+    }
+    // 未命中风控：清掉冷却标记，后续刷新恢复正常
+    try {
+      await redis.del('xhh:gacha_pool:risk_control');
+    } catch (_) {}
     // 刷新成功后自动同步本地卡池库，避免每个版本都要手动维护 gslogs.yaml / sr_logs.yaml。
     const syncLines = await this.syncLocalPoolsFromOfficial(results);
     const syncText = syncLines.length ? '\n\n【本地卡池库自动同步】\n' + syncLines.join('\n') : '';
@@ -1270,16 +1451,112 @@ export class xhh_gacha_pool extends plugin {
     return `${start} ${startTime}~${end} ${endTime}`;
   }
 
-  syncSrImagesFromOfficial(records = []) {
+  // 调官方号搜索接口取某个官方号发的帖子列表
+  async mysSearchPosts(uid = '', keyword = '') {
+    const url = `${MYS_SEARCH_API}?keyword=${encodeURIComponent(keyword)}&uid=${uid}&size=20&offset=0&sort_type=2`;
+    const res = await fetch(url, {
+      headers: { Referer: 'https://www.miyoushe.com', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36' },
+      signal: AbortSignal.timeout(8000)
+    });
+    const json = await res.json();
+    return (json?.data?.list || []).map(it => it?.post?.post || {});
+  }
+
+  // 通用取图：游戏 + 标题关键词 + 图片索引数组 → 图片 URL 数组
+  async mysSearchImages(game = '', keyword = '', indexes = [0]) {
+    const uid = MYS_OFFICIAL_UID[game];
+    if (!uid || !keyword) return [];
+    const key = `${game}|${keyword}|${indexes.join(',')}`;
+    if (MYS_COVER_CACHE.has(key)) return MYS_COVER_CACHE.get(key);
+    let out = [];
+    try {
+      const posts = await this.mysSearchPosts(uid, keyword);
+      const re = MYS_TITLE_MATCH[game] || /./;
+      // 命中多条时优先选「标题里就带这个关键词」的那条：
+      // 否则同版本的两个 UP（如 维琳娜/叶瞬光）会都取到同一张公告图，崩三还可能取到不相干的情报帖
+      const cands = posts
+        .filter(p => re.test(String(p.subject || '')) && ((p.images || []).length || p.cover?.url))
+        .map(p => ({ p, hit: String(p.subject || '').includes(keyword) ? 1 : 0 }))
+        .sort((a, b) => b.hit - a.hit);
+      const hit = cands[0]?.p;
+      if (hit) {
+        const imgs = [hit.cover?.url || '', ...(hit.images || [])].filter(Boolean).slice(0, MYS_MAX_IMAGES);
+        out = indexes.map(i => imgs[i]).filter(Boolean);
+        if (!out.length && imgs.length) out = [imgs[0]];
+      }
+    } catch (err) {
+      logger.warn(`[xhh][gacha_pool] 米游社取图失败（${game}/${keyword}）:`, err);
+    }
+    MYS_COVER_CACHE.set(key, out);
+    return out;
+  }
+
+  // 用「官方号搜索接口」按版本号/UP名找回已滚出 getNewsList 列表的旧公告封面。
+  // 公告列表只保留最新几十条，上半那种早过期的公告列表里翻不到，但搜索接口仍能命中
+  // （如「4.5版本活动跃迁（其一）」就有封面 + 8 张正文图）。
+  async srSearchPoolImages(ver = '', upNames = [], weapon = false) {
+    const verRaw = String(ver || '');
+    const isCollab = /^联动/.test(verRaw);
+    const version = verRaw.replace(/联动|上半|下半/g, '').trim();
+    const phase = /下半/.test(verRaw) ? '其二' : (/上半/.test(verRaw) ? '其一' : '');
+    const names = (upNames || []).filter(Boolean);
+    const key = `${verRaw}|${weapon ? 1 : 0}|${names[0] || ''}`;
+    if (SR_COVER_CACHE.has(key)) return SR_COVER_CACHE.get(key);
+    const keywords = isCollab
+      ? ['联动跃迁']
+      : [...(version ? [`${version}版本活动跃迁`] : []), ...(names[0] ? [names[0]] : [])];
+    let result = '';
+    for (const kw of keywords) {
+      let list = [];
+      try {
+        list = await this.mysSearchPosts(MYS_OFFICIAL_UID.sr, kw);
+      } catch (err) {
+        logger.warn(`[xhh][gacha_pool] 星铁封面搜索失败（${kw}）:`, err);
+        continue;
+      }
+      let best = null;
+      let bestScore = -1;
+      for (const p of list) {
+        const subject = String(p.subject || '');
+        if (!/跃迁/.test(subject)) continue;
+        const imgs = [p.cover?.url || '', ...(p.images || [])].filter(Boolean);
+        if (!imgs.length) continue;
+        let score = 0;
+        if (version && subject.includes(version)) score += 10;
+        if (phase && subject.includes(phase)) score += 8;
+        if (isCollab && /联动/.test(subject)) score += 6;
+        for (const n of names) if (n && subject.includes(n)) score += 3;
+        if (score > bestScore) {
+          best = imgs;
+          bestScore = score;
+        }
+      }
+      if (best) {
+        result = weapon ? (best[1] || best[0]) : best[0];
+        break;
+      }
+    }
+    MYS_COVER_CACHE.set(key, result);
+    return result;
+  }
+
+  async syncSrImagesFromOfficial(records = []) {
     // 用官方公告列表为本地已有条目补背景图，即使正文为空也能更新图片。
     const history = this.loadSrPoolHistory();
-    if (!Array.isArray(history) || !records.length) return false;
+    if (!Array.isArray(history)) return false;
     let changed = false;
+    let searched = 0;
     for (const item of history) {
       if ((item.imgs || []).filter(Boolean).length) continue;
       const roleImg = this.getSrOfficialPoolImage(item, false, records);
       const weaponImg = this.getSrOfficialPoolImage(item, true, records);
-      const imgs = [...new Set([roleImg, weaponImg].filter(Boolean))];
+      let imgs = [...new Set([roleImg, weaponImg].filter(Boolean))];
+      // 公告列表里翻不到（旧版本/过期池）时，改用官方号搜索接口找回封面
+      if (!imgs.length && searched < 12) {
+        searched++;
+        const found = await this.srSearchPoolImages(item.ver, item.js_five || [], false);
+        if (found) imgs = [found];
+      }
       if (imgs.length) {
         item.imgs = imgs;
         changed = true;
@@ -1296,204 +1573,280 @@ export class xhh_gacha_pool extends plugin {
   }
 
   async syncSrLocalFromOfficial(records = []) {
-    // 先用官方公告列表为所有缺图的本地条目补背景图（不受正文解析影响）。
-    const imgsSynced = this.syncSrImagesFromOfficial(records);
-
-    // 取最新版本的「活动跃迁」公告（标题带版本号，正文含完整 UP 列表）
-    const jumps = records
-      .filter(r => /活动跃迁/.test(r.title || '') && /^\d+\.\d+$/.test(r.version || ''))
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    const jump = jumps[0];
-    if (!jump) {
-      return imgsSynced
-        ? '星穹铁道：本地库已补背景图（未找到新版本活动跃迁公告）'
-        : '星穹铁道：官方暂无「活动跃迁」公告，本地库保持现状';
-    }
-    const version = jump.version;
-    const phase = /（其二）|（2）/.test(jump.title) ? '下半' : '上半';
-    const ver = `${version}${phase}`;
-    const history = this.loadSrPoolHistory();
-    const banner = jump.cover || (jump.images || [])[0] || '';
-    // 已是最新版本：优先直接跳过，避免正文解析异常时误报「公告正文为空」（本地库含人工修正字段）
-    if (Array.isArray(history) && history[0]?.ver === ver) {
-      // 已是最新但缺背景图时补图，不覆盖 js_five/gz_five 等手动修正字段。
-      if (banner && !(history[0].imgs || []).filter(Boolean).length) {
-        try {
-          history[0].imgs = [banner];
-          fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(history), 'utf-8');
-          return `星穹铁道：本地库已是最新 v${ver}（已补背景图）`;
-        } catch (err) {
-          logger.error('[xhh][gacha_pool] sr_logs.yaml 背景图补写失败:', err);
+    // 优先用 Bwiki 跃迁页的准确「版本+时间区间+S级」合并进本地库（米游社公告解析易失败）。
+    const bwiki = await this.fetchSrPoolHistoryFromBwiki();
+    if (Array.isArray(bwiki) && bwiki.length) {
+      try {
+        const local = Array.isArray(this.loadSrPoolHistory()) ? this.loadSrPoolHistory() : [];
+        // 同一版本可能有多期（上半/下半/复刻/联动），只用 ver 做键会让它们互相覆盖数据
+        // （如 4.4上半 的复刻池被联动池的「长期」时间覆盖）。改用「版本 + 时间区间」做主键，
+        // 再用 UP 名交集做二次匹配；联动（长期）只匹配本地已有的 联动* 条目。
+        const periodKey = e => `${e.ver || ''}||${String(e.time || '').split('~')[1]?.trim() || ''}||${String(e.time || '').split('~')[0]?.trim() || ''}`;
+        const upsOf = e => [...(e.js_five || []), ...(e.gz_five || [])].map(v => String(v).split('/').pop());
+        const byKey = new Map(local.map(e => [periodKey(e), e]));
+        let added = 0, updated = 0;
+        for (const b0 of bwiki) {
+          const b = { ...b0 };
+          const isCollab = /长期/.test(b.time || '');
+          const bUps = upsOf(b);
+          // Bwiki 的联动池挂在普通版本号下面（如 3.4上半 / 4.4上半）且时间为 长期：
+          // 直接按 Bwiki 的版本号新增会让「3.4上半 长期」这类条目永远赖在当前卡池里。
+          // 统一归到本地的「联动X.0」标签下，已存在同 UP 的联动条目就合并进去。
+          if (isCollab && !/^联动/.test(String(b.ver || ''))) {
+            const existCollab = local.find(v => /^联动/.test(String(v.ver || '')) && upsOf(v).some(n => bUps.includes(n)));
+            b.ver = existCollab?.ver || '联动2.0';
+          }
+          let ex = byKey.get(periodKey(b));
+          if (!ex && isCollab) {
+            ex = local.find(v => /^联动/.test(String(v.ver || '')) && upsOf(v).some(n => bUps.includes(n)));
+          }
+          if (!ex) {
+            ex = local.find(v => v.ver === b.ver && upsOf(v).some(n => bUps.includes(n)));
+          }
+          if (!ex) {
+            // 长线/永久联动（结束年超过当前+1 年）按 长期 处理，避免具体未来日期抢占"最新"。
+            const addEnd = (b.time || '').split('~')[1]?.trim() || '';
+            const addYear = new Date(addEnd).getFullYear();
+            const addFar = !/长期/.test(b.time || '') && !Number.isNaN(addYear) && addYear > new Date().getFullYear() + 1;
+            ex = { ver: b.ver, time: addFar ? '长期' : b.time, js_five: b.js_five, js_four: b.js_four, gz_five: b.gz_five, gz_four: b.gz_four, imgs: [] };
+            local.unshift(ex);
+            byKey.set(periodKey(ex), ex);
+            added++;
+          } else {
+            // 只有真的改了才算「修正」：先快照，改完比对，避免每次刷新都报一堆修正数
+            const before = JSON.stringify(ex);
+            // 已标记为 长期 的条目不被 Bwiki 的具体时间覆盖；同时拒绝结束年超过当前+1 年的未来时间。
+            const curIsLong = /长期/.test(ex.time || '');
+            const candEnd = (b.time || '').split('~')[1]?.trim() || '';
+            const curEnd = (ex.time || '').split('~')[1]?.trim() || '';
+            const candYear = new Date(candEnd).getFullYear();
+            const farFuture = !/长期/.test(b.time || '') && !Number.isNaN(candYear) && candYear > new Date().getFullYear() + 1;
+            // 只有匹配到的是联动条目（本身就是长期）时才允许写「长期」时间，
+            // 否则联动池的 长期 会把常规池的具体结束时间顶掉（4.4上半被改成 07/24 ~ 长期）。
+            const allowLong = isCollab && /^联动/.test(String(ex.ver || ''));
+            if (b.time && !curIsLong && !farFuture && (allowLong || (/长期/.test(b.time) === allowLong)) && (!ex.time || new Date(candEnd) > new Date(curEnd || 0))) ex.time = b.time;
+            if (!ex.js_five?.length && b.js_five?.length) ex.js_five = b.js_five;
+            if (!ex.gz_five?.length && b.gz_five?.length) ex.gz_five = b.gz_five;
+            if (!ex.js_four?.length && b.js_four?.length) ex.js_four = b.js_four;
+            if (!ex.gz_four?.length && b.gz_four?.length) ex.gz_four = b.gz_four;
+            if (JSON.stringify(ex) !== before) updated++;
+          }
         }
-      }
-      return `星穹铁道：本地库已是最新 v${ver}`; // 已同步
-    }
-    const text = jump.contentText || '';
-    if (!text) {
-      return imgsSynced
-        ? '星穹铁道：官方公告正文为空，本地库已补背景图'
-        : '星穹铁道：官方公告正文为空，跳过本地同步';
-    }
-    const jsFive = [];
-    const jsFour = [];
-    const gzFive = [];
-    const gzFour = [];
-    for (const m of text.matchAll(/限定5星角色\s*「([^」]+)」/g)) {
-      const n = this.srLocalName(m[1]);
-      if (n && !jsFive.includes(n)) jsFive.push(n);
-    }
-    for (const m of text.matchAll(/4星角色((?:\s*「[^」]+」)+)/g)) {
-      for (const n of m[1].matchAll(/「([^」]+)」/g)) {
-        const name = this.srLocalName(n[1]);
-        if (name && !jsFour.includes(name)) jsFour.push(name);
+        // 结束时间倒序；「长期」/无法解析的时间戳视为最远，避免 new Date('长期') = NaN 导致排序错乱
+        const endTime = e => {
+          const t = String(e?.time || '').split('~')[1]?.trim() || '';
+          const n = new Date(t).getTime();
+          return /长期/.test(t) || !t || Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
+        };
+        local.sort((a, b) => endTime(b) - endTime(a));
+        fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(local), 'utf-8');
+        // 联动池长期开放（结束时间最远），不能算「最新版本」；排除后再取最新。
+        const latest = local.find(v => !/^联动/.test(String(v?.ver || ''))) || local[0];
+        await this.syncSrImagesFromOfficial(records); // 仍尝试用官方公告补背景图
+        logger.mark(`[xhh][gacha_pool] 星铁 Bwiki 同步明细：新增 ${added} / 修正 ${updated}`);
+        return `星穹铁道：本地库已同步 Bwiki 跃迁（最新 v${latest?.ver || ''}）`;
+      } catch (err) {
+        logger.warn('[xhh][gacha_pool] 星铁 Bwiki 合并失败，卡池数据保持现状:', err);
       }
     }
-    for (const m of text.matchAll(/限定5星光锥\s*「([^」]+)」/g)) {
-      const n = this.srLocalCone(m[1]);
-      if (n && !gzFive.includes(n)) gzFive.push(n);
-    }
-    for (const m of text.matchAll(/4星光锥((?:\s*「[^」]+」)+)/g)) {
-      for (const n of m[1].matchAll(/「([^」]+)」/g)) {
-        const name = this.srLocalCone(n[1]);
-        if (name && !gzFour.includes(name)) gzFour.push(name);
-      }
-    }
-    if (!jsFive.length) return '星穹铁道：公告未解析到 5 星 UP 角色，跳过本地同步';
-    const tm = text.match(/活动跃迁时间[为:：]?\s*(\d{4}\/\d{1,2}\/\d{1,2})[\s\S]*?[至\-~]\s*(\d{4}\/\d{1,2}\/\d{1,2}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?)/);
-    const time = tm ? `${tm[1]} ~ ${tm[2]}` : '';
-    const entry = { ver, time, js_five: jsFive, js_four: jsFour, gz_five: gzFive, gz_four: gzFour, imgs: banner ? [banner] : [] };
-    try {
-      const next = [entry, ...(Array.isArray(history) ? history : [])];
-      fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(next), 'utf-8');
-      if (CURRENT_VERSION.sr !== version) CURRENT_VERSION.sr = version;
-      return `星穹铁道：本地库已自动同步至 v${ver}`;
-    } catch (err) {
-      logger.error('[xhh][gacha_pool] sr_logs.yaml 自动同步写入失败:', err);
-      return '';
-    }
+    // 卡池数据只认 wiki（Bwiki）：Bwiki 抓不到时不用米游社公告写条目/时间/UP，仅用公告补封面。
+    const imgsSynced = await this.syncSrImagesFromOfficial(records);
+    return imgsSynced
+      ? '星穹铁道：Bwiki 抓取失败，卡池数据保持现状（已用米游社补封面）'
+      : '星穹铁道：Bwiki 抓取失败，卡池数据保持现状';
   }
 
   async syncGsLocalFromOfficial(records = []) {
-    // 官方当前版本号：优先公告标题 → 正文「X.X版本」→ 本地 CURRENT_VERSION
-    // （原神祈愿公告标题通常不带版本号，需从正文或本地库回退）
-    const verCandidates = [];
-    for (const r of records) {
-      if (/^\d+\.\d+$/.test(r.version || '')) verCandidates.push(r.version);
-      const m = (r.contentText || '').match(/(\d+\.\d+)\s*版本/);
-      if (m) verCandidates.push(m[1]);
-    }
-    if (!verCandidates.length && /^\d+\.\d+$/.test(CURRENT_VERSION.gs || '')) verCandidates.push(CURRENT_VERSION.gs);
-    if (!verCandidates.length) return '原神：官方公告未带版本号，本地库保持现状';
-    const version = verCandidates.map(Number).sort((a, b) => b - a)[0].toFixed(1);
-    const data = this.loadGsPoolHistory();
-    if (!data?.date) return '原神：本地卡池库为空，跳过本地同步';
-    const latestMatch = Object.keys(data.date)[0]?.match(/【(\d+\.\d+)(上半|下半)】/) || [];
-    const latestVer = latestMatch[1] || '';
-    const latestPhase = latestMatch[2] || '';
-    // 即使 date 已存在，如果该版本的 imgs 数组为空或缺失，也允许重新同步补图。
-    const existingImgs = data.imgs?.[`【${version}下半】`] || data.imgs?.[`【${version}上半】`] || [];
-    const imgsComplete = existingImgs.filter(Boolean).length >= 3;
-    // 官方提前发布下一版本祈愿公告时（版本更新前 1~2 天），只预录、不推进当前版本。
-    const isPreview = Number(version) > Number(CURRENT_VERSION.gs || 0);
-    let phase;
-    if (latestVer !== version) {
-      phase = '上半';
-    } else if (isPreview) {
-      // 版本未上线但本地已有该版本条目：旧代码曾把开始时间错误估算成公告发布时间（落在过去），
-      // 导致预录条目在版本上线前就被当成当前卡池。这里自动修正为「版本更新后」占位。
-      return this.repairGsPreviewEntry(data, version, latestPhase, records);
-    } else {
-      const latestKey = Object.keys(data.date)[0] || '';
-      const { end: latestEnd } = this.parseGsDateKey(latestKey);
-      if (latestPhase === '上半' && latestEnd && new Date() < latestEnd) {
-        // 上半仍在进行中：不推进下半，仅在缺图时继续走下方流程补图（sameVerKey 防重复写入）
-        if (CURRENT_VERSION.gs !== version) CURRENT_VERSION.gs = version;
-        if (imgsComplete) return `原神：本地库已是最新 v${version}上半`;
-        phase = '上半';
-      } else {
-        if (latestPhase === '下半' && imgsComplete) return `原神：本地库已是最新 v${version}`;
-        phase = '下半';
+    // 优先用 Bwiki 往期祈愿页的准确「版本+时间区间+S级」补齐本地库（米游社公告解析易失败）。
+    const bwiki = await this.fetchYsPoolHistoryFromBwiki();
+    if (Array.isArray(bwiki) && bwiki.length) {
+      try {
+        const data = this.loadGsPoolHistory() || {};
+        if (!data.date) data.date = {};
+        if (!data.imgs) data.imgs = {};
+        const sorted = [...bwiki].sort((a, b) => new Date(b.time.split('~')[1]) - new Date(a.time.split('~')[1]));
+        const latest = sorted[0];
+        // Bwiki 数据视为权威：解析成 ver → lines，按结束时间倒序保证新版本条目排在最前。
+        const bwikiEntries = [];
+        for (const b of sorted) {
+          // 本地行格式是「5星,4星,4星,4星」：Bwiki 的 4 星角色（charA）是整期共用的，
+          // 必须拼到每个角色行后面，否则同步后四星角色会整期丢失。
+          const fourRoles = (b.charA || []).map(c => this.gsLocalShortName(c)).filter(Boolean);
+          const roleLines = b.charS.map(c => this.gsLocalShortName(c)).filter(Boolean)
+            .map(name => [name, ...fourRoles].join(','));
+          const wpnLine = [...b.wpnS, ...b.wpnA].map(w => this.gsLocalShortName(w)).filter(Boolean).join(',');
+          let lines = [...roleLines, wpnLine].filter(Boolean);
+          // Bwiki 该期还没填 4 星（如刚开的新期）时，沿用本地已整理的 4 星，避免刷新把四星抹掉
+          if (!fourRoles.length) {
+            const localKey = Object.keys(data.date).find(k => k.startsWith(`【${b.ver}】`));
+            const localLines = localKey ? (data.date[localKey] || []).map(String) : [];
+            if (localLines.length) {
+              lines = lines.map((line, i) => {
+                if (i >= roleLines.length) return line;
+                const oldFour = (localLines[i] || '').split(',').slice(1).join(',');
+                return oldFour ? `${line},${oldFour}` : line;
+              });
+            }
+          }
+          if (lines.length) bwikiEntries.push([`【${b.ver}】${b.time}`, lines]);
+        }
+        const bwikiKeySet = new Set(bwikiEntries.map(([k]) => k));
+        const coveredVers = new Set([...bwikiKeySet].map(k => k.match(/^【([^】]+)】/)?.[1]).filter(Boolean));
+        const beforeVers = new Set(Object.keys(data.date).map(k => k.match(/^【([^】]+)】/)?.[1]).filter(Boolean));
+        let added = 0, updated = 0;
+        // 只统计真正发生变化的版本：与本地已有条目逐条比对，
+        // 避免每次刷新都把所有 Bwiki 覆盖到的版本算成「修正」（曾天天显示修正 107 个）。
+        const beforeByVer = new Map();
+        for (const [k, v] of Object.entries(data.date)) {
+          const ver = k.match(/^【([^】]+)】/)?.[1];
+          if (ver && !beforeByVer.has(ver)) beforeByVer.set(ver, JSON.stringify(v));
+        }
+        for (const [k, lines] of bwikiEntries) {
+          const ver = k.match(/^【([^】]+)】/)?.[1] || '';
+          const prev = beforeByVer.get(ver);
+          if (prev === undefined) added++;
+          else if (prev !== JSON.stringify(lines)) updated++;
+        }
+        // 同版本条目以 Bwiki 为准覆盖：修复早期公告同步把「上半」误标成「下半」、
+        // 或预录占位时间残留后，被 ver 前缀去重规则固化的问题；Bwiki 未覆盖的本地条目原样保留。
+        const nextDate = {};
+        for (const [k, v] of bwikiEntries) nextDate[k] = v;
+        for (const [k, v] of Object.entries(data.date)) {
+          const ver = k.match(/^【([^】]+)】/)?.[1];
+          if (ver && coveredVers.has(ver)) {
+            if (!bwikiKeySet.has(k)) delete data.imgs?.[`【${ver}】`];
+            continue;
+          }
+          nextDate[k] = v;
+        }
+        data.date = nextDate;
+        const latestNum = Number(String(latest.ver || '').replace(/[^0-9.]/g, ''));
+        if (latestNum && latestNum > Number(CURRENT_VERSION.gs || 0)) CURRENT_VERSION.gs = String(latestNum);
+        fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
+        logger.mark(`[xhh][gacha_pool] 原神 Bwiki 同步明细：新增 ${added} / 修正 ${updated}`);
+        // 封面统一走米游社：数据以 Bwiki 为准，图片仍用官方公告封面补录
+        await this.syncGsImagesFromOfficial(records);
+        return `原神：本地库已同步 Bwiki 往期祈愿（最新 v${latest?.ver || ''}）`;
+      } catch (err) {
+        logger.warn('[xhh][gacha_pool] 原神 Bwiki 合并失败，卡池数据保持现状:', err);
       }
     }
-    const ver = `${version}${phase}`;
-    const gacha = records
-      .filter(r => /概率UP/.test(r.title || '') && /「.+」/.test(r.title || ''))
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (!gacha.length) return '原神：官方暂无「概率UP」公告，本地库保持现状';
-    // 只取最新发布的一批公告（同一期祈愿发布间隔很短），避免历史卡池公告干扰当期结构判断。
-    const latestTs = gacha[0].createdAt || 0;
-    const batch = gacha.filter(r => latestTs > 0 && Math.abs((r.createdAt || 0) - latestTs) < 86400000);
-    const current = batch.length ? batch : gacha;
-    const charPools = [];
-    const wpnPools = [];
-    for (const r of current) {
-      const title = r.title || '';
-      // 特殊卡池（集录/混池/溯光等）是并行池，不计入当期「角色池+武器池」结构，避免误判为结构异常
-      if (/集录|混池|溯光|常驻|新手|祈愿预告|活动祈愿预告/.test(title)) continue;
-      // 武器池：神铸赋形 / 祈愿： 开头；角色池：祈愿：「限定5星」
-      if (/神铸赋形|武器祈愿|武器活动祈愿/.test(title) || /^祈愿：/.test(title)) wpnPools.push(r);
-      else if (/祈愿：「[^」]+」/.test(title)) charPools.push(r);
-    }
-    // 米游社公告标题格式时有变动（新增特殊池类型等），不再硬性要求「2 角色池 + 1 武器池」完全匹配：
-    // 取最新的一批（最多 2 个角色池 + 1 个武器池）参与同步，只要两端都有就写入，避免整期跳过。
-    const useChar = charPools.slice(0, 2);
-    const useWpn = wpnPools.slice(0, 1);
-    if (!useChar.length || !useWpn.length) {
-      return `原神：当期公告未识别到角色/武器祈愿（角色池 ${charPools.length} / 武器池 ${wpnPools.length}），跳过本地同步`;
-    }
-    const roleLine = [];
-    const imgs = [];
-    for (const r of useChar) {
-      const m = (r.title || '').match(/祈愿：「([^」]+)」/);
-      const five = m ? this.gsLocalShortName(m[1]) : '';
-      if (!five) continue;
-      const fours = (r.up?.a || []).map(n => this.gsLocalShortName(n)).filter(Boolean).slice(0, 3);
-      roleLine.push([five, ...fours].join(','));
-      imgs.push(r.images?.[0] || r.cover || '');
-    }
-    if (!roleLine.length) return '';
-    const names = [];
-    for (const m of (useWpn[0]?.title || '').matchAll(/「([^」]+)」/g)) {
-      const n = this.gsLocalShortName(m[1]);
-      if (n) names.push(n);
-    }
-    const wpnFours = (useWpn[0]?.up?.a || []).map(n => this.gsLocalShortName(n)).filter(Boolean).slice(0, 5);
-    if (!names.length && !wpnFours.length) return '';
-    const wpnLine = [...names, ...wpnFours].join(',');
-    imgs.push(useWpn[0]?.images?.[0] || useWpn[0]?.cover || '');
-    // 时间：优先解析官方「活动祈愿预告」公告正文里的真实起止时间；
-    // 解析不到时回退到「公告发布时间 + 3 周」估算（可人工修正）。
-    let timeRange = '';
-    const previews = records
-      .filter(r => /活动祈愿预告/.test(r.title || ''))
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (previews.length) {
-      const want = phase === '下半' ? /第二期|（2）|（其二）|下半/ : /第一期|（1）|（其一）|上半/;
-      const target = previews.find(r => want.test(r.title || '')) || previews[0];
-      timeRange = this.parseGsPreviewTime(target.contentText || '');
-    }
-    if (!timeRange) {
-      const startTs = charPools[0]?.createdAt || Date.now();
-      // 预录下一版本时开始时间未知：用「版本更新后」占位（不参与当前卡池时间匹配），只估算结束时间
-      timeRange = isPreview
-        ? `版本更新后~${this.fmtTs(startTs + 21 * 86400000, '15:00')}`
-        : `${this.fmtTs(startTs, '11:00')}~${this.fmtTs(startTs + 21 * 86400000, '15:00')}`;
-    }
-    const key = `【${ver}】${timeRange}`;
+    // 卡池数据只认 wiki（Bwiki）：Bwiki 抓不到时不用米游社公告写条目/时间/UP，仅用公告补封面。
+    const imgsSynced = await this.syncGsImagesFromOfficial(records);
+    return imgsSynced
+      ? '原神：Bwiki 抓取失败，卡池数据保持现状（已用米游社补封面）'
+      : '原神：Bwiki 抓取失败，卡池数据保持现状';
+  }
+
+  // imgs 段按版本号倒序输出（新期在前）：原写法 { ...旧值, 新键 } 会把新补的期追加到最末尾，
+  // 人工查看/对比时顺序是乱的。取图只靠 key，顺序本身不影响功能。
+  sortGsImgsByVersion(imgs = {}) {
+    const score = k => {
+      const v = String(k).match(/【([^】]+)】/)?.[1] || '';
+      const m = v.match(/(\d+)\.(\d+)/);
+      if (!m) return -Infinity;
+      const phase = /下半/.test(v) ? 1 : (/中间/.test(v) ? 0.5 : 0);
+      return Number(m[1]) * 100 + Number(m[2]) + phase;
+    };
+    return Object.fromEntries(Object.entries(imgs || {}).sort((a, b) => score(b[0]) - score(a[0])));
+  }
+
+  // 期签名：该期各池子首位 UP 名拼接（如「薇斯纳/沃雅妮莎/蝶变」）。
+  gsPoolSignature(pools = []) {
+    return (pools || []).map(line => String(line).split(',')[0]?.trim()).filter(Boolean).join('/');
+  }
+
+  // 已有封面是否和当前期对不上：手动补错、跨期公告误写、旧库遗留都会导致签名不一致，
+  // 此时必须覆盖，否则「已有 N 张就跳过」的保护会把错图永久锁住。
+  gsImgsStale(data, key, pools = []) {
+    const sig = this.gsPoolSignature(pools);
+    if (!sig) return true;
+    const stored = data.imgs_src?.[key] || '';
+    return !stored || stored !== sig;
+  }
+
+  // 封面统一走米游社：只写 data.imgs（图片），绝不改 data.date（卡池数据只由 Bwiki 维护）。
+  async syncGsImagesFromOfficial(records = []) {
     try {
-      // 同一版本已有记录时保留原条目，避免 key 时间估算不一致导致同一版本重复叠加。
-      const sameVerKey = Object.keys(data.date).find(k => k.startsWith(`【${ver}】`));
-      const nextDate = sameVerKey ? data.date : { [key]: [...roleLine, wpnLine], ...data.date };
-      const nextImgs = { [`【${ver}】`]: imgs.filter(Boolean), ...(data.imgs || {}) };
-      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: nextImgs }), 'utf-8');
-      if (!isPreview && CURRENT_VERSION.gs !== version) CURRENT_VERSION.gs = version;
-      if (sameVerKey) return `原神：本地库已含 v${ver} 记录，跳过重复写入`;
-      return isPreview
-        ? `原神：已预录 v${ver}（${version}版本更新后生效，当前仍为 v${CURRENT_VERSION.gs}）`
-        : `原神：本地库已自动同步至 v${ver}`;
+      const data = this.loadGsPoolHistory();
+      if (!data?.date || !Object.keys(data.date).length) return false;
+      const gacha = (records || [])
+        .filter(r => /概率UP/.test(r.title || '') && /「.+」/.test(r.title || ''))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (!gacha.length) return await this.syncGsImagesFromSearch(data);
+      // 只取最新发布的一批公告（同一期祈愿发布间隔很短），避免历史卡池公告干扰
+      const latestTs = gacha[0].createdAt || 0;
+      const batch = gacha.filter(r => latestTs > 0 && Math.abs((r.createdAt || 0) - latestTs) < 86400000);
+      const current = batch.length ? batch : gacha;
+      const charPools = [];
+      const wpnPools = [];
+      for (const r of current) {
+        const title = r.title || '';
+        if (/集录|混池|溯光|常驻|新手|祈愿预告|活动祈愿预告/.test(title)) continue;
+        if (/神铸赋形|武器祈愿|武器活动祈愿/.test(title) || /^祈愿：/.test(title)) wpnPools.push(r);
+        else if (/祈愿：「[^」]+」/.test(title)) charPools.push(r);
+      }
+      const imgs = [];
+      for (const r of charPools.slice(0, 2)) imgs.push(r.images?.[0] || r.cover || '');
+      if (wpnPools[0]) imgs.push(wpnPools[0].images?.[0] || wpnPools[0].cover || '');
+      const list = imgs.filter(Boolean);
+      if (!list.length) return false;
+      // 目标版本号必须与渲染时读到的一致：直接取「当前卡池」解析出的 version。
+      // 旧逻辑取 date 首条 / 自行按时间匹配，在 date 键序乱序、上下半区间重叠时会挂错 key
+      // （如当前期是 7.1下半，图却写进【7.1上半】，导致当前卡池永远取不到公告图）。
+      const curCards = await this.loadGsLocalCards('current');
+      const ver = curCards[0]?.version
+        || Object.keys(data.date)[0]?.match(/^【([^】]+)】/)?.[1] || '';
+      if (!ver) return false;
+      const key = `【${ver}】`;
+      const firstKey = Object.keys(data.date).find(k => k.startsWith(`【${ver}】`)) || Object.keys(data.date)[0] || '';
+      const pools = data.date[firstKey] || [];
+      const stale = this.gsImgsStale(data, key, pools);
+      if ((data.imgs?.[key] || []).filter(Boolean).length >= 3 && !stale) return false;
+      data.imgs = this.sortGsImgsByVersion({ ...(data.imgs || {}), [key]: list });
+      data.imgs_src = { ...(data.imgs_src || {}), [key]: this.gsPoolSignature(pools) };
+      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
+      logger.mark(`[xhh][gacha_pool] 原神 ${key} 已用米游社公告补封面 ${list.length} 张${stale ? '（覆盖旧封面）' : ''}`);
+      return true;
     } catch (err) {
-      logger.error('[xhh][gacha_pool] gslogs.yaml 自动同步写入失败:', err);
-      return '';
+      logger.warn('[xhh][gacha_pool] 原神封面补录失败:', err?.message || err);
+      return false;
+    }
+  }
+
+  // 米游社列表里没有祈愿公告时（常见），退回搜索接口按当前期 UP 名补图，仍写入 data.imgs 持久化。
+  // 只写图片，不改卡池数据（与 syncGsImagesFromOfficial 同一约定）。
+  async syncGsImagesFromSearch(data) {
+    try {
+      // 与渲染保持一致：用「当前卡池」解析出的 version 定位 date 条目
+      const curCards = await this.loadGsLocalCards('current');
+      const ver = curCards[0]?.version
+        || Object.keys(data.date)[0]?.match(/^【([^】]+)】/)?.[1] || '';
+      if (!ver) return false;
+      const firstKey = Object.keys(data.date).find(k => k.startsWith(`【${ver}】`)) || Object.keys(data.date)[0] || '';
+      const key = `【${ver}】`;
+      const pools = data.date[firstKey] || [];
+      const stale = this.gsImgsStale(data, key, pools);
+      if ((data.imgs?.[key] || []).filter(Boolean).length >= 3 && !stale) return false;
+      const cards = [];
+      for (const row of pools.slice(0, 4)) {
+        const arr = String(row || '').split(',').map(v => v.trim()).filter(Boolean);
+        if (!arr.length) continue;
+        const weapon = this.isGsWeaponPool(arr);
+        cards.push({ version: ver, title: '', type: '原神', weapon, s: arr.join('/'), a: '', img: '', imgFallback: true });
+      }
+      if (!cards.length) return false;
+      await this.attachGsOfficialCovers(cards, true);
+      const list = cards.map(c => c.img).filter(Boolean);
+      if (!list.length) return false;
+      data.imgs = this.sortGsImgsByVersion({ ...(data.imgs || {}), [key]: list });
+      data.imgs_src = { ...(data.imgs_src || {}), [key]: this.gsPoolSignature(pools) };
+      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
+      logger.mark(`[xhh][gacha_pool] 原神 ${key} 列表无祈愿公告，已用搜索接口补封面 ${list.length} 张${stale ? '（覆盖旧封面）' : ''}`);
+      return true;
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 原神搜索补封面失败:', err?.message || err);
+      return false;
     }
   }
 
@@ -1518,7 +1871,7 @@ export class xhh_gacha_pool extends plugin {
       for (const [k, v] of Object.entries(data.date)) {
         if (k !== latestKey) nextDate[k] = v;
       }
-      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: data.imgs || {} }), 'utf-8');
+      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: data.imgs || {}, imgs_src: data.imgs_src || {} }), 'utf-8');
       return `原神：已修正 v${version}${phase} 预录时间（${version}版本更新后生效，当前仍为 v${CURRENT_VERSION.gs}）`;
     } catch (err) {
       logger.error('[xhh][gacha_pool] gslogs.yaml 预录时间修正失败:', err);
@@ -1526,26 +1879,1091 @@ export class xhh_gacha_pool extends plugin {
     }
   }
 
+  // —— 绝区零本地同步 ——
+  // 绝区零「版本+时间区间」在米游社公告里不可靠，但 Bwiki「调频」页面有结构化的时间/版本/S级列。
+  // 参考社区插件做法：扒 wikitable，按「时间/版本/S级代理人|S级音擎|S级邦布」提取每个卡池，写入本地库。
+  // 数据形状与 normalizeZzzData 保持一致：{ title, type:'角色'|'武器'|'邦布', version, timer, s, a }。
+  async fetchZzzPoolHistoryFromBwiki() {
+    const cacheKey = 'xhh:zzz:bwiki:history:v1';
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
+    try {
+      const res = await fetch(ZZZ_BWIKI_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const pools = this.parseZzzBwikiHtml(html);
+      if (Array.isArray(pools) && pools.length) {
+        try { await redis.set(cacheKey, JSON.stringify(pools), { EX: 2 * 60 * 60 }); } catch (_) {}
+        return pools;
+      }
+      return null;
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 绝区零 Bwiki 调频抓取失败:', err);
+      return null;
+    }
+  }
+
+  parseZzzBwikiHtml(html = '') {
+    const tables = html.match(/<table[^>]*class="[^"]*wikitable[^"]*"[\s\S]*?<\/table>/gi) || [];
+    const META = ['时间', '版本', 'S级代理人', 'A级代理人', 'S级音擎', 'A级音擎', 'S级邦布', 'A级邦布', 'B级音擎', 'B级代理人'];
+    const GEN = ['独家频段', '音擎频段', '邦布频段'];
+    const cleanName = s => String(s || '').replace(/（页面不存在）|（待补全）|\(页面不存在\)/g, '').replace(/[「」『』]/g, '').trim();
+    const out = [];
+    const seen = new Set();
+    for (const t of tables) {
+      const ths = [...t.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map(m => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim());
+      if (!ths.some(h => /时间/.test(h)) || !ths.some(h => /版本/.test(h))) continue;
+      const timer = (t.match(/<th[^>]*>\s*时间\s*<\/th>\s*<td>([\s\S]*?)<\/td>/i) || [, ''])[1]
+        .replace(/<[^>]+>/g, '').replace(/[-—]/g, '~').replace(/\s+/g, ' ').trim();
+      if (!timer.includes('~')) continue;
+      const version = (t.match(/<th[^>]*>\s*版本\s*<\/th>\s*<td>([\s\S]*?)<\/td>/i) || [, ''])[1].replace(/<[^>]+>/g, '').trim() || '未知版本';
+      let title = ths.find(h => !META.includes(h) && !GEN.includes(h) && /期/.test(h))
+        || ths.find(h => !META.includes(h) && !GEN.includes(h))
+        || ths.find(h => !META.includes(h)) || '';
+      title = cleanName(title);
+      let type = '角色';
+      if (/音擎|武器/.test(title) || ths.some(h => /音擎/.test(h) && /S级/.test(h))) type = '武器';
+      else if (/邦布/.test(title)) type = '邦布';
+      const lab = type === '武器' ? 'S级音擎' : type === '邦布' ? 'S级邦布' : 'S级代理人';
+      const grab = L => {
+        const m = t.match(new RegExp('<th[^>]*>\\s*' + L + '\\s*<\\/th>\\s*<td>([\\s\\S]*?)<\\/td>', 'i'));
+        if (!m) return [];
+        let names = [...m[1].matchAll(/title="([^"]+)"/g)].map(a => cleanName(a[1]));
+        if (!names.length) names = [...m[1].matchAll(/<a[^>]*>([^<]+)<\/a>/g)].map(a => cleanName(a[1]));
+        return names.filter(Boolean);
+      };
+      const sNames = grab(lab);
+      if (!sNames.length) continue;
+      // 关键点：Bwiki 调频页同时给出 A 级列，必须把 A 级陪跑也抓下来，否则本地库写入后 A 级整列丢失。
+      const labA = type === '武器' ? 'A级音擎' : type === '邦布' ? 'A级邦布' : 'A级代理人';
+      const aNames = grab(labA);
+      const key = `${version}|${title}|${timer}|${sNames[0]}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ title, type, version, timer, s: sNames[0], a: aNames });
+    }
+    return out;
+  }
+
+  // 绝区零条目「实质差异」比对：只比对受管字段，并把时间归一到「年月日 时:分」（忽略秒/空格/波浪线写法），
+  // A 级列表忽略顺序。返回发生变化的字段名（空数组 = 无实质变化）。
+  zzzPoolDiff(base = {}, entry = {}) {
+    const normTimer = t => {
+      const parts = [...String(t || '').matchAll(/(\d{4})\/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/g)]
+        .map(m => `${m[1]}/${String(m[2]).padStart(2, '0')}/${String(m[3]).padStart(2, '0')} ${String(m[4]).padStart(2, '0')}:${m[5]}`);
+      return parts.length ? parts.join('~') : String(t || '').replace(/\s+/g, '');
+    };
+    const normArr = v => (Array.isArray(v) ? v : (v === undefined || v === null || v === '' ? [] : [v]))
+      .map(x => String(x).trim()).filter(Boolean).sort();
+    const str = v => String(v ?? '').trim();
+    const fields = { title: str, type: str, version: str, timer: normTimer, s: str, a: normArr };
+    return Object.keys(fields).filter(k => JSON.stringify(fields[k](base[k])) !== JSON.stringify(fields[k](entry[k])));
+  }
+
+  async syncZzzLocalFromOfficial(records = []) {
+    try {
+      // 优先用 Bwiki 调频页拉真实「版本+时间区间」写入本地库；失败则退回重建蜘蛛缓存。
+      const bwiki = await this.fetchZzzPoolHistoryFromBwiki();
+      if (Array.isArray(bwiki) && bwiki.length) {
+        // 合并而非整体覆盖：保留 Bwiki 未覆盖到的人工校订条目，同时用 Bwiki 的 A 级列补回被冲掉的 A 级。
+        const keyOf = p => `${p.version || '-'}|${p.type || '-'}|${p.title || ''}`;
+        const bwikiMap = new Map(bwiki.map(p => [keyOf(p), p]));
+        const curated = this.loadZzzLocalPools();
+        // 同一「版本|类型|标题」在库里/Bwiki 里都可能有重复行，所以要按 key 收集多个候选，
+        // 逐行比对时会永远和“另一行”不同 → 每次刷新都报修正。改为：任一候选已匹配即不算改动。
+        const curatedByKey = new Map();
+        for (const c of curated) {
+          const k = keyOf(c);
+          if (!curatedByKey.has(k)) curatedByKey.set(k, []);
+          curatedByKey.get(k).push(c);
+        }
+        const merged = [];
+        let added = 0, updated = 0;
+        const samples = [];
+        for (const p of bwiki) {
+          const cands = curatedByKey.get(keyOf(p)) || [];
+          const base = cands[0];
+          const a = Array.isArray(p.a) && p.a.length ? p.a : (Array.isArray(base?.a) ? base.a : []);
+          const entry = { ...(base || {}), ...p, a };
+          merged.push(entry);
+          // 与其它游戏统一口径：只有「受管字段」真的变了才算修正。
+          // 不能整对象比 JSON：键顺序、img 之类附加字段的差异也会被判成改动，
+          // 于是每次刷新都把同一批条目报成「修正」（曾天天报「修正 55」）。
+          if (!cands.length) added++;
+          else if (!cands.some(c => this.zzzPoolDiff(c, entry).length === 0)) {
+            updated++;
+            if (samples.length < 2) samples.push(`${base.title || base.s || ''}（${this.zzzPoolDiff(base, entry).join('、')}）`);
+          }
+        }
+        for (const c of curated) {
+          if (!bwikiMap.has(keyOf(c))) merged.push(c);
+        }
+        const sorted = [...merged].sort((a, b) => this.poolEndStamp(b) - this.poolEndStamp(a));
+        const latest = sorted[0];
+        try {
+          fs.writeFileSync(ZZZ_POOL_HISTORY_YAML_PATH, YAML.stringify(merged), 'utf-8');
+        } catch (err) {
+          logger.warn('[xhh][gacha_pool] 绝区零本地库写入失败:', err);
+        }
+        logger.mark(`[xhh][gacha_pool] 绝区零 Bwiki 同步明细：新增 ${added} / 修正 ${updated}` +
+          (samples.length ? `（示例：${samples.join('；')}）` : ''));
+        return `绝区零：本地库已同步 Bwiki 调频（最新 v${latest.version}）`;
+      }
+      // 卡池数据只认 wiki（Bwiki）：抓不到时保持本地库现状，不再写第三方（蜘蛛）缓存数据
+      return '绝区零：Bwiki 抓取失败，卡池数据保持现状';
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 绝区零同步失败:', err);
+      return '绝区零：同步失败，下次查询时自动重建';
+    }
+  }
+
+  // —— 星穹铁道 / 原神：Bwiki 跃迁 / 往期祈愿（版本+时间区间+S级，结构化可靠）——
+  // 与绝区零同理：米游社公告解析易失败，Bwiki 调频/跃迁/往期祈愿页面表格给出带可靠版本号+时间区间的卡池历史。
+  _bwikiCleanName(s) {
+    return String(s || '').replace(/（页面不存在）|（待补全）|\(页面不存在\)/g, '').replace(/[「」『』]/g, '').trim();
+  }
+  _bwikiCellNames(cell = '') {
+    let names = [...String(cell).matchAll(/title="([^"]+)"/g)].map(a => this._bwikiCleanName(a[1]));
+    if (!names.length) names = [...String(cell).matchAll(/<a[^>]*>([^<]+)<\/a>/g)].map(a => this._bwikiCleanName(a[1]));
+    // wiki 的图片/文件链接（如「文件:真珠.png」）会被当成角色名，必须剔除
+    return [...new Set(names)].filter(Boolean).filter(n => !/^(文件|File|image|Image)[:：]/i.test(n));
+  }
+  _bwikiTables(html = '') {
+    return html.match(/<table[^>]*class="[^"]*wikitable[^"]*"[\s\S]*?<\/table>/gi) || [];
+  }
+  _bwikiThs(table) {
+    return [...table.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map(m => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim());
+  }
+  _bwikiCell(table, label) {
+    const m = table.match(new RegExp('<th[^>]*>\\s*' + label + '\\s*<\\/th>\\s*<td>([\\s\\S]*?)<\\/td>', 'i'));
+    return m ? m[1] : '';
+  }
+  _bwikiTime(table) {
+    return this._bwikiCleanName(this._bwikiCell(table, '时间').replace(/<[^>]+>/g, '').replace(/[-—]/g, '~').replace(/\s+/g, ' ').trim()).replace(/（页面不存在）|（待补全）/g, '');
+  }
+  _bwikiVer(table) {
+    return this._bwikiCleanName(this._bwikiCell(table, '版本').replace(/<[^>]+>/g, '')).trim();
+  }
+
+  // 星穹铁道：历史跃迁页 → 按「版本 + 时间区间」聚合（角色池+光锥池分表）成 {ver,time,js_five,js_four,gz_five,gz_four}
+  // 不能只按 ver 聚合：同一版本下可能有新角色池/复刻池/联动池（长期）多条，
+  // 合并成一条会让联动的「长期」时间顶掉常规池的具体结束时间。
+  parseSrBwikiHtml(html = '') {
+    const map = new Map();
+    for (const t of this._bwikiTables(html)) {
+      const ths = this._bwikiThs(t);
+      if (!ths.some(h => /时间/.test(h)) || !ths.some(h => /版本/.test(h))) continue;
+      const ver = this._bwikiVer(t);
+      if (!ver) continue;
+      const time = this._bwikiTime(t);
+      const key = `${ver}||${time || ''}`;
+      const e = map.get(key) || { ver, time: '', js_five: [], js_four: [], gz_five: [], gz_four: [] };
+      // 时间：已有具体时间就不要被「版本更新后」覆盖；「长期」也不再抢占具体时间
+      if (time && (!e.time || (/版本更新后/.test(e.time) && !/版本更新后/.test(time)))) e.time = time;
+      for (const [lab, key] of [['5星角色', 'js_five'], ['4星角色', 'js_four'], ['5星光锥', 'gz_five'], ['4星光锥', 'gz_four']]) {
+        e[key].push(...this._bwikiCellNames(this._bwikiCell(t, lab)));
+      }
+      e.js_five = [...new Set(e.js_five)]; e.js_four = [...new Set(e.js_four)];
+      e.gz_five = [...new Set(e.gz_five)]; e.gz_four = [...new Set(e.gz_four)];
+      map.set(ver, e);
+    }
+    return [...map.values()];
+  }
+
+  // 原神：往期祈愿页 → 按版本聚合（角色池/武器池分表）成 {ver,time,charS,charA,wpnS,wpnA}
+  parseYsBwikiHtml(html = '') {
+    const map = new Map();
+    for (const t of this._bwikiTables(html)) {
+      const ths = this._bwikiThs(t);
+      if (!ths.some(h => /时间/.test(h)) || !ths.some(h => /版本/.test(h))) continue;
+      const ver = this._bwikiVer(t);
+      if (!ver) continue;
+      const time = this._bwikiTime(t);
+      const e = map.get(ver) || { ver, time: '', charS: [], charA: [], wpnS: [], wpnA: [] };
+      if (time && (!e.time || /版本更新后/.test(e.time))) e.time = time;
+      const isWpn = ths.some(h => /5星武器/.test(h));
+      if (isWpn) {
+        e.wpnS.push(...this._bwikiCellNames(this._bwikiCell(t, '5星武器')));
+        e.wpnA.push(...this._bwikiCellNames(this._bwikiCell(t, '4星武器')));
+        e.wpnS = [...new Set(e.wpnS)]; e.wpnA = [...new Set(e.wpnA)];
+      } else {
+        e.charS.push(...this._bwikiCellNames(this._bwikiCell(t, '5星角色')));
+        e.charA.push(...this._bwikiCellNames(this._bwikiCell(t, '4星角色')));
+        e.charS = [...new Set(e.charS)]; e.charA = [...new Set(e.charA)];
+      }
+      map.set(ver, e);
+    }
+    return [...map.values()];
+  }
+
+  async fetchSrPoolHistoryFromBwiki() {
+    // 数据源从「跃迁」改为「历史跃迁」后必须换 key，否则会继续读旧缓存（旧数据里联动池挂在普通版本号下）
+    const cacheKey = 'xhh:sr:bwiki:history:v2';
+    try { const c = await redis.get(cacheKey); if (c) return JSON.parse(c); } catch (_) {}
+    try {
+      const res = await fetch(SR_BWIKI_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const pools = this.parseSrBwikiHtml(await res.text());
+      if (Array.isArray(pools) && pools.length) {
+        try { await redis.set(cacheKey, JSON.stringify(pools), { EX: 2 * 60 * 60 }); } catch (_) {}
+        return pools;
+      }
+      return null;
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 星铁 Bwiki 跃迁抓取失败:', err);
+      return null;
+    }
+  }
+
+  async fetchYsPoolHistoryFromBwiki() {
+    const cacheKey = 'xhh:ys:bwiki:history:v1';
+    try { const c = await redis.get(cacheKey); if (c) return JSON.parse(c); } catch (_) {}
+    try {
+      const res = await fetch(YS_BWIKI_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const pools = this.parseYsBwikiHtml(await res.text());
+      if (Array.isArray(pools) && pools.length) {
+        try { await redis.set(cacheKey, JSON.stringify(pools), { EX: 2 * 60 * 60 }); } catch (_) {}
+        return pools;
+      }
+      return null;
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 原神 Bwiki 往期祈愿抓取失败:', err);
+      return null;
+    }
+  }
+
+  // —— 崩坏3本地同步 ——
+  // 崩三本地库（bh3_gacha_pool_history.yaml）是人工+社区整理的结构化数据，且「当前卡池」依赖 start/end 时间区间。
+  // 米游社崩三公告写法散、且官方模块未解析时间区间，故 buildBh3PoolGroup 优先用公告正文里的时间区间，
+  // 解析不到时退回公告发布时间(createdAt)作为开启时间、按单版本约 3 周补齐结束时间，从而能把新版本真正写进本地库。
+  // 仍只在能定位到开始时间+主UP时才写入，且不改写已有版本数据，避免破坏当前卡池识别。
+  async syncBh3LocalFromOfficial(records = []) {
+    logger.mark(`[xhh][gacha_pool] 崩三版本更新时间表: ${JSON.stringify(readBh3VersionStartMap())}`);
+    // 当前版本号跟随版本更新时间表：到了更新时间就自动推进（如 9.1 于 09-24 06:00 上线后自动变 9.1）
+    for (const v of Object.keys(readBh3VersionStartMap()).map(Number).filter(n => !Number.isNaN(n))) {
+      const ts = bh3VersionStart(v);
+      if (ts && ts <= Date.now() && v > Number(CURRENT_VERSION.bh3 || 0)) CURRENT_VERSION.bh3 = v.toFixed(1);
+    }
+    // 先自动抓米游社「版本更新公告」补齐各版本实际更新时间，再判定版本号（无需手工维护版本号）。
+    // 加硬超时：米游社接口慢时最多等 12 秒就放弃，绝不能把 #刷新卡池 拖到超时无回复。
+    try {
+      await Promise.race([
+        this.refreshBh3VersionStarts(),
+        new Promise(resolve => setTimeout(resolve, 12000))
+      ]);
+    } catch (_) {}
+    const data = await this.loadBh3PoolHistory();
+    const history = (data && Array.isArray(data.pools)) ? data : null;
+    if (!history) {
+      const hasRecords = Array.isArray(records) && records.length;
+      return hasRecords
+        ? '崩坏3：本地库读取失败，无法判定当前版本，请检查 bh3_gacha_pool_history.yaml'
+        : '崩坏3：本地库读取失败，跳过同步';
+    }
+    // 清理脏版本（保守规则）：只删「比最高官方锚点版本还超出 2 个小版本以上、且无锚点」的条目
+    // （如锚点最高 9.0/9.1 时，凭空生成的 9.3~9.9）。历史版本（8.x、9.0 等）永远不会命中。
+    // 本轮对 history 做的内存维护（脏版本清理 / 版本号归一化 / 归位 / 封面补录）计数，
+    // >0 时在封面补录后统一落盘一次（否则下次刷新会重复做同样的处理）。
+    let bh3Maintenance = 0;
+    {
+      const anchored = (history?.pools || [])
+        .map(p => Number(p.version))
+        .filter(n => !Number.isNaN(n) && bh3VersionStart(n));
+      const maxAnchored = anchored.length ? Math.max(...anchored) : 0;
+      const maxAnchoredStart = maxAnchored ? bh3VersionStart(maxAnchored) : 0;
+      const bogus = (history?.pools || []).filter(p => {
+        const n = Number(p.version);
+        if (Number.isNaN(n) || bh3VersionStart(n)) return false; // 有锚点 = 官方确认的版本，保留
+        if (n <= maxAnchored) return false; // 不比锚点版本新 = 历史版本，保留
+        // 比最新锚点版本还新却没有锚点：开始时间必须晚于锚点版本，否则是凭空推出来的版本号
+        // （如 9.1 锚点 09-24，却出现 v9.2 起始 08-12 → 必是脏数据）
+        const s = new Date(String(p.start || '').replace(/-/g, '/')).getTime();
+        if (!Number.isNaN(s) && maxAnchoredStart > 0) return s <= maxAnchoredStart;
+        return n > maxAnchored + 0.11;
+      });
+      // 版本号归一化：浮点进位会丢掉小数点（8.9 + 0.1 = 9），统一补成 9.0 / 10.0
+      for (const p of history?.pools || []) {
+        const n = Number(p.version);
+        if (!Number.isNaN(n) && !String(p.version ?? '').includes('.')) {
+          p.version = n.toFixed(1);
+          bh3Maintenance++;
+        }
+      }
+      if (bogus.length) {
+        history.pools = (history.pools || []).filter(p => !bogus.includes(p));
+        bh3Maintenance += bogus.length;
+        logger.mark(`[xhh][gacha_pool] 崩三本地库清理脏版本：${bogus.map(p => `v${p.version}`).join('、')}`);
+      }
+    }
+    // 每个补给自己的开放时间：正文优先，拿不到就用米游社「瞬间搜索」按 UP 名取公告正文
+    // （走 painter/user_instant 接口，不受「公告详情」接口风控影响）。
+    // 放在「归位」之前：这样同一轮刷新里就能“先取到开放时间 → 再按开放时间归位”。
+    try {
+      const r = await this.fillBh3PoolTimes(history, records);
+      if (r.times || r.covers) {
+        bh3Maintenance += r.times + r.covers;
+        logger.mark(`[xhh][gacha_pool] 崩三补给信息已补录：开放时间 ${r.times} 条、封面 ${r.covers} 张`);
+      }
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] bh3 开放时间补录失败:', err);
+    }
+    // 存量归位：已错位到新版本的旧补给，按「自身开放时间」挪回正确版本。
+    // 只认补给自己的开放时间，或公告正文里解析出的开放时间；
+    // 不能用公告「发布时间」兜底（公告常在开池前一天发布，会把明天才开的 9.1 补给搬回 9.0）。
+    {
+      const moved = [];
+      for (const vp of [...(history?.pools || [])]) {
+        const stay = [];
+        for (const p of vp.pools || []) {
+          let ts = 0;
+          if (p.start) {
+            const t = new Date(String(p.start).replace(/-/g, '/')).getTime();
+            if (!Number.isNaN(t)) ts = t;
+          }
+          if (!ts) {
+            const r = (records || []).find(x => String(x.title || '') === String(p.name || ''));
+            const ranges = r ? this.parseBh3AllTimeRanges(r.contentText || r.summary || '') : [];
+            if (ranges.length) ts = ranges[0].start;
+          }
+          const target = ts ? this.bh3VersionForTs(history, ts) : null;
+          if (!target || target === vp) {
+            stay.push(p);
+            continue;
+          }
+          this.bh3MergePoolInto(target, p);
+          moved.push(`v${vp.version}「${p.s || p.name}」→ v${target.version}`);
+        }
+        vp.pools = stay;
+      }
+      if (moved.length) {
+        bh3Maintenance += moved.length;
+        logger.mark(`[xhh][gacha_pool] 崩三存量补给按开放时间归位：${moved.join('、')}`);
+      }
+    }
+    // 剔除混进来的「【公告】/【活动】」条目：那是「七日登录领补给卡」这类活动公告，不是卡池
+    {
+      let dropped = 0;
+      for (const vp of history?.pools || []) {
+        const before = (vp.pools || []).length;
+        vp.pools = (vp.pools || []).filter(p => !/^【?(公告|活动)】/.test(String(p.name || '').trim()));
+        dropped += before - vp.pools.length;
+      }
+      if (dropped) {
+        bh3Maintenance += dropped;
+        logger.mark(`[xhh][gacha_pool] 崩三本地库剔除 ${dropped} 条非补给公告条目`);
+      }
+    }
+    // 同名补给去重：同一补给被误并进了新版本时会两个版本各留一份（如 9.0 末期补给又出现在 9.1）。
+    // 只处理「窗口相邻」的版本对（9.0 结束 09-24、9.1 开始 09-24），保留版本号较小的那份；
+    // 历史复刻（如 7.4 与 7.5 的「真我·人之律者」、8.1 与 8.3 的「天光驰彻」）窗口不相邻，一律保留，
+    // 绝不动历史数据。副本的封面/时间/target 会合并到保留的那份上。
+    {
+      const toTs = s => {
+        const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+        return Number.isNaN(t) ? null : t;
+      };
+      const byName = new Map();
+      for (const vp of history?.pools || []) {
+        for (const p of vp.pools || []) {
+          const k = String(p.name || '').trim();
+          if (!k) continue;
+          if (!byName.has(k)) byName.set(k, []);
+          byName.get(k).push({ vp, p });
+        }
+      }
+      let dedup = 0;
+      for (const list of byName.values()) {
+        if (list.length < 2) continue;
+        const copies = [...list].sort((a, b) => Number(a.vp.version) - Number(b.vp.version));
+        const keep = copies[0];
+        const keepEnd = toTs(keep.vp.end);
+        for (const dup of copies.slice(1)) {
+          const dupStart = toTs(dup.vp.start);
+          // 两个版本窗口必须相邻（新版本在同日/次日接上旧版本）才算「误并」
+          if (!keepEnd || !dupStart || dupStart > keepEnd + 86400000) continue;
+          const ownStart = toTs(dup.p.start);
+          if (ownStart !== null) {
+            const dvs = toTs(dup.vp.start), dve = toTs(dup.vp.end);
+            // 副本自己有开放时间且落在它所在版本的窗口内 → 是正经记录（复刻），不要合并
+            if (dvs !== null && dve !== null && ownStart >= dvs && ownStart <= dve) continue;
+          }
+          dup.vp.pools = (dup.vp.pools || []).filter(x => x !== dup.p);
+          for (const k of ['imgs', 'start', 'end', 'target']) {
+            const empty = keep.p[k] === undefined || (Array.isArray(keep.p[k]) && !keep.p[k].filter(Boolean).length);
+            if (empty && dup.p[k] !== undefined) keep.p[k] = dup.p[k];
+          }
+          dedup++;
+          logger.mark(`[xhh][gacha_pool] 崩三同名补给去重：v${dup.vp.version}「${dup.p.s || dup.p.name}」并入 v${keep.vp.version}`);
+        }
+      }
+      if (dedup) bh3Maintenance += dedup;
+    }
+    // 封面补全：把官方公告的封面 URL 按「卡池名」补进已有补给（与原神/星铁的 imgs 一致），
+    // 这样风控或公告缓存过期时封面仍然在，不必等下一次写入新版本。
+    let coverAdded = 0;
+    try {
+      const coverByTitle = new Map();
+      for (const r of records || []) {
+        const c = r?.cover || (Array.isArray(r?.images) ? r.images[0] : '') || '';
+        if (c && r?.title) coverByTitle.set(String(r.title), c);
+      }
+      for (const vp of history?.pools || []) {
+        for (const p of vp.pools || []) {
+          if (Array.isArray(p.imgs) && p.imgs.filter(Boolean).length) continue;
+          const c = coverByTitle.get(String(p.name || ''));
+          if (c) {
+            p.imgs = [c];
+            coverAdded++;
+          }
+        }
+      }
+      if (coverAdded) logger.mark(`[xhh][gacha_pool] 崩三补给封面已补录 ${coverAdded} 张`);
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] bh3 封面补录失败:', err);
+    }
+    bh3Maintenance += coverAdded;
+    // 清理历史误写的 target（如把「跃升武装」这种补给类型当成角色名写进来的）
+    {
+      const junkTargets = ['跃升武装', '跃升补给', '角色补给', '装备补给', '精准补给', '主题补给', '服装补给', '协同者轮替'];
+      let cleaned = 0;
+      for (const vp of history?.pools || []) {
+        for (const p of vp.pools || []) {
+          if (p.target && junkTargets.includes(String(p.target))) {
+            delete p.target;
+            cleaned++;
+          }
+        }
+      }
+      if (cleaned) {
+        bh3Maintenance += cleaned;
+        logger.mark(`[xhh][gacha_pool] 崩三清理 ${cleaned} 处错误 target`);
+      }
+    }
+    // 修正历史误判的类型：「位面武器·XX」是第二部女武神的名号前缀（S级角色），
+    // 早期按标题关键词分类时被「武器」二字误判成装备补给（如 失序时空）
+    {
+      let fixed = 0;
+      for (const vp of history?.pools || []) {
+        for (const p of vp.pools || []) {
+          if (/位面武器·/.test(String(p.name || '')) && p.type !== 'char') {
+            p.type = 'char';
+            fixed++;
+          }
+        }
+      }
+      if (fixed) {
+        bh3Maintenance += fixed;
+        logger.mark(`[xhh][gacha_pool] 崩三修正 ${fixed} 条「位面武器·」角色补给的类型（weapon→char）`);
+      }
+    }
+    // 清理/归一化/归位/封面补录此前都只改内存，若本次没有新版本要写就会提前 return，
+    // 改动全丢 → 下次刷新又做一遍（曾每次刷都重复打印同一批「归位」和「补录 10 张」）。
+    // 这里统一落盘一次，保证维护动作是幂等的：下一轮刷新应显示「无新增」。
+    if (bh3Maintenance > 0) {
+      try {
+        fs.writeFileSync(BH3_POOL_HISTORY_YAML_PATH, YAML.stringify({
+          ...(data || {}),
+          updated: new Date().toISOString().slice(0, 10),
+          pools: history.pools
+        }), 'utf-8');
+        logger.mark(`[xhh][gacha_pool] 崩三本地库维护已落盘（${bh3Maintenance} 处：清理/归一化/归位/封面）`);
+      } catch (err) {
+        logger.error('[xhh][gacha_pool] bh3 维护落盘失败:', err);
+      }
+    }
+    const numberedVers = (history?.pools || [])
+      .map(p => ({ raw: p.version, num: Number(p.version) }))
+      .filter(p => !Number.isNaN(p.num));
+    const maxVerEntry = numberedVers.sort((a, b) => b.num - a.num)[0] || { raw: '0', num: 0 };
+    const maxYamlVer = maxVerEntry.num;
+    // 当前最大版本已记录的 UP 名集合，用于识别“标题里没写版本号”的新补给。
+    const maxEntryPools = (history?.pools || []).find(p => Number(p.version) === maxYamlVer)?.pools || [];
+    const knownS = new Set(maxEntryPools.map(p => String(p.s || '').toLowerCase()).filter(Boolean));
+    if (!Array.isArray(records) || !records.length) {
+      logger.mark(`[xhh][gacha_pool] 崩三同步明细：无新增${coverAdded ? `，已补录 ${coverAdded} 张封面` : ''}`);
+      return `崩坏3：本地库已同步 官方补给（最新 v${Number(maxYamlVer).toFixed(1)}）`;
+    }
+    const byVer = new Map();
+    const orphans = [];
+    for (const r of records) {
+      const v = Number(String(r.version || '').replace(/^v/i, ''));
+      const hasUp = Array.isArray(r.up?.s) && r.up.s.some(Boolean);
+      if (!Number.isNaN(v) && v > maxYamlVer) {
+        if (!byVer.has(v)) byVer.set(v, []);
+        byVer.get(v).push(r);
+        continue;
+      }
+      // 版本号缺失或不超过当前最大版本，但 UP 名是当前库里没有的（新增角色/装备补给），
+      // 视为新版本候选，避免“标题不写版本号”导致刷新永远写不进去。
+      if (hasUp && !r.up.s.some(s => knownS.has(String(s).toLowerCase()))) orphans.push(r);
+    }
+    // 旧版数据自动修复：早期同步的条目可能把活动公告当成卡池、UP 用了对应角色名/垃圾值、
+    // 且所有补给共用一段时间（没有各池独立时间）。检测到时用新解析重建当前最大版本条目，
+    // 按卡池名合并（同名覆盖为修正后的数据），手动补充的、公告里没有的池子会保留。
+    const maxEntry = (history?.pools || []).find(p => Number(p.version) === maxYamlVer);
+    const legacyJunkS = ['跃升武装', '跃升补给', '角色补给', '装备补给', '精准补给', '主题补给', '服装补给'];
+    const needRepair = maxEntry && (
+      !(maxEntry.pools || []).some(p => p.start && p.end)
+      || (maxEntry.pools || []).some(p => /^【(公告|活动)】/.test(String(p.name || '')))
+      || (maxEntry.pools || []).some(p => legacyJunkS.includes(String(p.s || '')))
+      // 有补给自己的时间但窗口短得离谱（<20 小时）= 把维护时间当成了补给时间
+      || (maxEntry.pools || []).some(p => p.start && p.end
+        && (new Date(String(p.end).replace(/-/g, '/')) - new Date(String(p.start).replace(/-/g, '/'))) < 20 * 3600000)
+    );
+    if (needRepair && !byVer.size && !orphans.length) {
+      // 只修复「库里已有的池子」；公告里全新的补给交给后面的新版本/并入逻辑，
+      // 否则会把下一版本的补给全塞进当前版本（曾把 9.1 的补给并进 v9.0）。
+      const oldNames = new Set((maxEntry.pools || []).map(p => String(p.name || '')));
+      const eligible = records.filter(r => oldNames.has(String(r.title || '')) && this.parseBh3UpFromTitle(r).s.length);
+      if (eligible.length) {
+        const win = this.inferBh3VersionWindow(history, maxYamlVer);
+        const rebuilt = this.buildBh3PoolGroup(maxYamlVer, eligible, win);
+        if (rebuilt && rebuilt.pools.length) {
+          const newNameSet = new Set(rebuilt.pools.map(p => String(p.name || '')));
+          const kept = (maxEntry.pools || [])
+            .filter(p => !newNameSet.has(String(p.name || '')))
+            // 活动公告/垃圾 UP 的旧条目直接丢弃，不保留
+            .filter(p => !/^【(公告|活动)】/.test(String(p.name || '')) && !legacyJunkS.includes(String(p.s || '')));
+          maxEntry.pools = [...rebuilt.pools, ...kept];
+          maxEntry.start = rebuilt.start;
+          maxEntry.end = rebuilt.end;
+          const movedPools = this.reassignBh3PoolsByTime(history);
+          if (movedPools.length) logger.mark(`[xhh][gacha_pool] 崩三补给按时间归位：${movedPools.join('、')}`);
+          try {
+            fs.writeFileSync(BH3_POOL_HISTORY_YAML_PATH, YAML.stringify({
+              ...(data || {}),
+              updated: new Date().toISOString().slice(0, 10),
+              pools: history.pools
+            }), 'utf-8');
+            logger.mark(`[xhh][gacha_pool] 崩三同步明细：修复 ${rebuilt.pools.length} 条旧数据`);
+            return `崩坏3：本地库已同步 官方补给（最新 v${Number(maxYamlVer).toFixed(1)}）`;
+          } catch (err) {
+            logger.error('[xhh][gacha_pool] bh3 旧数据修复写入失败:', err);
+          }
+        }
+      }
+    }
+    // 崩三公告标题不带版本号、UP 又都在库里 → 说明确实没有新补给，不要报「解析不出 UP」
+    if (!byVer.size && !orphans.length) {
+      logger.mark(`[xhh][gacha_pool] 崩三同步明细：无新增（官方 ${records.length} 条公告均已在库）`);
+      return `崩坏3：本地库已同步 官方补给（最新 v${Number(maxYamlVer).toFixed(1)}）`;
+    }
+    const newGroups = [];
+    const skipped = [];
+    for (const [ver, recs] of [...byVer.entries()].sort((a, b) => a[0] - b[0])) {
+      // 公告正文多半没有可靠时间区间，用本地库版本排期推断起止（与其它三款游戏一致）
+      const win = this.inferBh3VersionWindow(history, ver);
+      const group = this.buildBh3PoolGroup(ver, recs, win);
+      if (group) newGroups.push(group);
+      else skipped.push(ver);
+    }
+    // 标题缺版本号的新补给：崩三一个版本有多个补给，只有在「版本更新时间表」里确有该版本
+    // （或公告自带更大版本号）时才开新版本；否则并入当前最大版本，绝不凭空造出 v9.2 这种脏版本。
+    if (!newGroups.length && orphans.length) {
+      const tableNext = Object.keys(readBh3VersionStartMap())
+        .map(Number)
+        .filter(n => !Number.isNaN(n) && n > maxYamlVer)
+        .sort((a, b) => a - b)[0];
+      // 版本号必须保留小数位（8.9 + 0.1 = 9 会变成 v9，用 toFixed(1) 得到 9.0）
+      const derived = Number.isFinite(tableNext) ? tableNext.toFixed(1) : (maxYamlVer + 0.1).toFixed(1);
+      if (bh3VersionStart(derived)) {
+        const win = this.inferBh3VersionWindow(history, derived);
+        const group = this.buildBh3PoolGroup(derived, orphans, win);
+        if (group) newGroups.push(group);
+        else skipped.push(derived);
+      } else {
+        // 无版本锚点：按「开放时间 / 公告发布时间」把新补给归到对应版本（不再一律塞进最新版本）
+        const groups = new Map();
+        for (const r of orphans) {
+          const vp = this.bh3VersionForTs(history, this.bh3RecordTs(r)) || maxEntry;
+          if (!vp) continue;
+          if (!groups.has(vp)) groups.set(vp, []);
+          groups.get(vp).push(r);
+        }
+        let addTotal = 0;
+        const addedNames = [];
+        for (const [vp, recs] of groups) {
+          const merged = this.buildBh3PoolGroup(Number(vp.version), recs, null);
+          const nameSet = new Set((vp.pools || []).map(p => String(p.name || '')));
+          const add = (merged?.pools || []).filter(p => !nameSet.has(String(p.name || '')));
+          if (add.length) {
+            vp.pools = [...(vp.pools || []), ...add];
+            addTotal += add.length;
+            for (const p of add) addedNames.push(p.s || p.name);
+          }
+        }
+        if (addTotal) {
+          const movedPools = this.reassignBh3PoolsByTime(history);
+          if (movedPools.length) logger.mark(`[xhh][gacha_pool] 崩三补给按时间归位：${movedPools.join('、')}`);
+          try {
+            fs.writeFileSync(BH3_POOL_HISTORY_YAML_PATH, YAML.stringify({
+              ...(data || {}),
+              updated: new Date().toISOString().slice(0, 10),
+              pools: history.pools
+            }), 'utf-8');
+            logger.mark(`[xhh][gacha_pool] 崩三同步明细：并入 ${addTotal} 条新补给（${addedNames.slice(0, 3).join('、')}）`);
+            return `崩坏3：本地库已同步 官方补给（最新 v${Number(maxYamlVer).toFixed(1)}）`;
+          } catch (err) {
+            logger.error('[xhh][gacha_pool] bh3 并入新补给写入失败:', err);
+          }
+        }
+        return `崩坏3：本地库已同步 官方补给（最新 v${Number(maxYamlVer).toFixed(1)}）`;
+      }
+    }
+    // 这次没有新补给可写时，若已抓到新版本的更新时间，至少把上一版本过期的占位结束时间对齐掉，
+    // 避免「当前卡池」因结束时间过期只能靠兜底命中（如 9.0 的 end 当初写成 09-04）。
+    if (!newGroups.length) {
+      const nextVer = Object.keys(readBh3VersionStartMap())
+        .map(Number)
+        .filter(n => !Number.isNaN(n) && n > maxYamlVer)
+        .sort((a, b) => a - b)[0];
+      const nextTs = Number.isFinite(nextVer) ? bh3VersionStart(nextVer) : null;
+      if (nextTs) {
+        const restPools = [...(history?.pools || [])];
+        const r = this.alignBh3PrevVersionEnd(restPools, nextVer, nextTs);
+        if (r) {
+          try {
+            fs.writeFileSync(BH3_POOL_HISTORY_YAML_PATH, YAML.stringify({
+              ...(data || {}),
+              updated: new Date().toISOString().slice(0, 10),
+              pools: restPools
+            }), 'utf-8');
+            logger.mark(`[xhh][gacha_pool] 崩三同步明细：v${r.version} 结束时间已对齐为 ${r.to}`);
+            return `崩坏3：本地库已同步 官方补给（最新 v${Number(nextVer).toFixed(1)}）`;
+          } catch (err) {
+            logger.error('[xhh][gacha_pool] bh3 结束时间对齐写入失败:', err);
+          }
+        }
+      }
+      const vs = skipped.map(v => `v${v}`).join('、');
+      // 打样本日志，便于定位是「版本没识别」还是「UP 没解析」
+      logger.mark(`[xhh][gacha_pool] 崩三同步未命中（当前库最大 v${maxVerEntry.raw}）：` +
+        (records || []).slice(0, 8).map(r => `[v${r.version || '-'}|UP:${(r.up?.s || []).join('/') || '无'}] ${r.title || ''}`).join(' || '));
+      return `崩坏3：检测到官方新补给，但公告未解析出 UP（${vs}），暂不自动写入；请手动补充 bh3_gacha_pool_history.yaml`;
+    }
+    try {
+      // 新版本上线后，把上一版本结束时间对齐到「新版本开始前一刻（04:00）」，
+      // 与崩三「末期 04:00 收尾 → 同日 11:00 开新版」节奏一致，避免区间重叠或留空档。
+      const toTs = s => {
+        const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+        return Number.isNaN(t) ? null : t;
+      };
+      const fmtTs = t => {
+        const d = new Date(t);
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:00`;
+      };
+      const restPools = [...(history?.pools || [])];
+      const aligned = [];
+      for (const g of newGroups) {
+        const r = this.alignBh3PrevVersionEnd(restPools, g.version, toTs(g.start));
+        if (r) aligned.push(`v${r.version} 结束时间 ${r.from.slice(5, 16)} → ${r.to.slice(5, 16)}`);
+      }
+      const movedPools = this.reassignBh3PoolsByTime(history);
+      if (movedPools.length) logger.mark(`[xhh][gacha_pool] 崩三补给按时间归位：${movedPools.join('、')}`);
+      const next = {
+        ...(data || {}),
+        version: data?.version || '1.0',
+        updated: new Date().toISOString().slice(0, 10),
+        source: data?.source || '米游社官方公告+社区整理',
+        pools: [...newGroups, ...restPools]
+      };
+      fs.writeFileSync(BH3_POOL_HISTORY_YAML_PATH, YAML.stringify(next), 'utf-8');
+      logger.mark(`[xhh][gacha_pool] 崩三同步明细：新增 v${newGroups.map(g => g.version).join('、v')}（${newGroups.map(g => `${g.start.slice(5, 16)}~${g.end.slice(5, 16)}`).join('、')}）` +
+        (aligned.length ? `；${aligned.join('、')}` : '') +
+        (skipped.length ? `；v${skipped.join('、')} 因缺少 UP 未写入` : ''));
+      return `崩坏3：本地库已同步 官方补给（最新 v${Number(newGroups.map(g => Number(g.version)).sort((a, b) => b - a)[0]).toFixed(1)}）`;
+    } catch (err) {
+      logger.error('[xhh][gacha_pool] bh3 yaml 自动同步写入失败:', err);
+      return '';
+    }
+  }
+
+  // 把「上一版本」最后一条的结束时间对齐到新版本开始前一刻（维护窗口），
+  // 与崩三「末期收尾 → 同日开新版」节奏一致，避免区间重叠或留空档。
+  alignBh3PrevVersionEnd(pools = [], version, startTs) {
+    const toTs = s => {
+      const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+      return Number.isNaN(t) ? null : t;
+    };
+    const fmtTs = t => {
+      const d = new Date(t);
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:00`;
+    };
+    const gv = Number(version);
+    const gs = Number(startTs);
+    if (!gs || Number.isNaN(gv)) return null;
+    let last = null;
+    for (const p of pools || []) {
+      const pv = Number(p.version);
+      if (Number.isNaN(pv) || pv >= gv || !toTs(p.end)) continue;
+      if (!last || toTs(p.end) > toTs(last.end)) last = p;
+    }
+    if (!last) return null;
+    // 上一版本补给的结束时间对齐到「新版本开始当天 04:00」（崩三补给 12:00 开、04:00 收）
+    const cut = gs - 8 * 3600000;
+    if (cut <= (toTs(last.start) || 0)) return null;
+    const from = last.end;
+    last.end = fmtTs(cut);
+    return { version: last.version, from, to: last.end };
+  }
+
+  // 自动从米游社「X.X版本更新公告」抓取各版本的实际更新时间，写回共享表
+  // （system/default/bh3_version_start.json），版本号与更新时间都不用手工维护。
+  async refreshBh3VersionStarts() {
+    try {
+      // 12 小时内只抓一次，且已知的版本不再重复请求，避免 #刷新卡池 被串行网络请求拖超时
+      const cacheKey = 'xhh:bh3:version_start:v1';
+      try {
+        if (await redis.get(cacheKey)) return null;
+      } catch (_) {}
+      const list = await officialPool.requestNews('bh3', 30);
+      const cands = (list || [])
+        .map(it => it?.post || {})
+        // 崩三的版本公告标题写作「9.1版本维护通知 / 版本更新公告 / 停机维护公告」，
+        // 只匹配「版本更新」会漏掉「维护通知」，导致版本更新时间表一直是空的。
+        .filter(p => /版本更新|维护通知|版本维护|停机维护|停机更新|更新公告/.test(p.subject || '')
+          && !/补偿|问题|修复|说明|问卷|封禁|前瞻|内容前瞻/.test(p.subject || ''));
+      const fmt = t => {
+        const d = new Date(t);
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      };
+      const found = {};
+      for (const p of cands.slice(0, 3)) {
+        const ver = String(p.subject || '').match(/(\d+\.\d+)/)?.[1];
+        if (!ver || found[ver]) continue;
+        // 表里已有该版本的更新时间就不再抓（版本更新时间基本不会变）
+        if (bh3VersionStart(ver)) continue;
+        const detail = await officialPool.requestPostFull('bh3', p.post_id);
+        const text = officialPool.htmlToText(detail?.content || '');
+        const ts = this.parseBh3VersionUpdateTime(text, Number(detail?.created_at || p.created_at || 0) * 1000);
+        if (ts) found[ver] = fmt(ts);
+      }
+      try {
+        await redis.set(cacheKey, '1', { EX: 12 * 3600 });
+      } catch (_) {}
+      if (Object.keys(found).length) {
+        writeBh3VersionStarts(found);
+        logger.mark(`[xhh][gacha_pool] 崩三版本更新时间已自动更新: ${JSON.stringify(found)}`);
+      }
+      return found;
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 崩三版本更新时间自动抓取失败:', err?.message || err);
+      return null;
+    }
+  }
+
+  // 从版本更新公告正文里解析实际更新时间：维护区间取结束时刻（开服/更新完成），单个时间取该时刻。
+  parseBh3VersionUpdateTime(text = '', refTs = 0) {
+    if (!text) return null;
+    const year = new Date(refTs > 0 ? refTs : Date.now()).getFullYear();
+    const mk = (mo, d, h, mi) => {
+      const ts = new Date(year, Number(mo) - 1, Number(d), Number(h), Number(mi), 0, 0).getTime();
+      return Number.isNaN(ts) ? null : ts;
+    };
+    for (const line of String(text).split(/\n+/).map(v => v.trim()).filter(Boolean)) {
+      if (!/更新|维护|停机|开服/.test(line)) continue;
+      const dm = line.match(/(?:20\d{2}年)?(\d{1,2})月(\d{1,2})日?/);
+      if (!dm) continue;
+      const range = line.match(/(\d{1,2})[:：](\d{2})\s*[~～至\-—]\s*(\d{1,2})[:：](\d{2})/);
+      if (range) return mk(dm[1], dm[2], range[3], range[4]);
+      const single = line.match(/(\d{1,2})[:：](\d{2})/);
+      if (single) return mk(dm[1], dm[2], single[1], single[2]);
+    }
+    return null;
+  }
+
+  // 崩三版本排期推断：优先用米游社版本更新公告的实测时间，其次本地库，最后按单版本约 63 天外推。
+  // 崩三节奏（本地库可验证）：8.8 04-02→05-28、8.9 05-28→07-23、9.0 07-23→…，版本边界当天 04:00 收尾、11:00 开新版。
+  // 米游社公告缺时间区间时用它兜底，刷新才能真正把新版本写进本地库。
+  inferBh3VersionWindow(history, ver) {
+    const toTs = s => {
+      const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+      return Number.isNaN(t) ? null : t;
+    };
+    const target = Number(ver);
+    if (Number.isNaN(target)) return null;
+    const byVer = new Map();
+    for (const p of (history?.pools || [])) {
+      const n = Number(p.version);
+      const s = toTs(p.start), e = toTs(p.end);
+      if (Number.isNaN(n) || !s || !e) continue;
+      const cur = byVer.get(n) || { s: Infinity, e: -Infinity };
+      cur.s = Math.min(cur.s, s);
+      cur.e = Math.max(cur.e, e);
+      byVer.set(n, cur);
+    }
+    const vers = [...byVer.entries()].sort((a, b) => a[0] - b[0]);
+    // 相邻版本「开始时间」间隔的中位数 = 单版本时长（历史节奏）
+    const gaps = [];
+    for (let i = 1; i < vers.length; i++) {
+      const d = Math.round((vers[i][1].s - vers[i - 1][1].s) / 86400000);
+      if (d >= 20 && d <= 90) gaps.push(d);
+    }
+    gaps.sort((a, b) => a - b);
+    // 崩三单版本实测约 62~63 天；历史间隔受库内残缺条目影响可能偏小，只采信合理区间的中位数
+    const mid = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0;
+    const lenDays = (mid >= 55 && mid <= 70) ? mid : BH3_VERSION_DAYS;
+    // 1) 权威版本更新时间表优先：官方公告的实际更新时间，不受历史节奏/库内占位值影响
+    const known = bh3VersionStart(target);
+    if (known) {
+      // 来自官方版本更新时间表（权威），标记后 buildBh3PoolGroup 会优先于正文解析的噪声时间
+      const nextTs = bh3VersionStart((Math.round((target + 0.1) * 10) / 10).toFixed(1));
+      if (nextTs && nextTs > known) return { start: known, end: nextTs, fromTable: true };
+      // 崩三补给 12:00 开、04:00 收
+      const endDay = new Date(known + lenDays * 86400000);
+      endDay.setHours(4, 0, 0, 0);
+      return { start: known, end: endDay.getTime(), fromTable: true };
+    }
+    // 2) 本地库已有该版本：直接沿用
+    if (!vers.length) return null;
+    const exact = byVer.get(target);
+    if (exact) return { start: exact.s, end: exact.e };
+    // 3) 都没有：按历史节奏外推（上一版本开始 + N × 单版本时长）
+    let prev = null;
+    for (const [n, v] of vers) if (n < target) prev = { n, s: v.s, e: v.e };
+    if (!prev) return null;
+    const steps = Math.max(1, Math.round((target - prev.n) * 10));
+    const startDay = new Date(prev.s + steps * lenDays * 86400000);
+    startDay.setHours(12, 0, 0, 0);
+    const endDay = new Date(startDay.getTime() + lenDays * 86400000);
+    endDay.setHours(4, 0, 0, 0);
+    return { start: startDay.getTime(), end: endDay.getTime() };
+  }
+
+  // 崩三 UP 解析：公告标题「丨」后面才是真正的 UP（官方模块常把对应角色名当成 UP）。
+  // 例：【补给】装备补给丨镜见之钥&名以时序 → s=镜见之钥(武器) a=名以时序(圣痕)
+  //     【补给】角色补给丨「时序之律者」主题补给限时开启 → s=时序之律者
+  //     【补给】跃升武装丨劫烬归虹&命运抉择 → s=劫烬归虹 a=命运抉择
+  //     【补给】协同者补给丨周年庆典限时轮替开启 → 无具体 UP，跳过
+  parseBh3UpFromTitle(r = {}) {
+    const junk = /周年|庆典|限时|轮替|开启|活动|主题|补给|跃升|精准|扩充|装备|武装|概率|UP|更新|调整|说明|版本|登录|奖励|直购|折扣/;
+    const clean = s => String(s || '')
+      .replace(/[「」『』【】\[\]（）()]/g, '')
+      .replace(/(?:主题补给|限时开启|开启)[!！]*$/, '')
+      .replace(/^位面武器·/, '')
+      .trim();
+    const usable = n => n && n.length <= 20 && !junk.test(n);
+    // 去掉开头的【补给】标签后按「丨」分段：名字一般在后段，服装补给在前段
+    const title = String(r.title || '').replace(/^【[^】]*】/, '').trim();
+    const segs = title.split(/[丨｜|]/);
+    const before = segs[0] || '';
+    const seg = segs.slice(1).join('丨') || '';
+    const quoted = text => [...String(text || '').matchAll(/[「『]([^」』]+)[」』]/g)]
+      .map(m => clean(m[1]))
+      .filter(usable);
+    let names = [];
+    // 服装补给：「镌刻于黎明的誓约丨服装补给限时开启」—— 服装名在「丨」前面
+    if (/服装|时装|皮肤/.test(title)) {
+      names = quoted(before);
+      if (!names.length) {
+        const one = clean(before);
+        if (usable(one)) names = [one];
+      }
+    }
+    if (!names.length) {
+      names = quoted(seg);
+      if (!names.length) {
+        // 无「」时按 & 拆：「装备+圣痕」/「武器+圣痕」
+        names = seg.split(/[&＆]/).map(clean).filter(usable);
+        if (names.length === 1 && !/[&＆]/.test(seg)) {
+          // 整段就是一个名字（如「位面武器·失序时空」），去掉尾部套话后用整段
+          const one = clean(seg.replace(/(?:限时)?开启[!！]*$/, '').replace(/主题补给.*$/, ''));
+          names = usable(one) ? [one] : [];
+        }
+      }
+    }
+    names = [...new Set(names.filter(Boolean))].slice(0, 3);
+    if (!names.length) {
+      // 标题取不到时，退回正文：协同者补给常把 UP 写在正文里
+      const text = String(r.contentText || r.summary || '');
+      for (const re of [
+        /(?:角色补给|扩充补给|装备补给|精准补给|跃升补给|协同补给|协同者补给|跃升武装)[^\n]{0,60}?[「『]([^」』]+)[」』]/,
+        /(?:协同者|S级协同者)[^\n]{0,30}?[「『]([^」』]+)[」』]/,
+        /(?:S级|A级)(?:角色|女武神|人偶|协同者|武器|圣痕)[^\n]{0,40}?[「『]([^」』]+)[」』]/
+      ]) {
+        const m = text.match(re);
+        const one = m ? clean(m[1]) : '';
+        if (usable(one)) { names = [one]; break; }
+      }
+    }
+    // 协同者轮替补给确实没有单一 UP（多协同者轮换），给个可显示的名字，不要整条跳过
+    if (!names.length && /协同/.test(title)) names = ['协同者轮替'];
+    if (!names.length) return { s: [], a: [] };
+    return { s: [names[0]], a: names.slice(1) };
+  }
+
+  buildBh3PoolGroup(ver, recs = [], win = null) {
+    // 崩三公告常缺可解析的结束时间，单版本补给约 3 周；只拿到开始时间时按此补齐结束时间。
+    const BH3_DEFAULT_PHASE_DAYS = 21;
+    let start = null, end = null;
+    const pools = [];
+    for (const r of recs) {
+      // 【公告】/【活动】是登录活动类公告（如「七日登录领取装备补给卡」），不是卡池，直接跳过
+      if (/^【?(公告|活动)】/.test(String(r.title || '').trim())) continue;
+      // 崩三一个版本里多个补给轮替、时间各不相同：解析正文里的全部时间区间
+      const times = this.parseBh3AllTimeRanges(r.contentText || r.summary || '');
+      for (const t of times) {
+        if (!start || t.start < start) start = t.start;
+        if (!end || t.end > end) end = t.end;
+      }
+      if (!times.length && r.createdAt) {
+        // 正文没时间区间时，用公告发布时间兜底作为开启时间（崩三补给详情通常于开启当日发布）。
+        if (!start || r.createdAt < start) start = r.createdAt;
+      }
+      // 标题里的「A&B」才是真正 UP（装备+圣痕）；官方模块常把对应角色当 UP，故优先用标题解析结果
+      const fb = this.parseBh3UpFromTitle(r);
+      const offS = (r.up?.s || []).filter(Boolean);
+      const offA = (r.up?.a || []).filter(Boolean);
+      const s = fb.s.length ? fb.s : offS;
+      const a = fb.a.length ? fb.a : offA;
+      if (!s.length) continue;
+      const isOutfit = /服装|时装|皮肤/.test(r.title || '');
+      // 「位面武器·XX」是第二部女武神的名号前缀（如「位面武器·失序时空」是S级角色，用速射弩），
+      // 不是武器类型，必须先摘掉再匹配武器类关键词，否则角色补给会被误判成装备补给
+      const weapon = !isOutfit && /装备|精准|武器|圣痕|神之键|武装/.test(String(r.title || '').replace(/位面武器·/g, ''));
+      const pool = {
+        name: r.title || (isOutfit ? `「${s[0]}」服装补给` : (weapon ? `「${s[0]}」装备补给` : `「${s[0]}」角色补给`)),
+        type: isOutfit ? 'outfit' : (weapon ? 'weapon' : 'char'),
+        s: s[0],
+        a: a.slice(0, 6)
+      };
+      // 装备补给的官方 UP 名是对应角色（如 镜见之钥 → 时序之律者），存进 target 便于按角色查装备
+      if (weapon && offS.length && offS[0] !== s[0]) pool.target = offS[0];
+      // 封面图落盘（与原神/星铁的 imgs 字段一致）：风控或公告缓存过期时也能显示公告封面
+      const cover = r.cover || (Array.isArray(r.images) ? r.images[0] : '') || '';
+      if (cover) pool.imgs = [cover];
+      // 该公告正文只有一段区间时，视为这个补给自己的时间（轮替池各池各段时间）
+      if (times.length === 1) {
+        pool.ownStart = times[0].start;
+        pool.ownEnd = times[0].end;
+      }
+      pools.push(pool);
+    }
+    if (!pools.length) return null;
+    // 正文时间噪声大（维护窗口、活动日期等），版本级窗口以官方更新表为准；
+    // 只有没有权威窗口时才用正文解析结果，缺什么补什么。
+    if (win && (win.fromTable || !start || !end)) {
+      if (win.fromTable || !start) start = win.start;
+      if (win.fromTable || !end) end = win.end;
+    }
+    // 只有开始时间、没有结束时间时，按默认相位长度补齐，保证能写入本地库并被「当前卡池」识别。
+    if (start && !end) end = start + BH3_DEFAULT_PHASE_DAYS * 86400000;
+    // 连开始时间（时间区间 / 公告发布时间）都没有则无法定位，跳过以免写入脏数据。
+    if (!start || !end) return null;
+    const fmt = t => {
+      const d = new Date(t);
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    };
+    // 把各补给自己的时间格式化进池子（轮替池各自有各自的起止）
+    for (const p of pools) {
+      if (p.ownStart && p.ownEnd) {
+        p.start = fmt(p.ownStart);
+        p.end = fmt(p.ownEnd);
+      }
+      delete p.ownStart;
+      delete p.ownEnd;
+    }
+    // 崩三没有上下半之分，只按版本号归档
+    return { version: String(ver), start: fmt(start), end: fmt(end), pools };
+  }
+
+  // 崩三一个版本里多个补给轮替、时间各不相同：返回正文里找到的全部时间区间（而非合并成一条）
+  parseBh3AllTimeRanges(text = '') {
+    if (!text) return [];
+    const toTs = (s) => {
+      let str = String(s).trim();
+      if (/^\d{1,2}月/.test(str)) str = `${new Date().getFullYear()}年${str}`;
+      str = str
+        // 「12:00 / 12：00 / 12时 / 12时30分」统一成 12:30 这种形式
+        .replace(/(\d{1,2})\s*[:：时]\s*(\d{1,2})?\s*分?/g, (m, h, mi) => `${h}:${String(mi || 0).padStart(2, '0')}`)
+        .replace(/年/g, '/')
+        .replace(/月/g, '/')
+        // 「日」换成空格：崩三公告写「9月4日12:00」，直接删「日」会拼成「412:00」解析失败
+        .replace(/日/g, ' ')
+        .replace(/[.\-]/g, '/')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const d = new Date(str);
+      return Number.isNaN(d.getTime()) ? null : d.getTime();
+    };
+    const out = [];
+    const push = (a, b) => {
+      if (a && b && b > a) out.push({ start: a, end: b });
+    };
+    // 「开放时间 9.1版本更新后~10月16日12:00」：开始端是相对写法，用该版本的更新时间（版本表）补全
+    {
+      const relRe = /(\d+\.\d+)\s*版本更新后\s*(?:~|～|至|到|-|—|－)\s*(\d{1,2}月\d{1,2}日(?:\s*\d{1,2}[:：时]\d{0,2}(?:分)?)?|\d{4}[\/年]\d{1,2}[\/月]\d{1,2}日?(?:\s*\d{1,2}[:：时]\d{0,2}(?:分)?)?)/g;
+      let rm;
+      while ((rm = relRe.exec(text))) {
+        const vs = bh3VersionStart(rm[1]);
+        const endTs = toTs(rm[2]);
+        if (vs) push(vs, endTs);
+      }
+    }
+    for (const re of [
+      /(\d{4}\/\d{1,2}\/\d{1,2}(?:\s*\d{1,2}:\d{2}(?::\d{2})?)?)\s*(?:~|～|至|到|-|—|－)\s*(\d{4}\/\d{1,2}\/\d{1,2}(?:\s*\d{1,2}:\d{2}(?::\d{2})?)?)/g,
+      /(\d{4}年\d{1,2}月\d{1,2}日(?:\s*\d{1,2}[:：时]\d{0,2}(?:分)?)?)\s*(?:~|～|至|到|-|—|－)\s*(\d{4}年\d{1,2}月\d{1,2}日(?:\s*\d{1,2}[:：时]\d{0,2}(?:分)?)?)/g,
+      // 崩三最常见写法：9月4日12:00~9月24日04:00（日期与时分之间没有空格，时分可省略）
+      /(\d{1,2}月\d{1,2}日(?:\s*\d{1,2}[:：时]\d{0,2}(?:分)?)?)\s*(?:~|～|至|到|-|—|－)\s*(\d{1,2}月\d{1,2}日(?:\s*\d{1,2}[:：时]\d{0,2}(?:分)?)?)/g
+    ]) {
+      let m;
+      while ((m = re.exec(text))) push(toTs(m[1]), toTs(m[2]));
+    }
+    const seen = new Set();
+    // 过滤掉维护窗口之类的短区间（如「9月24日 06:00~11:00」只有几小时），只留真正的补给时间
+    return out.filter(r => {
+      if (r.end - r.start < 20 * 3600000) return false;
+      const k = `${r.start}|${r.end}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  parseBh3TimeRange(text = '') {
+    const list = this.parseBh3AllTimeRanges(text);
+    if (!list.length) return null;
+    return list.reduce((best, r) => (!best || r.end > best.end ? r : best), null);
+  }
+
   async syncLocalPoolsFromOfficial(results = []) {
     const lines = [];
     for (const { game, records } of results) {
       try {
-        if (game === 'sr' && Array.isArray(records) && records.length) {
-          const l = await this.syncSrLocalFromOfficial(records);
+        // 卡池数据来源：gs/sr/zzz = wiki（Bwiki），bh3 = 米游社公告（Bwiki 没有崩三补给表）。
+        // 封面来源：四个游戏统一走米游社（在各 syncXxx 内部只写图片字段，不写卡池数据）。
+        if (game === 'sr') {
+          const l = await this.syncSrLocalFromOfficial(records || []);
           if (l) lines.push(l);
-        } else if (game === 'gs' && Array.isArray(records) && records.length) {
-          const l = await this.syncGsLocalFromOfficial(records);
+        } else if (game === 'gs') {
+          const l = await this.syncGsLocalFromOfficial(records || []);
+          if (l) lines.push(l);
+        } else if (game === 'zzz') {
+          const l = await this.syncZzzLocalFromOfficial(records || []);
+          if (l) lines.push(l);
+        } else if (game === 'bh3' && Array.isArray(records) && records.length) {
+          const l = await this.syncBh3LocalFromOfficial(records);
           if (l) lines.push(l);
         }
       } catch (err) {
         logger.error(`[xhh][gacha_pool] 本地卡池库自动同步失败(${game}):`, err);
       }
     }
-    // 通用：从「X.X版本…」公告自动推进各游戏 CURRENT_VERSION（不回落）
+    // 通用：从「X.X（上半/下半）」公告自动推进各游戏 CURRENT_VERSION（不回落）
     for (const { game, records } of results) {
       const cur = CURRENT_VERSION[game];
       if (!cur || !Array.isArray(records) || !records.length) continue;
-      const vs = records.map(r => r.version).filter(v => /^\d+\.\d+$/.test(v || ''));
+      const vs = records
+        .map(r => String(r.version || '').match(/^(\d+\.\d+)/))
+        .filter(Boolean)
+        .map(m => m[1]);
       if (!vs.length) continue;
       const maxV = vs.map(Number).sort((a, b) => b - a)[0].toFixed(1);
       if (Number(maxV) > Number(cur)) CURRENT_VERSION[game] = maxV;
@@ -1637,15 +3055,27 @@ ${r.summary || ''}`;
     return best.imgs[0];
   }
 
-  applyZzzCardBackgrounds(cards = [], officialRecords = []) {
+  async applyZzzCardBackgrounds(cards = [], officialRecords = []) {
     if (!Array.isArray(cards)) return cards;
     let roleBg = '';
+    let searched = 0;
     for (const card of cards) {
-      if (!card.img) card.img = this.getZzzOfficialCardImage(card, officialRecords) || '';
+      // 封面统一优先米游社官方公告图；本地/wiki 图只作兜底
+      const mysImg = (officialRecords || []).length ? this.getZzzOfficialCardImage(card, officialRecords) || '' : '';
+      if (mysImg) {
+        card.img = mysImg;
+        if (!roleBg && !card?.weapon) roleBg = mysImg;
+        continue;
+      }
       if (card?.weapon) continue;
       if (!card.img && card.s) {
         const firstName = String(card.s).split(/[\/，,、]/)[0]?.trim();
         card.img = this.getZzzCharacterSplash(firstName) || '';
+        // 官方号搜索接口兜底：按 UP 名取「独家频段/音擎频段」公告图
+        if (!card.img && firstName && searched < 4) {
+          searched++;
+          card.img = (await this.mysSearchImages('zzz', firstName, [0]))[0] || '';
+        }
       }
       if (!roleBg && card.img) roleBg = card.img;
     }
@@ -1684,7 +3114,7 @@ ${r.summary || ''}`;
         const sample = pools[0];
         const { end } = this.parseTime(sample);
         const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
-        const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
+        const cards = await this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
         const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
         return this.renderPoolImage(e, {
           game: '绝区零',
@@ -1722,7 +3152,7 @@ ${r.summary || ''}`;
           const sample = localPools[0];
           const { end } = this.parseTime(sample);
           const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
-          const localCards = this.applyZzzCardBackgrounds(localPools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
+          const localCards = await this.applyZzzCardBackgrounds(localPools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
           const markIcon = this.getZzzHeaderSplashFromCards(localCards, ZZZ_MARK_ICON);
           return this.renderPoolImage(e, {
             game: '绝区零',
@@ -1769,7 +3199,7 @@ ${r.summary || ''}`;
       const latest = data.filter(p => this.poolEndStamp(p) === latestEnd);
       if (!latest.length) return e.reply('当前没有匹配到正在开放的绝区零活动卡池。');
       const latestStage = latest[0]?.version ? `；数据源最新收录：${latest[0].version}` : '';
-      const cards = this.applyZzzCardBackgrounds(latest.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
+      const cards = await this.applyZzzCardBackgrounds(latest.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
       const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
       return this.renderPoolImage(e, {
         game: '绝区零',
@@ -1784,7 +3214,7 @@ ${r.summary || ''}`;
     const sample = pools[0];
     const { end } = this.parseTime(sample);
     const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
-    const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
+    const cards = await this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
     const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
     return this.renderPoolImage(e, {
       game: '绝区零',
@@ -1809,7 +3239,7 @@ ${r.summary || ''}`;
       return e.reply(`绝区零当前版本已标记为 ${CURRENT_VERSION.zzz}，但卡池数据源还没有收录 ${CURRENT_VERSION.zzz}${phase || ''} 的具体UP信息。`);
     }
     if (!pools.length) return e.reply(`未查询到绝区零 ${version}${phase || ''} 卡池数据。`);
-    const cards = this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
+    const cards = await this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
     const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
     return this.renderPoolImage(e, {
       game: '绝区零',
@@ -2313,16 +3743,20 @@ ${r.summary || ''}`;
       for (const c of map.get(v)) {
         const up = [`S-${c.s || '-'}`];
         if (c.a) up.push(`A-${c.a}`);
-        lines.push(`${c.version || v} ◆ ${c.title || '卡池'}：${up.join(' | ')}`);
+        // 标题本身已带版本号（如「4.5下半 角色活动跃迁」）时不再重复前缀，既省体积也更易读
+        const vStr = String(c.version || v || '');
+        const rawTitle = c.title || '卡池';
+        const head = !vStr ? rawTitle : (rawTitle.startsWith(vStr) ? rawTitle : `${vStr} ◆ ${rawTitle}`);
+        lines.push(`${head}：${up.join(' | ')}`);
       }
       return lines.join('\n');
     });
   }
 
-  // OneBot 对单条转发有总量限制：原神全版本 ~100KB 文本整发会 res_id 上传失败，实测 ~20 节点（约 20KB）一批可发。
+  // OneBot 对单条转发有总量限制：原神全版本 ~100KB 文本整发会 res_id 上传失败，实测 ~20 节点（约 16KB）一批可发。
   // 策略：按「估算字节 + 节点数」双阈值打包安全批次直接分批发；小数据才尝试单条整发；失败的单批再二分，仍失败退化纯文本。
-  static POOL_FORWARD_MAX_BYTES = 38 * 1024;
-  static POOL_FORWARD_MAX_NODES = 45;
+  static POOL_FORWARD_MAX_BYTES = 16 * 1024;
+  static POOL_FORWARD_MAX_NODES = 20;
 
   async replyAllPoolForward(e, title, chunks = []) {
     if (!chunks.length) return e.reply(`${title}：暂无数据`);
@@ -2343,9 +3777,17 @@ ${r.summary || ''}`;
         await e.reply(await makeForwardMsg(e, batch, label));
       } catch (err) {
         logger.warn?.(`[xhh][gacha_pool] ${label} 转发失败，尝试对半拆分:`, err?.message || err);
+        // 单批失败多半是协议端限流，先等一下再降级，避免连续重试被进一步限流
+        await this.sleepMs(600);
         await this.sendForwardSplit(e, batch, label);
       }
+      // 批次之间留出间隔，连续发多条转发容易被协议端/风控限流
+      if (idx < batches.length) await this.sleepMs(400);
     }
+  }
+
+  sleepMs(ms = 300) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   // 按字节 + 节点数双阈值把版本块打包成安全批次。
@@ -2372,19 +3814,32 @@ ${r.summary || ''}`;
     if (chunks.length === 1) {
       return this.sendChunksAsText(e, chunks, title);
     }
-    try {
-      await e.reply(await makeForwardMsg(e, chunks, title));
-    } catch (err) {
-      const mid = Math.ceil(chunks.length / 2);
-      await this.sendForwardSplit(e, chunks.slice(0, mid), title);
-      await this.sendForwardSplit(e, chunks.slice(mid), title);
+    const bytes = chunks.reduce((s, c) => s + Buffer.byteLength(String(c)), 0);
+    // 已经失败过一次的批次不再整批重试（多半是总量超限），只有明显更小的批次才再试一次
+    if (chunks.length <= 10 && bytes < 8 * 1024) {
+      try {
+        return await e.reply(await makeForwardMsg(e, chunks, title));
+      } catch (err) {
+        logger.warn?.(`[xhh][gacha_pool] ${title} 拆分后转发仍失败，退化纯文本:`, err?.message || err);
+        return this.sendChunksAsText(e, chunks, title);
+      }
     }
+    const mid = Math.ceil(chunks.length / 2);
+    await this.sendForwardSplit(e, chunks.slice(0, mid), title ? `${title}·上` : '');
+    await this.sleepMs(400);
+    await this.sendForwardSplit(e, chunks.slice(mid), title ? `${title}·下` : '');
   }
 
   async sendChunksAsText(e, chunks, title) {
     const text = (title ? title + '\n\n' : '') + chunks.join('\n\n');
-    for (let i = 0; i < text.length; i += 3000) {
-      await e.reply(text.slice(i, i + 3000));
+    for (let i = 0; i < text.length; i += 2000) {
+      try {
+        await e.reply(text.slice(i, i + 2000));
+        await this.sleepMs(400);
+      } catch (err) {
+        logger.warn?.(`[xhh][gacha_pool] ${title} 纯文本分段发送失败:`, err?.message || err);
+        return;
+      }
     }
   }
 
@@ -2765,6 +4220,7 @@ ${r.summary || ''}`;
     const cards = [];
     const currentVersion = CURRENT_VERSION.sr;
     let prevEnd = '';
+    let srImgDirty = false;
     for (const item of data) {
       const ver = item.ver || '';
       const timeRes = this.normalizeSrHistoryTime(item.time || '-', prevEnd);
@@ -2772,7 +4228,11 @@ ${r.summary || ''}`;
       const now = Date.now();
       const startAt = new Date(String(timeRes.time || '').split('~')[0]?.trim()).getTime();
       const endAt = new Date(String(timeRes.end || '').trim()).getTime();
-      const timeActive = !Number.isNaN(startAt) && !Number.isNaN(endAt) && now >= startAt && now <= endAt;
+      // 「~ 长期」的联动池：结束时间解析为 NaN，按「已开始即有效」处理，否则会从当前卡池里消失
+      const longTerm = /长期/.test(String(item.time || ''));
+      const timeActive = longTerm
+        ? (Number.isNaN(startAt) || now >= startAt)
+        : (!Number.isNaN(startAt) && !Number.isNaN(endAt) && now >= startAt && now <= endAt);
       const versionHit = !isCurrent && (ver === query || ver.startsWith(query) || ver.replace(/上半|下半/g, '') === query);
       const nameHit = !isCurrent && (
         (item.js_five || []).includes(query) ||
@@ -2780,43 +4240,170 @@ ${r.summary || ''}`;
         this.clSrNames(item.gz_five || []).includes(query) ||
         this.clSrNames(item.gz_four || []).includes(query)
       );
-      if (isCurrent && !ver.startsWith(currentVersion) && !timeActive) continue;
+      // 当前卡池：只看「正在开放」的，不能按版本号放行——
+      // 4.5下半开放后，同版本的 4.5上半 已过期，必须让位（否则上半会一直挂在当前卡池里）。
+      // 时间解析不出（如缺 start/end）时才用当前版本号兜底，避免本地库缺时间导致当前卡池空白。
+      const timeParsed = !Number.isNaN(startAt) && !Number.isNaN(endAt);
+      const keepForCurrent = timeActive || (ver.startsWith(currentVersion) && !timeParsed);
+      if (isCurrent && !keepForCurrent) continue;
       if (!all && !isCurrent && !versionHit && !nameHit) continue;
       const itemImgs = (item.imgs || []).filter(Boolean);
       const isCollab = /^联动/.test(ver);
       // 联动/普通卡池统一优先使用官方公告图做背景：cover 与公告正文大图均为 690x320 横图，
       // 适合铺满卡片；只有官方图缺失时才退到本地角色 splash，都没有则留空由模板显示纯渐变。
-      const officialRoleBg = itemImgs[0] || this.getSrOfficialPoolImage(item, false, officialRecords) || '';
+      let officialRoleBg = itemImgs[0] || this.getSrOfficialPoolImage(item, false, officialRecords) || '';
+      // 本地库和当前公告列表都没有封面时（旧版本/已过期池），用官方号搜索接口找回，并写回本地库
+      if (!officialRoleBg && isCurrent) {
+        const found = await this.srSearchPoolImages(ver, item.js_five || [], false);
+        if (found) {
+          officialRoleBg = found;
+          item.imgs = [found, ...itemImgs].slice(0, 2);
+          srImgDirty = true;
+        }
+      }
       // 光锥公告图经常自带大标题文字，和卡片标题重叠；当前卡池统一使用同一期角色公告图做弱化背景。
       const officialWeaponBg = officialRoleBg || itemImgs[1] || this.getSrOfficialPoolImage(item, true, officialRecords);
       const roleBg = officialRoleBg || this.getSrCharacterSplash((item.js_five || [])[0]) || this.getSrCharacterSplash((item.js_five || [])[1]) || '';
+      const roleUp = (item.js_five || []).join(' / ');
       cards.push({
         version: ver,
-        title: isCollab ? '联动跃迁' : (isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`),
+        title: (isCollab ? '联动跃迁' : (isCurrent ? '角色活动跃迁' : `${ver} 角色活动跃迁`)) + (roleUp ? `「${roleUp}」` : ''),
         type: '星穹铁道',
         time: timeRes.time,
-        s: (item.js_five || []).join(' / '),
+        s: roleUp,
         a: (item.js_four || []).join(' / '),
         img: roleBg,
-        weapon: false
+        weapon: false,
+        collab: isCollab
       });
+      const gzUp = this.clSrNames(item.gz_five || []).join(' / ');
       cards.push({
         version: ver,
-        title: isCollab ? '联动光锥跃迁' : (isCurrent ? '光锥活动跃迁' : `${ver} 光锥活动跃迁`),
+        title: (isCollab ? '联动光锥跃迁' : (isCurrent ? '光锥活动跃迁' : `${ver} 光锥活动跃迁`)) + (gzUp ? `「${gzUp}」` : ''),
         type: '星穹铁道',
         time: timeRes.time,
-        s: this.clSrNames(item.gz_five || []).join(' / '),
+        s: gzUp,
         a: this.clSrNames(item.gz_four || []).join(' / '),
         img: officialWeaponBg || roleBg,
-        weapon: true
+        weapon: true,
+        collab: isCollab
       });
       if (!all && (isCurrent || versionHit)) continue;
+    }
+    // 搜索接口找回的封面写回本地库，避免每次渲染都现拉
+    if (srImgDirty) {
+      try {
+        fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
+      } catch (err) {
+        logger.error('[xhh][gacha_pool] sr_logs.yaml 封面写回失败:', err);
+      }
+    }
+    if (isCurrent) {
+      // 联动池是长期开放（相当于常驻），排到末尾，避免把常规版本（如 4.5）的当期卡池挤到后面。
+      // 比较符方向：a 有 collab 返回正数 → a 排后面；稳定排序，非联动卡保持原有（版本）顺序
+      cards.sort((a, b) => Number(!!a.collab) - Number(!!b.collab));
     }
     return cards;
   }
 
   clSrNames(arr = []) {
-    return arr.map(v => String(v).replace(/\/|智识|记忆|虚无|同谐|丰饶|毁灭|巡猎|存护|，|,|!|！|」|「/g, ''));
+    // 「欢愉」是 4.5 新增命途，也必须一并清洗，否则「欢愉/向浪花掷下盛夏」会变成「欢愉向浪花掷下盛夏」
+    return arr.map(v => String(v).replace(/\/|欢愉|智识|记忆|虚无|同谐|丰饶|毁灭|巡猎|存护|，|,|!|！|」|「/g, ''));
+  }
+
+  // 原神当前卡池封面与「米游社卡池」视图对齐：本地库缺公告图时用立绘/武器合成图兜底，
+  // 会和米游社视图（官方公告 banner）不一致。这里用官方公告封面覆盖回来。
+  applyGsOfficialCovers(cards = [], records = []) {
+    if (!Array.isArray(cards) || !cards.length) return cards;
+    const ver = String(cards[0]?.version || '').replace(/^v/i, '');
+    const banners = (records || []).filter(r => {
+      if (ver && r.version && String(r.version).replace(/^v/i, '') !== ver) return false;
+      return /概率UP|祈愿|神铸赋形/.test(r.title || '');
+    });
+    if (!banners.length) return cards;
+    const used = new Set();
+    const keyOf = r => r.postId || r.id || `${r.title || ''}|${r.cover || ''}`;
+    for (const card of cards) {
+      const ups = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+      if (!ups.length) continue;
+      let hit = null;
+      for (const up of ups) {
+        hit = banners.find(r => (r.title || '').includes(up) && !used.has(keyOf(r)));
+        if (hit) break;
+      }
+      const img = hit ? (hit.images?.[0] || hit.cover || '') : '';
+      if (!img) continue;
+      used.add(keyOf(hit));
+      card.img = img;
+      card.imgFallback = false;
+    }
+    return cards;
+  }
+
+  // 远程图片宽高比（w/h）：解析 PNG/JPEG 文件头即可，不用整图下载；失败返回 0
+  async remoteImgAspect(url = '') {
+    if (!url) return 0;
+    if (MYS_ASPECT_CACHE.has(url)) return MYS_ASPECT_CACHE.get(url);
+    let aspect = 0;
+    try {
+      const res = await fetch(url, {
+        headers: { Range: 'bytes=0-4095', Referer: 'https://www.miyoushe.com', 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(6000)
+      });
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50) {
+        // PNG: IHDR 固定在 16~23 字节
+        aspect = buf.readUInt32BE(16) / buf.readUInt32BE(20);
+      } else if (buf.length > 4 && buf[0] === 0xFF && buf[1] === 0xD8) {
+        // JPEG: 扫 SOFn 段
+        let off = 2;
+        while (off + 9 < buf.length) {
+          if (buf[off] !== 0xFF) { off++; continue; }
+          const marker = buf[off + 1];
+          if (marker >= 0xC0 && marker <= 0xCF && ![0xC4, 0xC8, 0xCC].includes(marker)) {
+            aspect = buf.readUInt16BE(off + 7) / buf.readUInt16BE(off + 5);
+            break;
+          }
+          off += 2 + buf.readUInt16BE(off + 2);
+        }
+      }
+    } catch (_) {}
+    aspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 0;
+    MYS_ASPECT_CACHE.set(url, aspect);
+    return aspect;
+  }
+
+  // 米游社公告列表（getNewsList）经常不带封面，官方视图会渲染成纯色卡。
+  // 用官方号搜索接口按 UP 名找回公告 banner。公告正文常有多张图（第 1 张往往是竖版角色特写，
+  // 直接 cover 填进横卡会被放大裁切），所以按实际宽高比挑最接近卡片比例（460:205 ≈ 2.24）的横图。
+  // force=true 时连「立绘/合成图兜底」的封面也一并替换（这些是竖版图，塞进横卡面会被放大裁成特写）
+  async attachGsOfficialCovers(cards = [], force = false) {
+    if (!Array.isArray(cards) || !cards.length) return cards;
+    const used = new Set();
+    for (const card of cards) {
+      if (card.img && (!force || !card.imgFallback)) continue;
+      const names = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+      const keywords = [...names, String(card.title || '').replace(/的概率UP.*$/, '').trim()].filter(Boolean);
+      let picked = '';
+      for (const kw of keywords) {
+        // 祈愿公告一般 2 张图：索引 0 角色池、索引 1 武器池，武器池优先取 1
+        const cands = await this.mysSearchImages('gs', kw, card.weapon ? [1, 0, 2, 3, 4, 5, 6, 7] : [0, 1, 2, 3, 4, 5, 6, 7]);
+        let best = '', bestScore = Infinity;
+        for (const u of cands || []) {
+          if (!u || used.has(u)) continue;
+          const a = await this.remoteImgAspect(u);
+          // 非横图（竖版特写/方形图）大幅降权，避免被放大裁切
+          const score = a >= 1.6 ? Math.abs(a - 2.24) : 10 + Math.abs(a - 2.24);
+          if (score < bestScore) { bestScore = score; best = u; }
+        }
+        if (best) { picked = best; break; }
+      }
+      if (picked) {
+        card.img = picked;
+        used.add(picked);
+      }
+    }
+    return cards;
   }
 
   async gsCurrentPool(e) {
@@ -2826,6 +4413,14 @@ ${r.summary || ''}`;
     if (localCards.length) {
       // 本地 yaml 缺失四星时，用公告自动解析兜底补齐（任意版本自动适配）
       await this.patchGsCardsHardcoded(localCards);
+      // 封面统一走米游社：本地库缺公告图/武器池用合成图时，用官方公告封面覆盖，
+      // 保证与「米游社卡池」视图同池同封面
+      try {
+        const { records } = await officialPool.fetch('gs');
+        if (records?.length) this.applyGsOfficialCovers(localCards, records);
+      } catch (_) {}
+      // 米游社列表常不含祈愿公告，此时用搜索接口按 UP 名补横版公告图，避免退回竖版立绘
+      await this.attachGsOfficialCovers(localCards, true);
       localCards.forEach((card, i) => {
         card.index = i + 1;
         card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
@@ -3000,7 +4595,7 @@ ${r.summary || ''}`;
     return query;
   }
 
-  getGsCharacterSplash(name = '') {
+  getGsCharacterSplash(name = '', opts = {}) {
     const raw = String(name || '').trim();
     if (!raw) return '';
     const candidates = [raw];
@@ -3038,7 +4633,8 @@ ${r.summary || ''}`;
         if (profile) custom.push(profile);
       }
     }
-    return this.randomPick(primary) || this.randomPick(custom) || this.randomPick(fallback);
+    // noFace：整卡背景场景丢弃 face/card 小头像档，避免低清头像被拉伸成背景发糊。
+    return this.randomPick(primary) || this.randomPick(custom) || (opts.noFace ? '' : this.randomPick(fallback));
   }
 
   getGsCharacterIcon(name = '') {
@@ -3097,6 +4693,21 @@ ${r.summary || ''}`;
     return { s: arr[0] || '', a: arr.slice(1).join(' / ') };
   }
 
+  // 武器池背景图：优先取武器本身的卡池图/立绘（gacha.webp > awaken.webp > icon.webp），
+  // 避免直接套用角色活动 key visual（米游社武器公告封面往往是当期角色立绘）导致和角色池撞图。
+  // 找不到武器本地资源时返回空串，交由调用方保留公告封面兜底。
+  gsWeaponPoolImg(arr = []) {
+    const list = Array.isArray(arr) ? arr : [];
+    const wname = list.find(n => this.getGsWeaponBase(n)) || list[0] || '';
+    const base = this.getGsWeaponBase(wname);
+    if (!base) return '';
+    for (const f of ['gacha.webp', 'awaken.webp', 'icon.webp']) {
+      const p = `${base}/${f}`;
+      if (fs.existsSync(p)) return fs.realpathSync(p);
+    }
+    return '';
+  }
+
   async loadGsHistorySections(type = '') {
     const data = this.loadGsPoolHistory();
     if (!data?.date) return [];
@@ -3144,19 +4755,30 @@ ${r.summary || ''}`;
         const weapon = this.isGsWeaponPool(arr);
         const mixed = this.isGsMixedPool(arr) || i === 3;
         let img = imgs[i] || '';
+        // imgFallback：本地库没配公告图、用的是本地资源拼出来的立绘（后续可被官方公告封面覆盖）
+        let imgFallback = false;
         if (!img) {
           const firstName = arr.slice(0, 2).find(n => !this.getGsWeaponBase(n));
-          img = firstName ? this.getGsCharacterSplash(firstName) || this.getGsWeaponIcon(firstName) : '';
+          img = firstName ? this.getGsCharacterSplash(firstName, { noFace: true }) || this.getGsWeaponIcon(firstName) : '';
+          imgFallback = true;
+        }
+        // 武器池优先用武器本身卡池图，避免套用角色活动 key visual 与角色池撞图
+        if (weapon) {
+          const wImg = this.gsWeaponPoolImg(arr);
+          if (wImg) { img = wImg; imgFallback = true; }
         }
         const parts = this.gsPoolParts(arr, weapon, mixed);
+        // 标题带上 UP 名（如 角色活动祈愿「薇斯纳」），避免同版本多条卡片全是同名泛称。
+        const baseTitle = weapon ? '武器活动祈愿' : (mixed ? '集录祈愿' : '角色活动祈愿');
         cards.push({
           version: ver,
-          title: customTitle || (weapon ? '武器活动祈愿' : (mixed ? '集录祈愿' : '角色活动祈愿')),
+          title: customTitle || (parts.s ? `${baseTitle}「${parts.s.split(' / ').join('/')}」` : baseTitle),
           type: '原神',
           time,
           s: parts.s,
           a: parts.a,
           img,
+          imgFallback,
           weapon
         });
       });
@@ -3182,6 +4804,10 @@ ${r.summary || ''}`;
         if (!prev) { best.set(item.ver, item); continue; }
         if (this.gsPoolFourStarCount(item.names) > this.gsPoolFourStarCount(prev.names)) best.set(item.ver, item);
       }
+      // 排查用：打印 imgs 库内实际键名与查询键，定位「有图但取不到」的键不匹配问题
+      logger.mark('[xhh][gacha_pool] 当前卡池 imgs 匹配:',
+        [...best.values()].map(v => `【${v.ver}】=> ${(data.imgs?.[`【${v.ver}】`] || []).length} 张`).join(', '),
+        '| 库内 imgs 键:', Object.keys(data.imgs || {}).join(', ') || '(空)');
       for (const { dateKey, names, ver } of best.values()) pushGsCard(dateKey, names, ver);
     } else {
       for (const [dateKey, names] of entries) {
@@ -3202,8 +4828,10 @@ ${r.summary || ''}`;
           let img = imgs[i] || '';
           if (!img) {
             const firstName = arr.slice(0, 2).find(n => !this.getGsWeaponBase(n));
-            img = firstName ? this.getGsCharacterSplash(firstName) || this.getGsWeaponIcon(firstName) : '';
+            img = firstName ? this.getGsCharacterSplash(firstName, { noFace: true }) || this.getGsWeaponIcon(firstName) : '';
           }
+          // 武器池优先用武器本身卡池图，避免套用角色活动 key visual 与角色池撞图
+          if (weapon) img = this.gsWeaponPoolImg(arr) || img;
           const parts = this.gsPoolParts(arr, weapon, mixed);
           cards.push({
             version: ver,
@@ -3216,6 +4844,23 @@ ${r.summary || ''}`;
             weapon
           });
         });
+      }
+    }
+    // 官方号搜索接口兜底：本地库/本地立绘都没有封面时，按「版本+祈愿」或 UP 名去官方号取图
+    // （原神祈愿公告有 2 张图：索引 0 角色池、索引 1 武器池）
+    let gsSearched = 0;
+    for (const card of cards) {
+      if (card.img || gsSearched >= 4) continue;
+      const ver = String(card.version || '').replace(/上半|下半/g, '');
+      const upName = String(card.s || '').split(/[\/，,、]/)[0]?.trim();
+      for (const kw of [ver ? `${ver}版本祈愿` : '', upName].filter(Boolean)) {
+        gsSearched++;
+        const got = await this.mysSearchImages('gs', kw, card.weapon ? [1, 0] : [0]);
+        if (got.length) {
+          card.img = got[0];
+          card.imgFallback = true;
+          break;
+        }
       }
     }
     // 武器卡/兜底卡没背景图时，复用同版本第一张非武器卡的公告图，避免纯色空卡。
@@ -3329,7 +4974,17 @@ ${r.summary || ''}`;
   async loadBh3PoolHistory() {
     try {
       // 优先读取 YAML，方便后续手动修正；JSON 仅作为兼容兜底。
-      const data = fs.existsSync(BH3_POOL_HISTORY_YAML_PATH) ? yaml.get(BH3_POOL_HISTORY_YAML_PATH) : yaml.get(BH3_POOL_HISTORY_PATH);
+      let data;
+      if (fs.existsSync(BH3_POOL_HISTORY_YAML_PATH)) {
+        try { data = yaml.get(BH3_POOL_HISTORY_YAML_PATH); } catch (_) { data = undefined; }
+      }
+      if (!data && fs.existsSync(BH3_POOL_HISTORY_PATH)) {
+        try { data = yaml.get(BH3_POOL_HISTORY_PATH); } catch (_) { data = undefined; }
+      }
+      // 兜底：yaml.get 解析异常时改用原生 YAML 解析器直接读取，避免整个本地库加载失败（曾导致同步误报 v0）。
+      if (!data) {
+        try { data = YAML.parse(fs.readFileSync(BH3_POOL_HISTORY_YAML_PATH, 'utf-8')); } catch (_) {}
+      }
       return this.sanitizeBh3PoolHistory(data);
     } catch (err) {
       logger.warn('[xhh][gacha_pool] 崩三历史卡池数据加载失败:', err);
@@ -3372,15 +5027,308 @@ ${r.summary || ''}`;
       const e = new Date(v.end).getTime();
       return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now <= e;
     });
+    // 时间区间未命中（本地库最新版本已过期）时，保证「当前卡池」与「卡池历史」同源，
+    // 不再跳到米游社官方接口导致两边对不上。优先取「已开始的最新版本」；
+    // 全部都在未来（预告期）时才取最早的一条，避免当前卡池显示成远期的版本。
+    if (!hit) {
+      const list = [...(data.pools || [])].filter(v => !Number.isNaN(Number(v.version)));
+      const started = list
+        .filter(v => !Number.isNaN(new Date(v.start).getTime()) && new Date(v.start).getTime() <= now)
+        .sort((a, b) => Number(b.version) - Number(a.version));
+      const future = list
+        .filter(v => !Number.isNaN(new Date(v.start).getTime()) && new Date(v.start).getTime() > now)
+        .sort((a, b) => Number(a.version) - Number(b.version));
+      hit = started[0] || future[0] || list.sort((a, b) => Number(b.version) - Number(a.version))[0] || null;
+    }
     if (!hit) return [];
     const maps = await this.getBh3WikiMaps();
-    const displayVersion = `${hit.version || ''}${hit.phase || ''}` || hit.version;
-    return Promise.all(hit.pools.map(p => this.bh3PoolToCard({ ...p, version: displayVersion, start: hit.start, end: hit.end }, maps)));
+    const displayVersion = hit.version || '-';
+    // 崩三补给轮替：各池有自己的时间区间，过滤掉已结束的；全都结束则不过滤（避免开天窗）
+    let showPools = (hit.pools || []).filter(p => {
+      if (!p.end) return true;
+      const pe = new Date(String(p.end).replace(/-/g, '/')).getTime();
+      return Number.isNaN(pe) || pe >= now;
+    });
+    if (!showPools.length) showPools = hit.pools || [];
+    return Promise.all(showPools.map(p => this.bh3PoolToCard({ ...p, version: displayVersion, start: p.start || hit.start, end: p.end || hit.end }, maps)));
+  }
+
+  // 崩三公告的时间锚点：优先正文里解析出的开放时间，其次公告发布时间
+  bh3RecordTs(r = {}) {
+    const ranges = this.parseBh3AllTimeRanges(r?.contentText || r?.summary || '');
+    if (ranges.length) return ranges[0].start;
+    return Number(r?.createdAt) || 0;
+  }
+
+  // 按时间戳找到所属版本：落在窗口内优先，否则取「之前最近」的版本
+  bh3VersionForTs(history, ts) {
+    if (!ts) return null;
+    const toTs = s => {
+      const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+      return Number.isNaN(t) ? null : t;
+    };
+    let best = null;
+    for (const vp of history?.pools || []) {
+      const s = toTs(vp.start);
+      const e = toTs(vp.end);
+      if (s === null) continue;
+      if (ts >= s && (e === null || ts <= e)) return vp;
+      if (s <= ts && (!best || s > toTs(best.start))) best = vp;
+    }
+    return best;
+  }
+
+  // 从公告正文解析出的时间区间里，选该补给所属版本窗口内的那一段：
+  // 优先「开放时间落在版本窗口内」的唯一一段；没有就退一步取「与版本窗口有重叠」的唯一一段；
+  // 仍无法唯一确定就返回 null（不猜，保持版本窗口）。
+  pickBh3Range(times = [], vp = null) {
+    if (!Array.isArray(times) || !times.length) return null;
+    const toTs = s => {
+      const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+      return Number.isNaN(t) ? null : t;
+    };
+    const vs = toTs(vp?.start), ve = toTs(vp?.end);
+    if (vs === null || ve === null) return times.length === 1 ? times[0] : null;
+    const inside = times.filter(t => t.start >= vs - 86400000 && t.start <= ve + 86400000);
+    if (inside.length) {
+      // 轮替公告会同时给出「整体开放时间」和每个协同者/角色的轮替子区间（如
+      // 「开放时间 9.1版本更新后~11月6日12:00」+「希娜狄雅：9.1版本更新后~10月5日12:00」），
+      // 这些都会落在同一版本窗口内 → 取结束最晚的那段作为该补给的开放区间（即整体窗口）。
+      return inside.reduce((a, b) => (b.end > a.end ? b : a));
+    }
+    // 兜底：区间与版本窗口要有实质重叠（≥5 天）才算对上，
+    // 否则「刚好跨过版本切换那一刻 16 小时」的旧补给会被误判成新版本的（如 9.0 的劫烬归虹被判进 9.1）
+    const overlap = times.filter(t => Math.min(t.end, ve) - Math.max(t.start, vs) >= 5 * 86400000);
+    if (overlap.length === 1) return overlap[0];
+    return null;
+  }
+
+  // 米游社官方号「瞬间搜索」：按关键词取公告正文。
+  // 这条路走 painter/user_instant 接口，不经过「公告详情」接口，因此详情接口被风控(1034)时依然可用。
+  async searchBh3PostByKeyword(keyword = '') {
+    const kw = String(keyword || '').trim();
+    if (!kw) return [];
+    const cacheKey = `xhh:bh3:instant:${kw}`;
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
+    try {
+      const url = 'https://bbs-api.miyoushe.com/painter/api/user_instant/search/list?keyword=' +
+        encodeURIComponent(kw) + '&uid=73565430&size=20&offset=0&sort_type=2';
+      let json = null;
+      // 偶发限流/空结果时重试一次（实测同一关键词偶尔会返回空列表）
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(12000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        json = await res.json();
+        if (json?.retcode === 0 && (json?.data?.list || []).length) break;
+        await new Promise(res => setTimeout(res, 500));
+      }
+      const out = (json?.data?.list || [])
+        .map(it => (it?.post?.post || it?.post || {}))
+        .filter(p => p && p.content)
+        .map(p => {
+          const raw = Number(p.created_at || 0);
+          return {
+            title: String(p.subject || ''),
+            // 注意：这个接口的 content 只返回约 300 字，完整正文在 structured_content（富文本 JSON）里
+            content: String(p.content || ''),
+            structured: this.mysStructuredToText(p.structured_content),
+            postId: String(p.post_id || ''),
+            // 公告封面图：这个接口的 cover 常为空串，图在 images 里（images[0] 就是卡池封面，
+            // 与官方公告列表给出的封面一致），可作封面兜底来源
+            images: Array.isArray(p.images) ? p.images.filter(Boolean) : [],
+            createdAt: raw > 1e12 ? raw : raw * 1000
+          };
+        });
+      try { await redis.set(cacheKey, JSON.stringify(out), { EX: 12 * 3600 }); } catch (_) {}
+      return out;
+    } catch (err) {
+      logger.warn(`[xhh][gacha_pool] 米游社瞬间搜索失败(${kw}):`, err?.message || err);
+      return [];
+    }
+  }
+
+  // 米游社「structured_content」是富文本 JSON（[{insert:'文字'} / {insert:{image:'id'}}]），
+  // 抽出其中的纯文本（图片等非文字节点忽略）。搜索接口的 content 会被截断，正文只能靠它。
+  mysStructuredToText(raw = '') {
+    const s = String(raw || '');
+    if (!s) return '';
+    try {
+      const arr = JSON.parse(s);
+      if (!Array.isArray(arr)) return '';
+      return arr.map(seg => {
+        const ins = seg?.insert;
+        if (typeof ins === 'string') return ins;
+        if (ins && typeof ins === 'object' && typeof ins.text === 'string') return ins.text;
+        return '';
+      }).join(' ');
+    } catch (_) {
+      return '';
+    }
+  }
+
+  // 搜索关键词：优先补给 UP 名，其次公告标题「丨」后的一段（去掉「限时开启」之类的套话）
+  bh3SearchKeyword(p = {}) {
+    const junk = /^(协同者轮替|跃升武装|跃升补给|角色补给|装备补给|精准补给|主题补给|服装补给|神之键)$/;
+    const s = String(p.s || '').trim();
+    if (s && !junk.test(s)) return s;
+    const seg = String(p.name || '').replace(/^【[^】]*】/, '').split(/[丨｜|]/).pop() || '';
+    const name = seg.replace(/[「」『』]/g, '').replace(/(?:限时)?开启[!！]*$/, '').replace(/主题补给.*$/, '').trim();
+    return name && name.length <= 20 ? name : '';
+  }
+
+  // 给「近期/未来版本」的补给补录各自的开放时间：
+  // ① 优先用刷新拿到的公告正文；② 没有就用「瞬间搜索」按 UP 名取公告正文（不受详情接口风控影响）；
+  // 只有能唯一定位到某段区间时才写入，取不到就保持版本窗口，绝不猜。（历史版本不处理，避免误填）
+  async fillBh3PoolTimes(history, records = []) {
+    const toTs = s => {
+      const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+      return Number.isNaN(t) ? null : t;
+    };
+    const fmt = t => {
+      const d = new Date(t);
+      const q = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${q(d.getMonth() + 1)}-${q(d.getDate())} ${q(d.getHours())}:${q(d.getMinutes())}:00`;
+    };
+    const normTitle = s => String(s || '').trim().replace(/[！!]+$/, '');
+    const byTitle = new Map();
+    for (const r of records || []) {
+      if (r?.title) byTitle.set(normTitle(r.title), r);
+    }
+    const now = Date.now();
+    let times = 0, covers = 0, missing = 0, queried = 0;
+    for (const vp of history?.pools || []) {
+      const ve = toTs(vp.end);
+      // 只处理近期/未来版本（历史版本没有展示需求，也不该用现在的公告去填）
+      if (!ve || ve < now - 60 * 86400000) continue;
+      for (const p of vp.pools || []) {
+        const needTime = !(p.start && p.end);
+        const needCover = !(Array.isArray(p.imgs) && p.imgs.filter(Boolean).length);
+        if (!needTime && !needCover) continue;
+        let ranges = [], cover = '';
+        const r = byTitle.get(normTitle(p.name));
+        if (r) ranges = this.parseBh3AllTimeRanges(r.contentText || r.summary || '');
+        if (!ranges.length || !cover) {
+          const kw = this.bh3SearchKeyword(p);
+          if (kw && queried < 12) {
+            queried++;
+            if (queried > 1) await new Promise(res => setTimeout(res, 120));
+            const posts = await this.searchBh3PostByKeyword(kw);
+            let fallbackCover = '';
+            for (const post of posts) {
+              if (!String(post.title).includes(kw)) continue;
+              if (!/补给|跃升|服装|协同|神之键|精准|扩充/.test(post.title)) continue;
+              const candText = post.structured || post.content;
+              const cand = this.parseBh3AllTimeRanges(candText);
+              const picked = cand.length ? this.pickBh3Range(cand, vp) : null;
+              const img = (post.images || [])[0] || '';
+              if (picked) {
+                // 与版本窗口对得上 → 时间和封面都用这条公告的
+                ranges = [picked];
+                if (img) cover = img;
+                break;
+              }
+              // 正文里没写日期时无法判定版本，先留作封面兜底（列表按发布时间倒序，取最新一条）
+              if (!cand.length && img && !fallbackCover) fallbackCover = img;
+            }
+            if (!cover) cover = fallbackCover;
+          }
+        }
+        if (needTime) {
+          const hit = this.pickBh3Range(ranges, vp);
+          if (hit) {
+            p.start = fmt(hit.start);
+            p.end = fmt(hit.end);
+            times++;
+          } else {
+            missing++;
+          }
+        }
+        if (needCover && cover) {
+          p.imgs = [cover];
+          covers++;
+        }
+      }
+    }
+    if (missing) {
+      logger.mark(`[xhh][gacha_pool] 崩三 ${missing} 个补给暂用版本窗口（公告正文里没定位到唯一一段开放时间）`);
+    }
+    return { times, covers };
+  }
+
+  // 风控期间（「公告详情」接口不可用）仍然补录崩三补给的开放时间与封面：
+  // 走「瞬间搜索」接口取公告正文与图片，不受详情接口风控影响。有变化才落盘。
+  async fillBh3TimesOnRisk(results = []) {
+    try {
+      const data = await this.loadBh3PoolHistory();
+      if (!data?.pools?.length) return '';
+      const recs = (results || []).find(r => r.game === 'bh3')?.records || [];
+      const r = await this.fillBh3PoolTimes(data, recs);
+      const times = r?.times || 0, covers = r?.covers || 0;
+      if (!times && !covers) return '';
+      fs.writeFileSync(BH3_POOL_HISTORY_YAML_PATH, YAML.stringify({
+        ...(data || {}),
+        updated: new Date().toISOString().slice(0, 10),
+        pools: data.pools
+      }), 'utf-8');
+      logger.mark(`[xhh][gacha_pool] 风控期间补录崩三补给信息：开放时间 ${times} 条、封面 ${covers} 张`);
+      return `\n崩坏3：风控期间仍补录了 ${times} 条开放时间、${covers} 张封面`;
+    } catch (err) {
+      logger.warn('[xhh][gacha_pool] 风控期间崩三补给信息补录失败:', err?.message || err);
+      return '';
+    }
+  }
+
+  // 把补给 p 并入版本 vp：同名已存在时合并缺失字段（封面/开放时间/target），不再新增重复条目。
+  bh3MergePoolInto(vp, p) {
+    const pools = vp.pools || (vp.pools = []);
+    const same = pools.find(x => String(x.name || '') === String(p.name || ''));
+    if (!same) {
+      pools.push(p);
+      return true;
+    }
+    for (const k of ['imgs', 'start', 'end', 'target']) {
+      const empty = same[k] === undefined || (Array.isArray(same[k]) && !same[k].filter(Boolean).length);
+      if (empty && p[k] !== undefined) same[k] = p[k];
+    }
+    return true;
+  }
+
+  // 按各补给自己的开放时间把池子归位到正确的版本窗口：
+  // 修复「旧版本的补给被并进最新版本」的错位（如 9.0 末期的补给被并进 v9.1）。
+  reassignBh3PoolsByTime(history) {
+    if (!history?.pools?.length) return [];
+    const toTs = s => {
+      const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+      return Number.isNaN(t) ? null : t;
+    };
+    const windows = history.pools
+      .map(vp => ({ vp, s: toTs(vp.start), e: toTs(vp.end) }))
+      .filter(w => w.s !== null && w.e !== null);
+    const moved = [];
+    for (const w of windows) {
+      const stay = [];
+      for (const p of w.vp.pools || []) {
+        const ps = toTs(p.start);
+        const target = ps !== null ? windows.find(t => ps >= t.s && ps <= t.e) : null;
+        if (!target || target.vp === w.vp) {
+          stay.push(p);
+          continue;
+        }
+        this.bh3MergePoolInto(target.vp, p);
+        moved.push(`v${w.vp.version}「${p.s || p.name}」→ v${target.vp.version}`);
+      }
+      w.vp.pools = stay;
+    }
+    return moved;
   }
 
   async bh3PoolToCard(pool, maps = null) {
     const weapon = pool.type === 'weapon';
-    const partner = !weapon && /协同/.test(`${pool.name || ''}${pool.s || ''}`);
+    const outfit = pool.type === 'outfit';
+    const partner = !weapon && !outfit && /协同/.test(`${pool.name || ''}${pool.s || ''}`);
     const title = partner
       ? String(pool.name || '').replace(/协同补给丨协同者/, '协同补给丨').replace(/「([^」]+)」/g, '$1')
       : (pool.name || '');
@@ -3389,16 +5337,17 @@ ${r.summary || ''}`;
       gameClass: 'bh3',
       version: pool.version || '-',
       title,
-      type: weapon ? '装备补给' : (partner ? '协同补给' : '角色补给'),
+      type: outfit ? '服装补给' : (weapon ? '装备补给' : (partner ? '协同补给' : '角色补给')),
       time: pool.start && pool.end ? `${pool.start.slice(0, 16)} ~ ${pool.end.slice(0, 16)}` : '',
       s: pool.s || '-',
       a: Array.isArray(pool.a) ? pool.a.join(' / ') : (pool.a || '-'),
-      img: '',
+      // 优先用落盘的公告封面（imgs），没有再留空由官方公告缓存兜底
+      img: (Array.isArray(pool.imgs) ? pool.imgs.filter(Boolean)[0] : '') || pool.img || '',
       icon: '',
       weapon,
       partner,
-      mainLabel: weapon ? '武器' : (partner ? '协同' : 'S'),
-      subLabel: weapon ? '圣痕' : 'A'
+      mainLabel: outfit ? '服装' : (weapon ? '武器' : (partner ? '协同' : 'S')),
+      subLabel: outfit ? '角色' : (weapon ? '圣痕' : 'A')
     };
   }
 
@@ -3408,18 +5357,19 @@ ${r.summary || ''}`;
     if (!data?.pools?.length) return e.reply('崩三历史卡池数据暂不可用。');
     const m = e.msg.match(/(?:崩三|崩坏3|崩坏三|BH3)v?(\d+\.\d+)(上半|下半)?(卡池|补给)/);
     if (!m) return false;
-    const [, version, phase] = m;
-    const versionPools = data.pools.filter(p => p.version === version && (!phase || p.phase === phase));
-    if (!versionPools.length) return e.reply(`未查询到崩坏3 v${version}${phase || ''} 卡池数据。`);
-    const pools = versionPools.flatMap(v => v.pools.map(p => ({ ...p, version: v.version, phase: v.phase, start: v.start, end: v.end })));
+    // 崩三没有上下半之分：版本查询只按版本号过滤（命令里带「上半/下半」也按整版本返回）
+    const [, version] = m;
+    const versionPools = data.pools.filter(p => p.version === version);
+    if (!versionPools.length) return e.reply(`未查询到崩坏3 v${version} 卡池数据。`);
+    const pools = versionPools.flatMap(v => v.pools.map(p => ({ ...p, version: v.version, start: p.start || v.start, end: p.end || v.end })));
     const maps = await this.getBh3WikiMaps();
     const cards = await Promise.all(pools.map(async (p, i) => { const c = await this.bh3PoolToCard(p, maps); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
     const markIcon = await this.getBh3HeaderSplashFromPools(cards, BH3_MARK_ICON);
     let markWide = true;
     return this.renderPoolImage(e, {
       game: '崩坏3',
-      title: `v${phase ? `${version}${phase}` : version} 补给记录`,
-      subtitle: phase ? `${pools[0].start?.slice(0, 16)} ~ ${pools[0].end?.slice(0, 16)}` : '历史版本补给记录',
+      title: `v${version} 补给记录`,
+      subtitle: `${pools[0].start?.slice(0, 16)} ~ ${pools[0].end?.slice(0, 16)}`,
       mode: 'bh3',
       markIcon,
       markWide,
@@ -3769,16 +5719,26 @@ ${r.summary || ''}`;
     logger.mark('[xhh][gacha_pool] 命中崩三全卡池:', e.msg);
     const data = await this.loadBh3PoolHistory();
     if (!data?.pools?.length) return e.reply('崩三历史卡池数据暂不可用。');
-    const versions = [...new Set(data.pools.map(p => p.version))].reverse();
+    // 按版本号倒序（最新在前）：库里的条目顺序是历史累积的，不能直接反转文件顺序
+    const byVer = new Map();
+    for (const vp of data.pools || []) {
+      const v = String(vp.version || '-');
+      if (!byVer.has(v)) byVer.set(v, []);
+      byVer.get(v).push(vp);
+    }
+    const toTs = s => {
+      const t = new Date(String(s || '').replace(/-/g, '/')).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+    const versions = [...byVer.keys()].sort((a, b) => Number(b) - Number(a));
     const chunks = versions.map(v => {
-      const vp = data.pools.find(p => p.version === v);
+      // 同一版本可能有多条（不同时间段的补给），全部展开并按开始时间倒序
+      const entries = [...(byVer.get(v) || [])].sort((a, b) => toTs(b.start) - toTs(a.start));
       const lines = [`【v${v}】`];
-      if (vp) {
-        for (const p of vp.pools) {
-          const mainLabel = p.type === 'weapon' ? '武器' : 'S';
-          const subLabel = p.type === 'weapon' ? '圣痕' : 'A';
-          lines.push(`${vp.version}${vp.phase} ${p.type === 'weapon' ? '装备' : '角色'}：${mainLabel}-${p.s} | ${subLabel}-${Array.isArray(p.a) ? p.a.join('，') : p.a}`);
-        }
+      for (const p of entries.flatMap(e => e.pools || [])) {
+        const mainLabel = p.type === 'weapon' ? '武器' : 'S';
+        const subLabel = p.type === 'weapon' ? '圣痕' : 'A';
+        lines.push(`${v} ${p.type === 'weapon' ? '装备' : '角色'}：${mainLabel}-${p.s} | ${subLabel}-${Array.isArray(p.a) ? p.a.join('，') : p.a}`);
       }
       return lines.join('\n');
     });

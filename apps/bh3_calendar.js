@@ -196,10 +196,25 @@ export class bh3_calendar extends plugin {
   }
 
   getVersionStart(version = '', createdAt = 0) {
-    const map = {
-      '9.0': '2026-07-23 11:00',
-    };
-    if (map[version]) return moment(map[version], 'YYYY-MM-DD HH:mm');
+    // 优先读卡池同步自动抓取的版本更新时间（#刷新卡池 写入的 bh3_version_start.json），
+    // 读不到时用下方种子表兜底；不跨文件 import，避免模块加载失败拖垮插件。
+    const raw = String(version ?? '').trim();
+    const num = Number(raw);
+    const keys = [raw, Number.isNaN(num) ? '' : num.toFixed(1)];
+    let auto = {};
+    try {
+      auto = JSON.parse(fs.readFileSync('./plugins/xhh/system/default/bh3_version_start.json', 'utf-8'));
+    } catch (_) {
+      auto = {};
+    }
+    const seed = { '9.0': '2026-07-23 11:00' };
+    for (const k of keys) {
+      if (!k) continue;
+      const val = (auto && auto[k]) || seed[k];
+      if (!val) continue;
+      const m = moment(String(val).replace(/-/g, '/'), 'YYYY/MM/DD HH:mm');
+      if (m.isValid()) return m;
+    }
     const base = moment.unix(Number(createdAt) || moment().unix());
     // 兜底：没有维护结束时间时，按公告发布日期 11:00 作为版本更新后起点。
     return base.hour(11).minute(0).second(0).millisecond(0);

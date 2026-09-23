@@ -216,13 +216,25 @@ class OfficialGachaPool {
 
   async enrichRecords(game, records = []) {
     const ret = new Array(records.length);
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 2;
     let cursor = 0;
+    // 米游社详情接口有风控（retcode 1034 = 请求过快被拦截）：并发降到 2、请求间加间隔，
+    // 一旦出现风控立即熔断，剩余公告直接用列表摘要兜底，避免连环报错和加重风控。
+    let riskControl = false;
     const worker = async () => {
       while (cursor < records.length) {
         const idx = cursor++;
         const record = records[idx];
+        if (riskControl) {
+          ret[idx] = {
+            ...record,
+            up: this.parseUpInfo(game, record.summary || record.title || ''),
+            contentText: this.htmlToText(record.summary || '')
+          };
+          continue;
+        }
         try {
+          await new Promise(r => setTimeout(r, 200 * idx));
           const full = await this.requestPostFull(game, record.postId);
           const content = full?.content || full?.structured_content || record.summary || '';
           const up = this.parseUpInfo(game, content);
@@ -251,7 +263,13 @@ class OfficialGachaPool {
             cover
           };
         } catch (err) {
-          logger.warn(`[xhh][gacha_pool] ${GAME_META[game]?.name || game} 公告UP解析失败:`, record.title, err);
+          // 1034 = 米游社风控：熔断剩余请求，避免连环失败加重限制
+          if (/retcode.?[:=]?\s*"?1034/i.test(String(err?.message || err))) {
+            riskControl = true;
+            logger.warn(`[xhh][gacha_pool] ${GAME_META[game]?.name || game} 详情接口触发风控(1034)，本次剩余公告用摘要兜底`);
+          } else {
+            logger.warn(`[xhh][gacha_pool] ${GAME_META[game]?.name || game} 公告UP解析失败:`, record.title, err);
+          }
           // 详情接口失败时也保留正文文本，避免下游把 contentText 误判为“公告正文为空”
           ret[idx] = {
             ...record,
@@ -262,6 +280,7 @@ class OfficialGachaPool {
       }
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, records.length) }, worker));
+    this.lastRiskControl = riskControl;
     return ret.filter(Boolean);
   }
 
@@ -337,9 +356,23 @@ class OfficialGachaPool {
       }
       // 详情接口需要逐条请求；当前卡池只展示靠前公告，限制数量避免首次查询卡太久。
       records = await this.enrichRecords(game, records.slice(0, 16));
+      const riskHit = this.lastRiskControl === true;
+      this.lastRiskControl = false;
+      // 风控期间详情全挂、数据残缺：若已有可用缓存，直接返回缓存，避免残缺数据覆盖好数据；
+      // 没有缓存时也要带上 riskControl 标记，让调用方跳过本地库同步（残缺数据不能写库）。
+      if (riskHit) {
+        const old = await redis.get(key);
+        let oldRecords = null;
+        try { oldRecords = JSON.parse(old); } catch (_) {}
+        if (Array.isArray(oldRecords) && oldRecords.length) {
+          logger.warn(`[xhh][gacha_pool] ${meta.name} 详情接口风控(1034)，使用缓存公告数据`);
+          return { game, records: oldRecords, cache: true, riskControl: true };
+        }
+        return { game, records, cache: false, riskControl: true };
+      }
       // 无版本查询（当前卡池/刷新）时，补齐已滚出最新列表的固定公告（如「Fate[UBW] 联动跃迁说明」），
       // 供卡池背景选图使用；版本查询不做补源，避免混入无关公告。
-      if (!ver) {
+      if (!ver && !riskHit) {
         for (const pinned of meta.pinnedPosts || []) {
           if (records.some(r => String(r.postId) === String(pinned.postId))) continue;
           try {
