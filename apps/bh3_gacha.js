@@ -220,6 +220,10 @@ export class bh3_gacha extends plugin {
 
   async getMenus(uid, authkey) {
     const menus = [];
+    // 新版自助查询按产出分类裸列抽卡记录：角色/武器/圣痕（材料不是抽卡，排除），
+    // 内层 type 就是记录接口的 type。部分账号（如 PC 端）不出现「XX补给」池名条目，
+    // 只有这组裸分类——过滤后一个池都没有时，退回按分类拉取。
+    const bareCats = [];
     const seen = new Set();
     // BBBUID 默认从 type=1 开始；实测不同账号/服务器可用菜单分布在 2/3/4，
     // 服装补给等特殊池可能挂在更大的 menuType 下，多探测几档。
@@ -233,13 +237,21 @@ export class bh3_gacha extends plugin {
       const list = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.list) ? res.data.list : Array.isArray(res?.data?.menus) ? res.data.menus : [];
       for (const menu of list) {
         const label = menu.label || menu.name || '';
-        if (!this.isValidGachaMenuName(label)) continue;
         const key = `${menu.type || ''}:${label}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          menus.push({ ...menu, label });
+        if (this.isValidGachaMenuName(label)) {
+          if (!seen.has(key)) {
+            seen.add(key);
+            menus.push({ ...menu, label });
+          }
+        } else if (/^(角色|武器|圣痕)$/.test(label) && !bareCats.some(m => m.label === label)) {
+          bareCats.push({ ...menu, label });
         }
       }
+    }
+    // 池名条目一个都没剩下：退回裸分类（实测 type=1 即吐出补给时间/补给内容记录）
+    if (!menus.length && bareCats.length) {
+      logger.mark(`[xhh][bh3_gacha] 未发现补给池名菜单，回退按产出分类拉取: ${bareCats.map(m => `${m.label}(type=${m.type})`).join(' | ')}`);
+      return bareCats;
     }
     if (menus.length) {
       logger.mark(`[xhh][bh3_gacha] 可用卡池菜单: ${menus.map(m => `${m.label}(type=${m.type},menu=${m.menu_type})`).join(' | ')}`);
