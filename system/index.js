@@ -4,6 +4,7 @@ import splitImage from './process_images.js';
 import yaml from './yaml.js';
 import yyjson from './yyjson.js';
 import bili from './bili.js';
+import bili_live from './bili_live.js';
 import mhy from './mhy.js';
 import QR from 'qrcode';
 import api from './api.js';
@@ -176,6 +177,18 @@ const pluginPriority = (name, defaultVal) => {
     return cfg[key] ?? defaultVal;
 };
 
+// 旧攻略时效提示：满 2 年提醒、满 3 年加重措辞（米游社接口时间戳统一为秒）
+// 返回挂在「发布：」后面的后缀，不额外占一行
+const oldPostWarn = (ts, now = Date.now()) => {
+    const t = Number(ts || 0);
+    if (!t) return '';
+    const ms = t > 1e11 ? t : t * 1000; // 兼容误传毫秒的情况
+    const years = (now - ms) / (365 * 24 * 3600 * 1000);
+    if (years >= 3) return `（${Math.floor(years)}年前）⚠️内容可能已严重过时`;
+    if (years >= 2) return `（${Math.floor(years)}年前）⚠️内容可能已过时`;
+    return '';
+};
+
 
 async function getSource(e) {
     //引用回复
@@ -214,6 +227,7 @@ export {
     yyjson,
     QR,
     bili,
+    bili_live,
     api,
     mhy,
     isTrss,
@@ -224,6 +238,7 @@ export {
     makeMessage,
     config,
     pluginPriority,
+    oldPostWarn,
     getSource,
     MysSign,
     zd_MysSign,

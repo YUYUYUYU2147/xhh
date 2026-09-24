@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}gacha_timer/timer.css" />
+  </head>
+
+  <body {{sys.scale}}>
+    <div class="container" id="container">
+      <div class="head">
+        {{if icon}}<img class="pic" src="{{icon}}" onerror="this.style.visibility='hidden'" />{{/if}}
+        <div class="meta">
+          <div class="title">{{name}}</div>
+          <div class="sub">{{gameName}} · {{group}}{{if times}} · UP {{times}} 次{{/if}}</div>
+          {{if days >= 0}}
+          <div class="big">
+            <span class="bnum">{{days}}</span>
+            <span class="bunit">天没复刻</span>
+          </div>
+          {{else}}
+          <div class="big"><span class="bunit">暂无计时数据</span></div>
+          {{/if}}
+          {{if rank}}<div class="rankline">在{{gameName}}里排第 {{rank}} 久没复刻</div>{{/if}}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ptitle">最近一次 UP</div>
+        <div class="rows">
+          {{if version}}<div class="row"><span class="rk">版本</span><span class="rv">{{version}}</span></div>{{/if}}
+          {{if date}}<div class="row"><span class="rk">开始时间</span><span class="rv">{{date}}</span></div>{{/if}}
+          {{if times}}<div class="row"><span class="rk">累计 UP</span><span class="rv">{{times}} 次</span></div>{{/if}}
+        </div>
+      </div>
+
+      {{if others && others.length}}
+      <div class="panel">
+        <div class="ptitle">其他匹配</div>
+        <div class="grid">
+          {{each others v}}
+          <div class="cell">
+            <img class="icon" src="{{v.icon}}" onerror="this.style.visibility='hidden'" />
+            <p class="cname">{{v.name}}</p>
+            <p class="cday">{{v.gameName}} {{v.days}}天</p>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <div class="logo">from 小花火 · 数据源 {{source}}</div>
+    </div>
+  </body>
+</html>

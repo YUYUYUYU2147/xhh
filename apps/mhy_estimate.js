@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { makeForwardMsg, config, pluginPriority } from '#xhh';
+import { makeForwardMsg, config, pluginPriority, oldPostWarn } from '#xhh';
 import fs from 'fs';
 import {
   getCurrentZzzDefenseInfoByEvent,
@@ -518,7 +518,8 @@ function formatPostInfo(prefix, post = {}, fallback = '', gids = 1) {
     post.subject || fallback,
   ].filter(Boolean);
   const time = Number(post.created_at || post.publish_at || 0);
-  if (time) lines.push(`发布：${new Date(time * 1000).toLocaleString('zh-CN', { hour12: false })}`);
+  // 老攻略在发布时间后挂时效提醒，避免拿几年前的内容当现版本作业
+  if (time) lines.push(`发布：${new Date(time * 1000).toLocaleString('zh-CN', { hour12: false })}${oldPostWarn(time)}`);
   const summary = extractPostSummary(post);
   if (summary) lines.push(`摘要：${summary}`);
   if (post.post_id) {

@@ -1,0 +1,238 @@
+@font-face {
+  font-family: 'yuan';
+  src: url('../font/yuan.ttf');
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-size: 16px;
+  font-family: 'yuan';
+  width: 600px;
+  transform-origin: 0 0;
+}
+
+.container {
+  background-image: url('../wiki/imgs/bg.png');
+  background-repeat: no-repeat;
+  background-size: cover;
+  padding: 10px 12px 6px;
+  width: 620px;
+  color: #464c3d;
+}
+
+.head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 4px solid #e2e8f0;
+  outline: 1px solid #8ebde3;
+  outline-offset: -6px;
+  background: #f3ddb0dc;
+  box-shadow: 2px 6px 6px 0px rgba(49, 48, 48, 0.4);
+}
+
+.head .pic {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  object-position: top center;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 10px;
+  flex: 0 0 96px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2f3a4a;
+  word-break: break-all;
+}
+
+.sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7a8f;
+}
+
+.big {
+  margin-top: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.bnum {
+  font-size: 30px;
+  font-weight: 800;
+  color: #d1563f;
+}
+
+.bunit {
+  font-size: 14px;
+  color: #38424f;
+}
+
+.rankline {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7a8f;
+}
+
+.panel {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 3px solid #e2e8f0;
+  outline: 1px solid #8ebde3;
+  outline-offset: -5px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.ptitle {
+  display: inline-block;
+  padding: 1px 10px;
+  margin-bottom: 6px;
+  background: #b4f6ee;
+  border-radius: 8px 0px 8px 0px;
+  color: rgb(81, 6, 232);
+  font-size: 14px;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.cell {
+  width: 92px;
+  text-align: center;
+}
+
+.cell .icon {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  object-position: top center;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.cname {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 14px;
+  color: #2f3a4a;
+  word-break: break-all;
+}
+
+.cday {
+  font-size: 10px;
+  color: #6b7a8f;
+}
+
+.ranks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rank {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: rgba(243, 221, 176, 0.5);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.rno {
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #31445c;
+  flex: 0 0 18px;
+}
+
+.rno.hot {
+  background: #d1563f;
+  color: #fff;
+}
+
+.ricon {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex: 0 0 22px;
+}
+
+.rname {
+  min-width: 90px;
+  color: #2f3a4a;
+  font-weight: 700;
+}
+
+.rtag {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(180, 246, 238, 0.8);
+  color: #31445c;
+  font-size: 10px;
+}
+
+.rday {
+  color: #d1563f;
+  font-weight: 700;
+}
+
+.rver {
+  margin-left: auto;
+  color: #6b7a8f;
+  font-size: 10px;
+}
+
+.rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 45%;
+  font-size: 13px;
+}
+
+.rk {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(180, 246, 238, 0.75);
+  color: #31445c;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.rv {
+  color: #38424f;
+}
+
+.logo {
+  font-size: 15px;
+  text-align: center;
+  padding: 6px 0 2px;
+  color: #ee8e8ef8;
+  text-shadow: 0.5px 0.5px 1px #2d2c2c;
+}

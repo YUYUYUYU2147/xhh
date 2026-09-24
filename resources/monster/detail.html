@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}monster/detail.css" />
+  </head>
+
+  <body {{sys.scale}}>
+    <div class="container" id="container">
+      <div class="head">
+        <img
+          class="pic"
+          src="{{image || icon}}"
+          data-alt="{{icon}}"
+          onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}else{this.style.visibility='hidden'}"
+        />
+        <div class="meta">
+          <div class="title">{{name}}</div>
+          {{if tags && tags.length}}
+          <div class="tags">
+            {{each tags t}}<span class="tag">{{t}}</span>{{/each}}
+          </div>
+          {{/if}}
+          <div class="from">{{gameName}} · {{source}}</div>
+        </div>
+      </div>
+
+      {{if desc}}
+      <div class="panel">
+        <div class="ptitle">简介</div>
+        <div class="desc">{{desc}}</div>
+      </div>
+      {{/if}}
+
+      {{if rows && rows.length}}
+      <div class="panel">
+        <div class="ptitle">基本信息</div>
+        <div class="rows">
+          {{each rows r}}
+          <div class="row"><span class="rk">{{r.k}}</span><span class="rv">{{r.v}}</span></div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{if stats && stats.length}}
+      <div class="panel">
+        <div class="ptitle">基础数值</div>
+        <div class="stats">
+          {{each stats s}}
+          <div class="stat"><p class="sv">{{s.value}}</p><p class="sl">{{s.label}}</p></div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{each groups g}}
+      <div class="panel">
+        <div class="ptitle">{{g.title}}</div>
+        {{if g.text}}
+        <div class="desc">{{g.text}}</div>
+        {{/if}}
+        {{if g.items && g.items.length}}
+        <div class="items">
+          {{each g.items it}}
+          <div class="item">
+            {{if it.icon}}<img class="iimg" src="{{it.icon}}" />{{/if}}
+            <div class="itxt">
+              {{if it.name}}<p class="iname">{{it.name}}</p>{{/if}}
+              {{if it.text}}<p class="idesc">{{it.text}}</p>{{/if}}
+            </div>
+          </div>
+          {{/each}}
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+
+      <div class="logo">from 小花火 · 怪物图鉴</div>
+    </div>
+  </body>
+</html>

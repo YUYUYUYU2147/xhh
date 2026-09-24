@@ -85,6 +85,39 @@ b_cd: false
 #bilibili自动下载图片时，小于几张图片时，不再合并消息：填数字 (0表示始终合并)
 b_img_num: 0
 
+#是否自动解析消息里的B站直播间链接：true开，false关 (关掉后仍可用「#直播解析 房间号」手动解析)
+bili_live: true
+
+#自动解析直播间时，未开播的直播间是否也回复：true只回复开播中的，false都回复
+bili_live_only_live: false
+
+#自动解析同一直播间的CD：填数字 (单位：秒，0表示不限制)
+bili_live_cd: 60
+
+#手动「#直播解析」时是否顺带录一段直播并发送视频：true开，false关
+bili_live_video: true
+
+#自动解析直播链接时也录制视频：true开，false关 (群里每条链接都录很吃带宽，默认关)
+bili_live_video_auto: false
+
+#录制时长：填数字 (单位：秒，默认60=1分钟)
+bili_live_video_time: 60
+
+#录制大小上限：填数字 (单位：MB，录到这个大小就停；0表示只按时长停)
+bili_live_video_size: 99
+
+#录制清晰度：10000原画 / 400蓝光 / 250超清 / 150高清 / 80流畅 (房间没有该档会自动降级)
+bili_live_qn: 250
+
+#直播间发弹幕功能：true开，false关 (需先「小花火b站登录」扫码登录)
+bili_live_dm: true
+
+#发弹幕权限：all所有人 / admin群管理(含主人) / master仅主人 (私聊不受限制)
+bili_live_dm_perm: 'admin'
+
+#弹幕冷却：填数字 (单位：秒，0表示不限制；主人不受限制)
+bili_live_dm_cd: 5
+
 #bilibili的Cookie(别手动加,首次获取请发送：b站登录)
 bili_ck: ''
 
@@ -146,7 +179,7 @@ custom_guide_enable: true
 custom_guide_forward: on
 #默认源(兜底作者UID)：某游戏未单独填、或角色不在别名表时使用；内置默认 74019947
 custom_guide_uid: 74019947
-#各游戏作者UID（留空则用默认源）；index 留空取帖全部图，如 0 或 0,2
+#各游戏作者UID（留空则用默认源）；index 留空取帖全部图，如 0(第一张) 或 0,2 取指定张
 custom_guide_gs_uid: ''
 custom_guide_gs_index: ''
 custom_guide_sr_uid: ''

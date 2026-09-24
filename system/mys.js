@@ -38,6 +38,24 @@ const nanokaDown = () => Date.now() < nanokaDownUntil;
 const markNanokaDown = () => { nanokaDownUntil = Date.now() + NANOKA_RETRY_MS; };
 const ZZZ_ITEM_ICON_CACHE = './plugins/xhh/temp/zzz_item_icons';
 const localFileUrl = file => `file://${process.cwd()}/${String(file).replace(/^\.\//, '')}`;
+// 邦布本地补图目录：resources/xhh/wiki/zzz_bangboo/<邦布名>.png|webp|jpg
+// 剧情邦布（如伊埃斯）不在 nanoka/官方观测枢/bwiki 任何图鉴里，上游永远拿不到图标；
+// 用户往该目录放一张同名图片即可修复，对以后其它缺图邦布同样通用。
+const ZZZ_BANGBOO_ICON_DIR = './plugins/xhh/resources/wiki/zzz_bangboo';
+const localBangbooIcon = name => {
+    const clean = String(name || '').replace(/[「」『』·\s]/g, '');
+    if (!clean) return '';
+    try {
+        if (!fs.existsSync(ZZZ_BANGBOO_ICON_DIR)) return '';
+        for (const f of fs.readdirSync(ZZZ_BANGBOO_ICON_DIR)) {
+            const m = f.match(/^(.+)\.(png|webp|jpe?g)$/i);
+            if (m && m[1].replace(/[「」『』·\s]/g, '') === clean) {
+                return localFileUrl(`${ZZZ_BANGBOO_ICON_DIR}/${f}`);
+            }
+        }
+    } catch (_) {}
+    return '';
+};
 const ZZZ_WIKI_BASE = 'https://api-takumi-static.mihoyo.com/common/blackboard/zzz_wiki';
 const ZZZ_WIKI_APP_SN = 'zzz_wiki';
 const ZZZ_WIKI_CHANNEL_MAP = {
@@ -261,7 +279,8 @@ class mys {
         try { filterArr = typeof filterText === 'string' ? JSON.parse(filterText) : (Array.isArray(filterText) ? filterText : []); } catch (_) { filterArr = []; }
         const filterList = filterArr.map(entry => {
             const s = String(entry || '');
-            if (type === 'js') {
+            // 邦布（yq）同样用「稀有度/S」，不归一会导致邦布列表没有星级徽章、排序失效
+            if (type === 'js' || type === 'yq') {
                 if (s.includes('稀有度/')) return `星级/${s.split('/').slice(1).join('/')}级`;
                 if (s.includes('特性/')) return `强攻类型/${s.split('/').slice(1).join('/')}`;
             }
@@ -314,6 +333,11 @@ class mys {
         return { content };
     }
 
+    // 邦布本地补图：resources/xhh/wiki/zzz_bangboo/<名>.png|webp|jpg（详情页与列表共用）
+    zzzBangbooLocalIcon(name) {
+        return localBangbooIcon(name);
+    }
+
     //图鉴
     async tujian(isSr = false, isZZZ = false, isBH3 = false) {
         if (isZZZ) {
@@ -360,16 +384,25 @@ class mys {
             let officialIconMap = {};
             try {
                 const cleanName = v => String(v || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '');
-                const officialChars = await this.zzz_official_list('js');
-                (officialChars || []).forEach(item => {
-                    const raw = String(item.title || '');
-                    const full = cleanName(raw);
-                    if (!full || full.length < 2 || !item.icon) return;
-                    const thumb = `${item.icon}?x-oss-process=image/resize,w_300/format,webp`;
-                    if (!officialIconMap[full]) officialIconMap[full] = thumb;
-                    const short = cleanName(raw.split('·')[0]);
-                    if (short && short.length >= 2 && !officialIconMap[short]) officialIconMap[short] = thumb;
-                });
+                // 邦布（yq）的 nanoka icon 是游戏内资源路径（UI/Sprite/...），拼不出可访问链接，
+                // 因此官方邦布图标也一并纳入映射，邦布列表按名字回退使用，避免整列裂图
+                const [officialChars, officialBangboos] = await Promise.all([
+                    this.zzz_official_list('js'),
+                    this.zzz_official_list('yq')
+                ]);
+                const collect = items => {
+                    (items || []).forEach(item => {
+                        const raw = String(item.title || '');
+                        const full = cleanName(raw);
+                        if (!full || full.length < 2 || !item.icon) return;
+                        const thumb = `${item.icon}?x-oss-process=image/resize,w_300/format,webp`;
+                        if (!officialIconMap[full]) officialIconMap[full] = thumb;
+                        const short = cleanName(raw.split('·')[0]);
+                        if (short && short.length >= 2 && !officialIconMap[short]) officialIconMap[short] = thumb;
+                    });
+                };
+                collect(officialChars);
+                collect(officialBangboos);
             } catch (_) {}
             const matchOfficialIcon = zh => {
                 const key = String(zh || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '');
@@ -419,15 +452,25 @@ class mys {
                         filter: { text: '[]' }
                     })
                 })),
-                yq_list: Object.entries(bangboos).map(([id, b]) => ({
+                yq_list: Object.entries(bangboos).map(([id, b]) => {
+                    // nanoka 的邦布 icon 是游戏内资源路径，拼 assets 前缀也是 404；
+                    // 优先用本地补图目录，其次官方 Wiki 图标；都没有就留空走首字占位
+                    const icon = localBangbooIcon(b.zh) || matchOfficialIcon(b.zh);
+                    return {
                     content_id: id,
                     title: b.zh,
-                    icon: nanokaIcon(b.icon),
+                    icon,
+                    aliases: [b.codename, b.en].filter(v => v && v !== b.zh),
                     ext: JSON.stringify({
-                        c_30: { picture: { list: [nanokaIcon(b.icon)] } },
-                        filter: { text: '[]' }
+                        c_30: { picture: { list: icon ? [icon] : [] } },
+                        fallbackIcon: '',
+                        // 与角色/音擎一致写「星级/S级」，否则列表拿不到星级徽章、排序也会失效
+                        filter: { text: JSON.stringify([
+                            `星级/${b.rank == 4 ? 'S级' : b.rank == 3 ? 'A级' : 'B级'}`
+                        ]) }
                     })
-                }))
+                };
+                })
             };
         } catch (error) {
             markNanokaDown();
@@ -519,7 +562,8 @@ class mys {
                 js_list: parseList(chars, 'c_18'),
                 wq_list: parseList(weapons, 'c_20'),
                 syw_list: parseList(stigmatas, 'c_19'),
-                yq_list: [...parseList(elves, 'c_21'), ...parseList(partners, 'c_218')]
+                yq_list: parseList(elves, 'c_21'),      // 人偶
+                hb_list: parseList(partners, 'c_218'),  // 协同者（与人偶分开，避免两个指令出同一份合并列表）
             };
         } catch (error) {
             logger.error('BH3 wiki访问失败:', error);
@@ -669,13 +713,13 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
             case 'wq':
                 list = data.wq_list;
                 break;
+            // 驱动盘（syw）与邦布（yq）在绝区零是按名字单查的，不能像原神圣遗物那样
+            // 传 name 就整表返回：调用方拿的是 ret.id，整表会导致邦布/驱动盘单查永远查不到
             case 'syw':
                 list = data.syw_list;
-                if (name) return list;
                 break;
             case 'yq':
                 list = data.yq_list;
-                if (name) return list;
         }
         if (name) {
             const clean = v => String(v || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '').toLowerCase();
@@ -775,6 +819,9 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 break;
             case 'yq':
                 list = data.yq_list;
+                break;
+            case 'hb':
+                list = data.hb_list;
         }
         if (name) {
             const cleanName = String(name).replace(/[（(](上|中|下)[）)]|·(上|中|下)$|-(上|中|下)$/g, '').replace(/\s+/g, '');
@@ -796,7 +843,7 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
             return false;
         } else {
             data = [];
-            const channelKey = type == 'wq' ? 'c_20' : type == 'syw' ? 'c_19' : type == 'js' ? 'c_18' : 'c_21';
+            const channelKey = type == 'wq' ? 'c_20' : type == 'syw' ? 'c_19' : type == 'js' ? 'c_18' : type == 'hb' ? 'c_218' : 'c_21';
             for (let n in list) {
                 const item = list[n];
                 const title = item.title.replace(/ /g, '');

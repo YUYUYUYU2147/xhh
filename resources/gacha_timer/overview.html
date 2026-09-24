@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}gacha_timer/timer.css" />
+  </head>
+
+  <body {{sys.scale}}>
+    <div class="container" id="container">
+      <div class="head">
+        <div class="title">{{name}} UP 总览</div>
+        <div class="sub">共 {{total}} 个条目 · 数据源 {{source}}</div>
+      </div>
+
+      {{if running && running.length}}
+      <div class="panel">
+        <div class="ptitle">近期 UP（近 25 天）</div>
+        <div class="grid">
+          {{each running v}}
+          <div class="cell">
+            <img class="icon" src="{{v.icon}}" onerror="this.style.visibility='hidden'" />
+            <p class="cname">{{v.name}}</p>
+            <p class="cday">{{v.days}}天前</p>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{if ranking && ranking.length}}
+      <div class="panel">
+        <div class="ptitle">最久没复刻 Top{{ranking.length}}</div>
+        <div class="ranks">
+          {{each ranking v index}}
+          <div class="rank">
+            <span class="rno {{if index < 3}}hot{{/if}}">{{index + 1}}</span>
+            {{if v.icon}}<img class="ricon" src="{{v.icon}}" onerror="this.style.visibility='hidden'" />{{/if}}
+            <span class="rname">{{v.name}}</span>
+            <span class="rtag">{{v.group}}</span>
+            <span class="rday">{{v.days}}天</span>
+            <span class="rver">{{v.version}} · {{v.date}}</span>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      <div class="logo">from 小花火 · 卡池计时器</div>
+    </div>
+  </body>
+</html>

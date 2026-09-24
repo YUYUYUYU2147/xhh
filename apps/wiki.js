@@ -281,6 +281,12 @@ export class Wiki extends plugin {
     name = name.startsWith('图鉴') ? name.replace(/^图鉴/, '') : name.replace(/图鉴$/, '');
     name = name.replace(/^[:：\s]+|[:：\s]+$/g, '').trim();
     if (!name) return false;
+    // 怪物/BOSS 图鉴交给 monster 插件处理，通用图鉴规则直接让路，
+    // 避免把「绝区零怪物图鉴」当成角色「怪物」去查然后回「没有找到」
+    const skipName = name
+      .replace(/^(原神|genshin|ys|gs|星穹铁道|崩坏星穹铁道|星铁|铁道|穹铁|sr|崩坏3|崩坏三|崩三|bh3)/i, '')
+      .trim();
+    if (/^(怪物|魔物|敌人|boss|首领)(图鉴|列表|大全)?(\s|·|:|：|$|\d)/i.test(skipName) || /^(怪物|魔物|敌人|boss|首领)$/i.test(skipName)) return false;
     const hasBh3ExclusiveWords = /(专武|专属武器|专属圣痕|专属套|毕业圣痕|圣痕套)/.test(name);
     const hasZzzExclusiveWords = /(专武|专属武器|专属音擎|签名音擎|专属驱动盘|推荐驱动盘|驱动盘套|驱动套)/.test(name);
     if (isBH3 && hasBh3ExclusiveWords) {
@@ -321,6 +327,8 @@ export class Wiki extends plugin {
       for (const { method, args } of checkTypes) {
         if (await this[method](...args, false, false, true)) return true;
       }
+      // 崩三特有的 人偶 / 协同者（不写游戏前缀时也会兜底试一次）
+      if (await this.bh3_yq(e, name, true)) return true;
     } else if (isSr) {
       for (const { method, args } of checkTypes) {
         if (await this[method](...args, true)) return true;
@@ -335,6 +343,7 @@ export class Wiki extends plugin {
         if (await this[method](...args, false, true)) return true;
       }
       if (await this.bangboo(e, name)) return true;
+      if (await this.bh3_yq(e, name, true)) return true;
     }
     //最后查总列表
     if (/角色|武器|大剑|双手剑|单手剑|法器|长枪|弓箭|弓|光锥|圣遗物|遗器|音擎|驱动盘|邦布|圣痕|人偶|协同者/.test(name)) return this.list(e, name, isSr, isZZZ, isBH3);
@@ -343,6 +352,24 @@ export class Wiki extends plugin {
     if (name.length >= 2) {
       await e.reply(`没有找到「${name}」的图鉴数据。\n可尝试指定游戏：绝区零${name}图鉴 / *${name}图鉴 / #${name}图鉴，或检查名称是否正确。`);
       return true;
+    }
+    return false;
+  }
+
+  // 崩三人偶 / 协同者单查（数据层两个分类已拆开，这里依次按名找，命中即出详情卡）
+  async bh3_yq(e, name, isBH3 = false) {
+    if (!isBH3 || !name) return false;
+    for (const type of ['yq', 'hb']) {
+      let ret;
+      try {
+        ret = await mys.data(name, type, false, false, true);
+      } catch (_) { continue; }
+      if (!ret?.id) continue;
+      const data = await mys.detail(ret.id, false, false, true);
+      if (data?.content) {
+        await this.bh3_yq_pictures(e, data, type);
+        return true;
+      }
     }
     return false;
   }
@@ -367,7 +394,7 @@ export class Wiki extends plugin {
     if (name.includes('邦布')) type = 'yq', _name = '邦布';
     if (name.includes('圣痕')) type = 'syw', _name = '圣痕';
     if (name.includes('人偶')) type = 'yq', _name = '人偶';
-    if (name.includes('协同者')) type = 'yq', _name = '协同者';
+    if (name.includes('协同者')) type = 'hb', _name = '协同者';
     if (name.includes('角色')) type = 'js', _name = '角色';
 
     if(!_name) return false;
@@ -934,7 +961,8 @@ export class Wiki extends plugin {
   async zzz_yq_pictures(e, data) {
     const c = data.content || {};
     const base = c.stats || {};
-    const obcIcon = await this.getZzzObcIcon(c.name, 44);
+    // 优先本地补图目录（剧情邦布官方观测枢没有头像），其次观测枢图标
+    const obcIcon = mys.zzzBangbooLocalIcon?.(c.name) || await this.getZzzObcIcon(c.name, 44);
     const view = {
       name: c.name || '未知邦布',
       avatar_img: obcIcon,
@@ -1992,16 +2020,128 @@ export class Wiki extends plugin {
   }
 
   // 崩坏3人偶/协同者
-  async bh3_yq_pictures(e, data) {
-    const content = data.content;
+  // 百科人偶/协同者的正文不在 content/summary 里，而在 content.contents[].text 的
+  // data-data 属性（一段 URL 编码的模板 JSON），这里把有信息量的字段抽成行文本。
+  parseBh3YqBody(content = {}, title = '') {
+    const strip = s => String(s || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const lines = [];
+    const seen = new Set();
+    const add = (label, v) => {
+      if (!v || v === title) return;
+      const key = `${label}:${v}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      lines.push(`${label}：${v}`);
+    };
+    const push = (label, val, max = 90) => {
+      let v = strip(val);
+      if (v.length > max) v = `${v.slice(0, max)}…`;
+      add(label, v);
+    };
+    // 多行内容（如进阶说明）不能走 strip，否则换行会被压成空格
+    const pushRaw = (label, arr = [], max = 400) => {
+      let v = arr.filter(Boolean).join('\n');
+      if (v.length > max) v = `${v.slice(0, max)}…`;
+      add(label, v);
+    };
+    for (const sec of content.contents || []) {
+      const m = String(sec.text || '').match(/data-data="([^"]+)"/);
+      if (!m) continue;
+      let items = [];
+      try { items = JSON.parse(decodeURIComponent(m[1])); } catch (_) { continue; }
+      for (const it of items) {
+        let d = it.data;
+        if (typeof d === 'string') { try { d = JSON.parse(d); } catch (_) { d = {}; } }
+        switch (it.partKey) {
+          case 'basicIntroduction': {
+            for (const f of d.mainFields || []) {
+              if (f?.nameL) push(f.nameL, f.valueL, 40);
+              if (f?.nameR) push(f.nameR, f.valueR, 40);
+            }
+            for (const f of d.subFields || []) push(f.name || '简介', f.value, 150);
+            const hex = (d.hexagon || []).filter(h => h?.key).map(h => `${h.key}${h.level || h.value || ''}`);
+            if (hex.length) push('评级', hex.join(' / '), 80);
+            break;
+          }
+          case 'advanceGeneral': {
+            const txt = (d.advanceGeneral || [])
+              .map(x => `${x.starValue ? `${x.starValue}★ ` : ''}${strip(x.desc)}`)
+              .filter(Boolean);
+            if (txt.length) pushRaw('进阶', txt, 400);
+            break;
+          }
+          case 'equipmentRecommendation': {
+            const names = (d.equipment || [])
+              .flatMap(g => (g.equips || []).map(x => x.title || x.name || x.name_ || ''))
+              .filter(Boolean);
+            if (names.length) push('推荐搭配', names.slice(0, 6).join('、'), 120);
+            break;
+          }
+          case 'gainMethod': {
+            // 「协同者与星之环 / 系统说明」是通用系统文案，不是条目本身的信息，跳过
+            if (/星之环|系统说明/.test(d.title || '')) break;
+            const txt = (d.gainMethod || [])
+              .map(x => `${x.key || ''}${x.value ? ` ${strip(x.value)}` : ''}`)
+              .filter(Boolean);
+            if (txt.length) push(d.title || '获取途径', txt.join('；'), 120);
+            break;
+          }
+          case 'skill': {
+            const groups = [].concat(d.equipment || [], d.items || []);
+            const names = groups.map(g => g.name_ || g.name || '').filter(Boolean);
+            const skills = groups
+              .flatMap(g => (g.skills || g.list || []).map(x => x.key || x.name_ || x.name || x.title || ''))
+              .filter(Boolean);
+            if (names.length) push('技能分类', names.join('、'), 100);
+            if (skills.length) push('技能', skills.slice(0, 12).join('、'), 160);
+            break;
+          }
+        }
+      }
+    }
+    return lines;
+  }
+
+  async bh3_yq_pictures(e, data, poolType = '') {
+    const content = data.content || {};
     const title = content.title;
-    const icon = content.icon;
-    const summary = content.summary || '无';
-    
+    // 百科现在直接返回完整 https 图标地址，只有相对路径才需要补前缀，否则会拼成坏链导致裂图
+    const rawIcon = String(content.icon || '');
+    const icon = /^https?:/i.test(rawIcon) ? rawIcon
+      : rawIcon.startsWith('//') ? `https:${rawIcon}`
+        : `https://api-takumi-static.mihoyo.com/hoyowiki/bh3_wiki${rawIcon}`;
+
+    // 百科人偶/协同者条目基本没有正文（summary 往往就是标题本身），
+    // 从 ext 过滤字段里挖 类型/星级，凑一张有信息量的卡
+    let ext = {};
+    try { ext = typeof content.ext === 'string' ? JSON.parse(content.ext) : (content.ext || {}); } catch (_) {}
+    const tags = [];
+    for (const v of Object.values(ext)) {
+      let filters = [];
+      try { filters = JSON.parse(v?.filter?.text || '[]'); } catch (_) {}
+      for (const f of filters) {
+        const m = String(f).match(/^(人偶类型|协同者类型|人偶星级|星级)\/(.+)$/);
+        if (m) tags.push(`${m[1]}：${m[2]}`);
+      }
+    }
+    tags.unshift(poolType === 'hb' ? '类别：协同者' : '类别：人偶');
+
+    let summary = String(content.summary || '').trim();
+    // summary 只是标题或「标题-协同者」时，不当作简介复读
+    if (!summary || summary === title || summary.replace(/-?协同者$/, '').trim() === title) summary = '';
+    const body = this.parseBh3YqBody(content, title);
+    const desc = [...tags, ...body, summary].filter(Boolean).join('\n')
+      || [tags.join('　|　'), '百科暂未收录该条目的详细介绍。'].join('\n');
+
     data = {
       name: title,
-      desc: summary,
-      icon: `https://api-takumi-static.mihoyo.com/hoyowiki/bh3_wiki${icon}`
+      desc,
+      icon
     };
     render('wiki/bh3_yq', data, { e, ret: true });
 

@@ -193,7 +193,7 @@ export class bh3_gacha extends plugin {
     // 这些不是补给卡池，不能作为抽卡池统计。
     if (/水晶|充值|礼包币|材料/.test(name)) return false;
     if (/^(角色|武器|圣痕)$/.test(name)) return false;
-    return /补给|扩充|精准|家园|协同者|人偶|服装/.test(name);
+    return /补给|扩充|精准|家园|协同者|人偶|服装|时装|皮肤|服饰/.test(name);
   }
 
 
@@ -221,9 +221,10 @@ export class bh3_gacha extends plugin {
   async getMenus(uid, authkey) {
     const menus = [];
     const seen = new Set();
-    // BBBUID 默认从 type=1 开始；实测不同账号/服务器可用菜单分布在 2/3/4
+    // BBBUID 默认从 type=1 开始；实测不同账号/服务器可用菜单分布在 2/3/4，
+    // 服装补给等特殊池可能挂在更大的 menuType 下，多探测几档。
     // 这里逐个探测并合并，避免 type=1 返回空数组时误判失败。
-    for (const menuType of ['1', '2', '3', '4']) {
+    for (const menuType of ['1', '2', '3', '4', '5', '6']) {
       const params = this.gachaBaseParams(uid, authkey, menuType);
       const res = await fetch(`${GACHA_MENUS_URL}?${params.toString()}`, {
         headers: gachaHeaders(),
@@ -239,6 +240,9 @@ export class bh3_gacha extends plugin {
           menus.push({ ...menu, label });
         }
       }
+    }
+    if (menus.length) {
+      logger.mark(`[xhh][bh3_gacha] 可用卡池菜单: ${menus.map(m => `${m.label}(type=${m.type},menu=${m.menu_type})`).join(' | ')}`);
     }
     return menus;
   }
@@ -396,43 +400,104 @@ export class bh3_gacha extends plugin {
       const gachaType = String(menu.type || '');
       const gachaName = menu.label || `卡池${gachaType}`;
       if (!gachaType) continue;
-      if (!history[gachaName]) history[gachaName] = [];
       const newRecords = await this.fetchGachaType(uid, authkey, gachaType);
-      const oldCount = history[gachaName].length;
-      if (force) {
-        if (newRecords.length) {
-          const minTime = newRecords.reduce((m, r) => !m || r.time < m ? r.time : m, '');
-          const older = history[gachaName].filter(r => r.time < minTime);
-          history[gachaName] = [...older, ...newRecords];
-        }
-      } else {
-        // 不能只用 time+content 当 Set 去重：崩三十连会出现同一秒抽到多个相同材料，
-        // 例如 40 抽里有多条“同一时间 + [材料]金币*50000”。用 Set 会把真实重复抽数吞掉。
-        // 这里按“同键出现次数”做多重集合合并，只补本次接口比本地多出来的 occurrence。
-        const oldKeyCounts = new Map();
-        for (const r of history[gachaName]) {
-          const key = this.getGachaRecordBaseKey(r);
-          oldKeyCounts.set(key, (oldKeyCounts.get(key) || 0) + 1);
-        }
-        const incomingKeyCounts = new Map();
-        for (const r of newRecords) {
-          const key = this.getGachaRecordBaseKey(r);
-          const incomingCount = (incomingKeyCounts.get(key) || 0) + 1;
-          incomingKeyCounts.set(key, incomingCount);
-          if (incomingCount > (oldKeyCounts.get(key) || 0)) {
-            history[gachaName].push(r);
-          }
-        }
-      }
-      history[gachaName].sort((a, b) => String(b.time).localeCompare(String(a.time)));
-      const add = Math.max(history[gachaName].length - oldCount, 0);
+      const add = this.mergeInto(history, gachaName, newRecords, force);
       if (add > 0) deltas.push(`${gachaName} 新增 ${add} 条`);
+      totalAdd += add;
+    }
+
+    // 官方 GetMenus 只列出近期有记录的池，服装补给这类池不会出现在菜单里。
+    // 对菜单没覆盖的 gacha type 逐个探测，命中就按内容前缀反推池名一起入库。
+    const probed = await this.probeUnknownPools(uid, authkey, menus.map(m => String(m.type || '')), menus.map(m => m.label));
+    for (const pool of probed) {
+      const add = this.mergeInto(history, pool.label, pool.records, force);
+      if (add > 0) deltas.push(`${pool.label} 新增 ${add} 条`);
       totalAdd += add;
     }
 
     this.saveGacha(uid, { uid, data_time: moment().format('YYYY-MM-DD HH:mm:ss'), data: history });
     if (!totalAdd) return `🌱UID${uid} 没有新增抽卡数据！`;
     return [`✅UID${uid} 抽卡记录更新成功，本次新增 ${totalAdd} 条`, ...deltas].join('\n');
+  }
+
+  // 把接口返回的记录并入本地历史，返回新增条数
+  mergeInto(history, gachaName, newRecords = [], force = false) {
+    if (!history[gachaName]) history[gachaName] = [];
+    const oldCount = history[gachaName].length;
+    if (force) {
+      if (newRecords.length) {
+        const minTime = newRecords.reduce((m, r) => !m || r.time < m ? r.time : m, '');
+        const older = history[gachaName].filter(r => r.time < minTime);
+        history[gachaName] = [...older, ...newRecords];
+      }
+    } else {
+      // 不能只用 time+content 当 Set 去重：崩三十连会出现同一秒抽到多个相同材料，
+      // 例如 40 抽里有多条“同一时间 + [材料]金币*50000”。用 Set 会把真实重复抽数吞掉。
+      // 这里按“同键出现次数”做多重集合合并，只补本次接口比本地多出来的 occurrence。
+      const oldKeyCounts = new Map();
+      for (const r of history[gachaName]) {
+        const key = this.getGachaRecordBaseKey(r);
+        oldKeyCounts.set(key, (oldKeyCounts.get(key) || 0) + 1);
+      }
+      const incomingKeyCounts = new Map();
+      for (const r of newRecords) {
+        const key = this.getGachaRecordBaseKey(r);
+        const incomingCount = (incomingKeyCounts.get(key) || 0) + 1;
+        incomingKeyCounts.set(key, incomingCount);
+        if (incomingCount > (oldKeyCounts.get(key) || 0)) {
+          history[gachaName].push(r);
+        }
+      }
+    }
+    history[gachaName].sort((a, b) => String(b.time).localeCompare(String(a.time)));
+    return Math.max(history[gachaName].length - oldCount, 0);
+  }
+
+  // 探测 GetMenus 没给的卡池：逐个试 gacha type，只登记能明确识别为服装池的，
+  // 其余仅打日志，避免把角色/装备池误建成重名池。
+  async probeUnknownPools(uid, authkey, knownTypes = [], existingLabels = []) {
+    const known = new Set(knownTypes.filter(Boolean));
+    const exists = new Set(existingLabels.filter(Boolean));
+    const result = [];
+    for (let t = 1; t <= 12; t++) {
+      const type = String(t);
+      if (known.has(type)) continue;
+      let records = [];
+      try {
+        records = await this.fetchGachaType(uid, authkey, type);
+      } catch (err) {
+        logger.warn(`[xhh][bh3_gacha] 探测 type=${type} 失败: ${err?.message || err}`);
+        continue;
+      }
+      await sleep(250);
+      if (!records.length) continue;
+      const sample = records.slice(0, 3).map(r => r.content).join(' / ');
+      const label = this.guessPoolLabel(records, type);
+      if (!label) {
+        logger.mark(`[xhh][bh3_gacha] type=${type} 有 ${records.length} 条记录但无法归类，样本: ${sample}`);
+        continue;
+      }
+      if (exists.has(label)) {
+        logger.mark(`[xhh][bh3_gacha] type=${type} 归类为「${label}」，该池已存在，跳过`);
+        continue;
+      }
+      logger.mark(`[xhh][bh3_gacha] 探测到未登记卡池 type=${type} => 「${label}」${records.length} 条，样本: ${sample}`);
+      result.push({ label, type, records });
+    }
+    logger.mark(`[xhh][bh3_gacha] 未登记卡池探测完成：命中 ${result.length} 个（菜单已给 ${known.size} 个 type）`);
+    return result;
+  }
+
+  guessPoolLabel(records = [], type = '') {
+    let costume = 0, partner = 0;
+    for (const r of records) {
+      const c = String(r?.content || '');
+      if (/^\[(服装|皮肤|时装|服饰)\]/.test(c)) costume++;
+      else if (/^\[协同(者)?\]/.test(c)) partner++;
+    }
+    if (costume) return '服装补给';
+    if (partner) return '协同补给';
+    return '';
   }
 
   extractCharacterName(content = '') {
@@ -446,9 +511,24 @@ export class bh3_gacha extends plugin {
   }
 
   getPoolType(gachaName = '') {
+    // 服装池优先判定：部分服装池名会带“装备/特典”字样，避免被误判成武器池
+    if (/服装|时装|皮肤/.test(gachaName)) return 'costume';
     if (/武器|装备/.test(gachaName)) return 'weapon';
-    if (/协同者/.test(gachaName)) return 'partner';
+    // 官方菜单名可能是“协同补给”也可能是“协同者补给”，只匹配“协同者”会漏判成角色池
+    if (/协同/.test(gachaName)) return 'partner';
     return 'char';
+  }
+
+  // 服装池出金判定：官方记录前缀常见 [服装]，不同版本也可能是 [皮肤]/[时装]/[服饰]；
+  // 材料/角色/武器等非服装产出一律不算，其余（含未知前缀）按“获得服装”计。
+  isCostumeRecord(content = '') {
+    const c = String(content || '').trim();
+    if (!c) return false;
+    return !/^\[(材料|角色|武器|圣痕|协同者|人偶)\]/.test(c);
+  }
+
+  extractCostumeName(content = '') {
+    return String(content || '').replace(/^\[[^\]]*\]\s*/, '').trim();
   }
 
   async getStarMaps() {
@@ -599,11 +679,20 @@ export class bh3_gacha extends plugin {
       const name = this.extractWeaponName(content);
       return this.cacheIcon(name, maps.weaponIcon?.[name], 'weapon');
     }
+    if (poolType === 'costume') {
+      // 百科没有服装频道，用服装名去反查所属女武神的头像（如「雾都丽影」→ 幽兰黛尔）
+      const name = this.extractCostumeName(content);
+      const key = Object.keys(maps.charIcon || {})
+        .filter(n => n && n.length >= 2 && name.includes(n))
+        .sort((a, b) => b.length - a.length)[0];
+      return this.cacheIcon(name, key ? maps.charIcon[key] : '', 'costume');
+    }
     return '';
   }
 
   isRareRecord(content = '', poolType = 'char', maps = { char: {}, weapon: {} }) {
-    if (poolType === 'partner') return content.startsWith('[协同者]');
+    if (poolType === 'partner') return /^\[协同(者)?\]/.test(content);
+    if (poolType === 'costume') return this.isCostumeRecord(content);
     if (poolType === 'weapon') {
       const name = this.extractWeaponName(content);
       return !!name && (maps.weapon[name] || 0) >= 5;
@@ -613,7 +702,7 @@ export class bh3_gacha extends plugin {
   }
 
   getSharedPityGroup(gachaName = '', poolType = 'char') {
-    if (poolType === 'partner') return '';
+    if (poolType === 'partner' || poolType === 'costume') return '';
     const name = String(gachaName || '').replace(/\s+/g, '');
     // 崩三的角色/装备补给 A/B 共用保底/垫数；统计时去掉 A/B 标记后归为同一组。
     if (!/补给[ABＡＢ]/i.test(name)) return '';
@@ -713,6 +802,8 @@ export class bh3_gacha extends plugin {
       const pullCounts = [];
       const sharedGroup = this.getSharedPityGroup(name, poolType);
       const sharedPity = sharedGroup ? sharedPityMap.get(sharedGroup) : null;
+      const goldLabel = poolType === 'costume' ? '获得服装' : '出金次数';
+      const emptyText = poolType === 'costume' ? '暂未记录到获得服装' : '暂未记录到出金';
       for (const row of sorted) {
         const r = row.record;
         pullSinceLast++;
@@ -722,7 +813,10 @@ export class bh3_gacha extends plugin {
           items.push({
             ...r,
             pulls,
-            display: poolType === 'char' ? this.extractCharacterName(r.content) : poolType === 'weapon' ? this.extractWeaponName(r.content) : r.content,
+            display: poolType === 'char' ? this.extractCharacterName(r.content)
+              : poolType === 'weapon' ? this.extractWeaponName(r.content)
+                : poolType === 'costume' ? this.extractCostumeName(r.content)
+                  : r.content,
             icon: await this.getItemIcon(r.content, poolType, maps),
           });
           pullCounts.push(pulls);
@@ -735,6 +829,8 @@ export class bh3_gacha extends plugin {
       return {
         name,
         type: poolType,
+        goldLabel,
+        emptyText,
         count: records.length,
         goldCount,
         currentPity: sharedPity ? sharedPity.currentPity : pullSinceLast,
@@ -752,7 +848,7 @@ export class bh3_gacha extends plugin {
   async makeSummary(uid) {
     const data = await this.makeSummaryData(uid);
     if (!data) return `UID${uid} 还没有抽卡记录，请先使用 #刷新抽卡记录`;
-    const hintMap = { char: 'S角色', weapon: '5星武器', partner: '协同者' };
+    const hintMap = { char: 'S角色', weapon: '5星武器', partner: '协同者', costume: '服装' };
     const lines = [`📊 UID${uid} 抽卡记录（共 ${data.total} 条）`, `更新时间：${data.data_time}`];
     for (const pool of data.pools) {
       lines.push('', `【${pool.name}】共 ${pool.count} 抽`);

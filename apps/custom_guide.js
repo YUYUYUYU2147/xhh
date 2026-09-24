@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
-import { makeForwardMsg, config, pluginPriority } from '#xhh';
+import { makeForwardMsg, config, pluginPriority, oldPostWarn } from '#xhh';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 插件根目录（apps 的上一级），别名表读取不依赖进程 cwd、也不依赖任何外部插件
@@ -70,10 +70,15 @@ function formalInMap(name, map) {
   return null;
 }
 
-// 解析图片序号字符串，如 "0,2" / "0, 2" → [0, 2]
+// 解析图片序号字符串，如 "0" / "0,2" / "0, 2" → [0] / [0, 2]
+// 留空取该帖全部图片；填序号取指定张（0=第一张，1=第二张，从0开始）
+// 注意：Number('') === 0，''.split() 会得到 ['']，若直接 map(Number) 会把「留空」变成 [0]（只取首图），
+// 所以空串必须提前返回 []，并过滤掉分隔产生的空段
 function parseIndexes(text) {
-  return String(text || '')
-    .split(/[,，\s]+/)
+  const raw = String(text ?? '').trim();
+  if (!raw) return [];
+  return raw.split(/[,，\s]+/)
+    .filter(s => s !== '')
     .map(Number)
     .filter(v => Number.isInteger(v) && v >= 0);
 }
@@ -99,18 +104,56 @@ async function fetchJSON(url) {
   }
 }
 
+// 提取帖子完整图片：搜索接口返回的 post.images 在某些分支下只含封面 1 张，
+// 完整图集在外层 image_list（每项带 url）。不同接口版本可能在 item.image_list / item.post.image_list 两处，
+// 这里都尝试，并兼容「字符串数组」和「{url}对象数组」两种结构，取数量最多的那份
+function extractImages(item = {}) {
+  const post = item?.post?.post || {};
+  const candidates = [
+    post.images,
+    item?.image_list,
+    item?.post?.image_list,
+  ].filter(Array.isArray);
+  let best = [];
+  for (const arr of candidates) {
+    const urls = (arr[0] && typeof arr[0] === 'object' && arr[0]?.url)
+      ? arr.map(x => x?.url).filter(Boolean)
+      : arr.filter(Boolean);
+    if (urls.length > best.length) best = urls;
+  }
+  return best.slice();
+}
+
 async function searchPosts(keyword, uid, size = DEFAULT_SIZE) {
-  const url = `${SEARCH_API}?keyword=${encodeURIComponent(keyword)}&uid=${encodeURIComponent(uid)}&size=${size}&offset=0&sort_type=${SORT_TYPE}`;
+  // 米游社标题普遍用「·」(U+00B7)，而别名表/输入可能是「•」(U+2022)「・」等变体，统一成「·」再搜，提高命中率
+  const apiKeyword = String(keyword).replace(/[•・∙⋅]/g, '·');
+  const url = `${SEARCH_API}?keyword=${encodeURIComponent(apiKeyword)}&uid=${encodeURIComponent(uid)}&size=${size}&offset=0&sort_type=${SORT_TYPE}`;
   const res = await fetchJSON(url);
   if (!res || res.retcode !== 0) return [];
-  // 标题必须包含关键词才采用（忽略大小写、空格及 · - 等分隔符，如「零号·安比」↔「零号安比」），
-  // 过滤掉作者动态里正文提到关键词的无关帖子（测评/配队推荐/新手教程等）
-  const norm = (s) => String(s || '').toLowerCase().replace(/[\s·・.,，。:：;；!！?？\-—_~～]/g, '');
+  // 标题必须包含关键词才采用：比较时去掉所有非文字/数字字符（点号变体、空格、括号、书名号等全部忽略，
+  // 如「零号·安比」↔「零号安比」↔「零号•安比」都能对上），过滤掉作者动态里正文提到关键词的无关帖子
+  const norm = (s) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
   const kw = norm(keyword);
   return (res?.data?.list || [])
-    .map(v => v?.post?.post)
-    .filter(Boolean)
+    .map(v => {
+      const post = v?.post?.post || {};
+      return {
+        subject: post.subject,
+        post_id: post.post_id,
+        created_at: post.created_at,
+        publish_at: post.publish_at,
+        images: extractImages(v),
+      };
+    })
     .filter(p => norm(p.subject).includes(kw));
+}
+
+// 米游社图床（阿里OSS）支持链接参数实时压缩：攻略长图原图常达十几MB，QQ协议端发不动
+// （表现为只发出第一张封面、其余全部失败）。统一转 jpg 并压画质（分辨率不变，gif 跳过保持动图）
+function compressImg(url = '') {
+  if (!url || !url.includes('upload-bbs.miyoushe.com')) return url;
+  if (/\.gif($|\?)/i.test(url) || url.includes('x-oss-process')) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}x-oss-process=image/resize,w_1200/quality,q_85/format,jpg`;
 }
 
 function pickImages(post = {}, indexes = []) {
@@ -119,7 +162,7 @@ function pickImages(post = {}, indexes = []) {
   const idxList = indexes.length
     ? indexes
     : [...Array(Math.min(MAX_IMAGES, images.length)).keys()];
-  return idxList.filter(i => images[i]).slice(0, MAX_IMAGES).map(i => images[i]);
+  return idxList.filter(i => images[i]).slice(0, MAX_IMAGES).map(i => compressImg(images[i]));
 }
 
 export class custom_guide extends plugin {
@@ -199,6 +242,7 @@ export class custom_guide extends plugin {
       const { keyword: kw, uid } = cand;
       try {
         const posts = await searchPosts(kw, uid, DEFAULT_SIZE);
+        logger.mark(`[xhh][custom_guide] ${kw}/${uid} 搜到 ${posts.length} 帖，各帖图数: ${posts.map(p => p.images.length).join(',') || '0'}`);
         let pushed = false;
         for (const post of posts) {
           const images = pickImages(post, indexes).filter(u => !seenImages.has(u));
@@ -206,11 +250,15 @@ export class custom_guide extends plugin {
           images.forEach(u => seenImages.add(u));
           const lines = [`作者：UID${uid}`, post.subject || kw].filter(Boolean);
           const time = Number(post.created_at || post.publish_at || 0);
-          if (time) lines.push(`发布：${new Date(time * 1000).toLocaleString('zh-CN', { hour12: false })}`);
+          // 老攻略在发布时间后挂时效提醒，避免拿几年前的内容当现版本作业
+          if (time) lines.push(`发布：${new Date(time * 1000).toLocaleString('zh-CN', { hour12: false })}${oldPostWarn(time)}`);
           if (post.post_id) lines.push(`原帖：https://www.miyoushe.com/article/${post.post_id}`);
-          msg.push([lines.join('\n'), ...images.map(u => segment.image(u))]);
+          // 每张图独立一个转发节点：部分适配器对「单节点多图」发送不可靠（只出第一张、其余全丢）
+          // 纯图片节点也包成数组，确保适配器按节点渲染
+          msg.push([lines.join('\n'), segment.image(images[0])]);
+          for (const u of images.slice(1)) msg.push([segment.image(u)]);
           pushed = true;
-          if (msg.length >= 9) break;
+          if (msg.length >= 12) break;
         }
         if (pushed) break; // 该候选有结果就不再试下一个
       } catch (err) {
@@ -222,6 +270,7 @@ export class custom_guide extends plugin {
     }
 
     if (!msg.length) return e.reply(`未找到「${keyword}」相关攻略图`, true);
+    logger.mark(`[xhh][custom_guide] 准备发送转发节点数: ${msg.length}`);
     // 合并转发开关：关闭时逐条拼接发送，且不带「xx攻略来啦~」这类标题文字
     if (cfg.custom_guide_forward !== 'off') {
       await e.reply(await makeForwardMsg(e, msg, `「${keyword}」攻略来啦~`));

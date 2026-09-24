@@ -1,0 +1,217 @@
+@font-face {
+  font-family: 'yuan';
+  src: url('../font/yuan.ttf');
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-size: 16px;
+  font-family: 'yuan';
+  width: 600px;
+  transform-origin: 0 0;
+}
+
+.container {
+  background-image: url('../wiki/imgs/bg.png');
+  background-repeat: no-repeat;
+  background-size: cover;
+  padding: 10px 12px 6px;
+  width: 620px;
+  color: #464c3d;
+  position: relative;
+}
+
+.head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 4px solid #e2e8f0;
+  outline: 1px solid #8ebde3;
+  outline-offset: -6px;
+  background: #f3ddb0dc;
+  position: relative;
+  box-shadow: 2px 6px 6px 0px rgba(49, 48, 48, 0.4);
+}
+
+.head .pic {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  object-position: top center;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.3);
+  flex: 0 0 140px;
+}
+
+.meta {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #2f3a4a;
+  text-shadow: 0.5px 0.5px 1px rgba(255, 255, 255, 0.8);
+  word-break: break-all;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #b4f6ee;
+  color: #2f3a4a;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.from {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #6b7a8f;
+}
+
+.panel {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 3px solid #e2e8f0;
+  outline: 1px solid #8ebde3;
+  outline-offset: -5px;
+  background: rgba(255, 255, 255, 0.72);
+  position: relative;
+}
+
+.ptitle {
+  display: inline-block;
+  padding: 1px 10px;
+  margin-bottom: 6px;
+  background: #b4f6ee;
+  border-radius: 8px 0px 8px 0px;
+  color: rgb(81, 6, 232);
+  font-size: 14px;
+}
+
+.desc {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: #38424f;
+  word-break: break-word;
+}
+
+.rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 45%;
+  font-size: 13px;
+}
+
+.rk {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(180, 246, 238, 0.75);
+  color: #31445c;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.rv {
+  color: #38424f;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stat {
+  flex: 1 1 90px;
+  text-align: center;
+  padding: 4px 2px;
+  background: rgba(243, 221, 176, 0.55);
+  border-radius: 8px;
+}
+
+.sv {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2f3a4a;
+}
+
+.sl {
+  font-size: 11px;
+  color: #6b7a8f;
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+}
+
+.iimg {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex: 0 0 36px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.itxt {
+  flex: 1;
+  min-width: 0;
+}
+
+.iname {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2f3a4a;
+}
+
+.idesc {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #4a5568;
+  white-space: pre-wrap;
+}
+
+.logo {
+  font-size: 16px;
+  text-align: center;
+  padding: 6px 0 2px;
+  color: #ee8e8ef8;
+  text-shadow: 0.5px 0.5px 1px #2d2c2c;
+}

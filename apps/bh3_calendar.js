@@ -5,13 +5,44 @@ import { render, pluginPriority } from '#xhh';
 
 const NEWS_API = 'https://bbs-api-static.miyoushe.com/painter/wapi/getNewsList?gids=1&page_size=80&type=1';
 const POST_API = 'https://bbs-api.miyoushe.com/post/wapi/getPostFull?gids=1&read=1&post_id=';
-const CACHE_KEY = 'xhh:bh3:calendar:v3';
+const CACHE_KEY = 'xhh:bh3:calendar:v4';
 // 崩三公告/活动更新较频繁；原先缓存 10 分钟会让日历看起来不像实时更新。
 // 保留 60 秒短缓存，避免同一分钟内重复请求米游社过多。
 const CACHE_TTL = 60;
 
 const ignoreReg = /(封禁|外挂|账号交易|公平运营|问题修复|已知问题|维护通知|更新说明|防沉迷|客服|开奖|名单|问卷|壁纸)/;
 const timeTitleReg = /(开放时间|活动时间|补给时间|上架时间|售卖时间|兑换时间|开启时间|期间)/;
+
+// 女武神生日表（月-日 → 角色名），来源：米游社「崩坏3角色生日整理」帖 39681618，
+// 并与百度百科「崩坏3角色生日表」交叉核对。观测枢详情接口没有生日字段，故用静态表；
+// 第二部新角色（希娜狄雅/科拉莉/赫丽娅/松雀等）暂无可靠公开数据，后续确认后直接在此补行即可。
+const BIRTHDAYS = {
+  '1-1': ['幽兰黛尔', '乔伊斯'],
+  '2-9': ['符华'],
+  '2-17': ['羽兔'],
+  '3-1': ['丽塔'],
+  '3-14': ['爱因斯坦'],
+  '3-28': ['德丽莎'],
+  '4-3': ['李素裳'],
+  '4-13': ['芽衣'],
+  '4-30': ['梅比乌斯'],
+  '5-5': ['维尔薇'],
+  '5-25': ['阿波尼亚'],
+  '5-29': ['卡莲'],
+  '6-11': ['姬子'],
+  '7-22': ['八重樱'],
+  '8-18': ['布洛妮娅'],
+  '9-8': ['时雨绮罗'],
+  '9-23': ['卡罗尔'],
+  '10-18': ['希儿'],
+  '10-24': ['爱酱'],
+  '10-31': ['伊甸'],
+  '11-11': ['西琳', '爱莉希雅'],
+  '11-29': ['苏莎娜'],
+  '12-7': ['琪亚娜'],
+  '12-21': ['格蕾修'],
+  '12-25': ['塞西莉娅']
+};
 
 export class bh3_calendar extends plugin {
   constructor() {
@@ -242,7 +273,13 @@ export class bh3_calendar extends plugin {
     const week = ['日', '一', '二', '三', '四', '五', '六'];
     for (let i = 0; i < 17; i++) {
       const d = start.clone().add(i, 'days');
-      ret.push({ day: d.date(), month: d.month() + 1, week: week[d.day()], isToday: d.isSame(moment(), 'day') });
+      ret.push({
+        day: d.date(),
+        month: d.month() + 1,
+        week: week[d.day()],
+        isToday: d.isSame(moment(), 'day'),
+        bd: BIRTHDAYS[`${d.month() + 1}-${d.date()}`] || []
+      });
     }
     return ret;
   }
@@ -267,7 +304,15 @@ export class bh3_calendar extends plugin {
         let row = rows.findIndex(end => left >= end + 0.5);
         if (row < 0) { row = rows.length; rows.push(0); }
         rows[row] = left + width;
-        return { ...item, left, width, row, active: moment(item.startFull).isBefore(now) && moment(item.endFull).isAfter(now) };
+        // 窄条放不下完整标题/时间，交给 CSS 截断或隐藏，避免文字溢出压到相邻条上
+        const barCls = [
+          `row-${row}`, item.type,
+          moment(item.startFull).isBefore(now) && moment(item.endFull).isAfter(now) ? 'active' : '',
+          item.banner ? 'has-bg' : '',
+          width < 16 ? 'narrow' : '',
+          width < 9 ? 'tiny' : ''
+        ].filter(Boolean).join(' ');
+        return { ...item, left, width, row, barCls };
       });
   }
 

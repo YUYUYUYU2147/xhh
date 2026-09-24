@@ -62,6 +62,13 @@ body {
   border-radius: 12px;
 }
 
+/* 名字牌按星级上色：S/五星=金，A/四星=紫，B/三星=蓝，低星=灰（与头像描边同一套色） */
+.box_ p.r5 { background: #f7d67e; color: #6b4a00; font-weight: 700; box-shadow: inset 0 0 0 1px #d8a93e; }
+.box_ p.r4 { background: #dcbcf2; color: #4a2470; font-weight: 700; box-shadow: inset 0 0 0 1px #a874e0; }
+.box_ p.r3 { background: #b3d9f7; color: #1d4a70; font-weight: 700; box-shadow: inset 0 0 0 1px #5fa8e8; }
+.box_ p.r2,
+.box_ p.r1 { background: #dde5df; color: #5a6b60; font-weight: 700; box-shadow: inset 0 0 0 1px #9fb6a8; }
+
 .box_ img {
   width: 90px;
   height: 90px;
@@ -72,6 +79,25 @@ body {
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* 无图占位：显示名字首字（如剧情邦布伊埃斯，上游图鉴均未收录） */
+.box_ .img-ph {
+  width: 90px;
+  height: 90px;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 10px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 700;
+  color: #9aa8b6;
+}
+.box_ .img-ph.r5 { color: #c9a23a; }
+.box_ .img-ph.r4 { color: #9a6cd0; }
+.box_ .img-ph.r3 { color: #5fa8e8; }
 
 .tab {
   position: absolute;

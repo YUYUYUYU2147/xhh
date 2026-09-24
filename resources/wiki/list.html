@@ -10,8 +10,12 @@
       <div class="box">
         {{each data s}}
         <div class="box_">
+          {{if s.icon}}
           <img class="rank {{s.rankClass}}" src="{{s.icon}}" data-alt="{{s.iconFallback || ''}}" onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}else{this.style.visibility='hidden'}" />
-          <p>{{s.name}}</p>
+          {{else}}
+          <div class="img-ph rank {{s.rankClass}}">{{s.name[0]}}</div>
+          {{/if}}
+          <p class="{{s.rankClass}}">{{s.name}}</p>
           {{if s.badges && s.badges.length}}
           <div class="badge-row">
             {{each s.badges b}}
