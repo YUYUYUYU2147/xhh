@@ -26,10 +26,18 @@
     </div>
     {{/each}}
   </div>
+  {{if birthdays.length}}
+  <div class="bds">
+    <span class="bds-t">近期生日</span>
+    {{each birthdays b}}
+    <span class="bd-item {{b.isToday ? 'today' : ''}}"><b>{{b.date}} 周{{b.week}}</b>{{b.names.join('、')}} · {{b.label}}</span>
+    {{/each}}
+  </div>
+  {{/if}}
   <div class="body">
     <div class="now" style="left:{{nowLeft}}%"><span>当前</span></div>
     {{each list item}}
-    <div class="bar {{item.barCls}}" style="left:{{item.left}}%;width:{{item.width}}%">
+    <div class="bar {{item.barCls}}" style="left:{{item.left}}%;width:{{item.width}}%;top:{{item.top}}px;height:{{item.barH}}px">
       {{if item.banner}}<img class="bar-bg-img" src="{{item.banner}}" />{{/if}}
       <div class="tag">{{item.typeName}}</div>
       <div class="name">{{item.title}}</div>

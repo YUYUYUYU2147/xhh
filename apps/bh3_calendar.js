@@ -5,7 +5,7 @@ import { render, pluginPriority } from '#xhh';
 
 const NEWS_API = 'https://bbs-api-static.miyoushe.com/painter/wapi/getNewsList?gids=1&page_size=80&type=1';
 const POST_API = 'https://bbs-api.miyoushe.com/post/wapi/getPostFull?gids=1&read=1&post_id=';
-const CACHE_KEY = 'xhh:bh3:calendar:v4';
+const CACHE_KEY = 'xhh:bh3:calendar:v5';
 // 崩三公告/活动更新较频繁；原先缓存 10 分钟会让日历看起来不像实时更新。
 // 保留 60 秒短缓存，避免同一分钟内重复请求米游社过多。
 const CACHE_TTL = 60;
@@ -96,7 +96,8 @@ export class bh3_calendar extends plugin {
       try { detail = await this.requestPost(post.post_id); } catch (err) { logger.debug?.(`[xhh][bh3_calendar] 帖子详情失败 ${post.post_id}: ${err?.message || err}`); }
       const content = this.htmlToText(detail?.content || post.content || '');
       const time = this.extractTime(content, post.created_at);
-      if (!time) continue;
+      // 已结束的直接不要，别让它们占坑后被裁成窄条堆在日历左上角
+      if (!time || !time.end.isAfter(now)) continue;
       const banner = item?.image_list?.[0]?.url || post.cover || post.images?.[0] || '';
       list.push({
         id: post.post_id,
@@ -123,6 +124,7 @@ export class bh3_calendar extends plugin {
       nowTime: now.format('YYYY-MM-DD HH:mm'),
       nowDate: now.date(),
       dateList: this.getDateList(range.start),
+      birthdays: this.getBirthdays(now),
       range: { start: range.start.format('YYYY-MM-DD HH:mm:ss'), end: range.end.format('YYYY-MM-DD HH:mm:ss') },
       nowLeft: this.getNowLeft({ start: range.start.format('YYYY-MM-DD HH:mm:ss'), end: range.end.format('YYYY-MM-DD HH:mm:ss') }, now),
       list: viewList,
@@ -268,6 +270,26 @@ export class bh3_calendar extends plugin {
     return { start: now.clone().startOf('day'), end: now.clone().startOf('day').add(16, 'days').endOf('day') };
   }
 
+  // 近期生日：日历只显示17天，窗口卡得巧就一个生日都看不到，这里单独列未来45天的
+  getBirthdays(now, days = 45) {
+    const out = [];
+    for (let i = 0; i <= days; i++) {
+      const d = now.clone().add(i, 'days');
+      const names = BIRTHDAYS[`${d.month() + 1}-${d.date()}`];
+      if (!names?.length) continue;
+      const week = ['日', '一', '二', '三', '四', '五', '六'][d.day()];
+      out.push({
+        date: d.format('MM-DD'),
+        week,
+        names,
+        days: i,
+        label: i === 0 ? '今天' : `${i}天后`,
+        isToday: i === 0
+      });
+    }
+    return out.slice(0, 8);
+  }
+
   getDateList(start) {
     const ret = [];
     const week = ['日', '一', '二', '三', '四', '五', '六'];
@@ -293,8 +315,9 @@ export class bh3_calendar extends plugin {
   layout(list, range, now) {
     const total = range.end - range.start;
     const rows = [];
-    return list
-      .filter(i => moment(i.endFull).isAfter(range.start) && moment(i.startFull).isBefore(range.end))
+    const items = list
+      // 双保险：除了日期范围，再剔一次已结束的（缓存数据可能带着旧活动进来）
+      .filter(i => moment(i.endFull).isAfter(now) && moment(i.startFull).isBefore(range.end))
       .sort((a, b) => moment(a.startFull) - moment(b.startFull) || moment(a.endFull) - moment(b.endFull))
       .map(item => {
         const s = moment.max(moment(item.startFull), range.start);
@@ -314,6 +337,18 @@ export class bh3_calendar extends plugin {
         ].filter(Boolean).join(' ');
         return { ...item, left, width, row, barCls };
       });
+
+    // CSS 只写死了 8 行的 top，活动一多（都能有 12+ 行）后面的全叠在一起。
+    // 改成按实际行数压缩行高，top/高度直接内联，行数再多也画得下。
+    const count = Math.max(1, rows.length);
+    const pad = 14, gap = 8;
+    const rowH = Math.max(30, Math.min(72, Math.floor((675 - pad * 2 - gap * (count - 1)) / count)));
+    return items.map(item => ({
+      ...item,
+      top: pad + item.row * (rowH + gap),
+      barH: rowH,
+      barCls: item.barCls + (rowH < 56 ? ' slim' : ''),
+    }));
   }
 
   leftLabel(now, start, end) {
