@@ -236,23 +236,30 @@ export class Wiki extends plugin {
 
   getWikiIcon(text = '') {
     text = String(text || '');
-    // 绝区零官方属性图标（游戏内素材，nanoka assets 转储），返回完整 URL 由模板识别
+    // 绝区零官方属性图标（米游社高清素材，风沿用 nanoka），本地文件
     const zzzIconMap = {
-      '物理': 'IconPhysical',
-      '火': 'IconFire',
-      '冰': 'IconIce',
-      '电': 'IconElectric',
-      '以太': 'IconEther',
-      '风': 'IconWind'
+      '物理': 'zzz_物理.png',
+      '火': 'zzz_火.png',
+      '冰': 'zzz_冰.png',
+      '电': 'zzz_电.png',
+      '以太': 'zzz_以太.png',
+      '风': 'zzz_风.png',
+      '强攻': 'zzz_强攻.png',
+      '击破': 'zzz_击破.png',
+      '异常': 'zzz_异常.png',
+      '支援': 'zzz_支援.png',
+      '防护': 'zzz_防护.png',
+      '命破': 'zzz_命破.png'
     };
     const iconMap = {
-      '星尘': 'bh3_星尘.svg', '星辰': 'bh3_星尘.svg',
-      '生物': 'bh3_生物.svg', '异能': 'bh3_异能.svg', '机械': 'bh3_机械.svg', '量子': 'bh3_量子.svg', '虚数': 'bh3_虚数.svg',
+      '星尘': 'bh3_星尘.png', '星辰': 'bh3_星尘.png',
+      '生物': 'bh3_生物.png', '异能': 'bh3_异能.png', '机械': 'bh3_机械.png', '量子': 'bh3_量子.png', '虚数': 'bh3_虚数.png',
       '物理': 'bh3_物理.svg', '火伤': 'bh3_火.svg', '火焰': 'bh3_火.svg', '火': 'bh3_火.svg',
       '冰伤': 'bh3_冰.svg', '冰冻': 'bh3_冰.svg', '冰': 'bh3_冰.svg',
       '雷伤': 'bh3_雷.svg', '雷电': 'bh3_雷.svg', '雷': 'bh3_雷.svg',
-      '界域共鸣': '星环特性.svg', '星影偕行': '星环特性.svg', '复盈相生': '星环特性.svg', '星之环特性': '星环特性.svg',
-      '天衍之杯': '星环分野.svg', '星之环分野': '星环分野.svg',
+      '世界之星': 'xzh_世界之星.png', '无存之仪': 'xzh_无存之仪.png', '命运之轮': 'xzh_命运之轮.png', '升变之理': 'xzh_升变之理.png', '天衍之杯': 'xzh_天衍之杯.png',
+      '界域共鸣': 'xzh_界域共鸣.png', '万有之星': 'xzh_万有之星.png', '星影偕行': 'xzh_星影偕行.png', '天渊易位': 'xzh_天渊易位.png', '复盈相生': 'xzh_复盈相生.png',
+      '星之环特性': '星环特性.svg', '星之环分野': '星环分野.svg',
       '输出': '定位.svg', '辅助': '定位.svg', '定位': '定位.svg'
     };
     for (const [key, icon] of Object.entries(zzzIconMap)) {
@@ -261,7 +268,7 @@ export class Wiki extends plugin {
     for (const [key, icon] of Object.entries(iconMap)) {
       if (text.includes(key)) return icon;
     }
-    if (text.includes('星')) return 'bh3_星尘.svg';
+    if (text.includes('星')) return 'bh3_星尘.png';
     return '';
   }
 
@@ -869,8 +876,8 @@ export class Wiki extends plugin {
         { key: '生日', value: partner.birthday || '-' },
         { key: '性别', value: partner.gender || '-' },
         { key: '阵营', value: camp },
-        { key: '属性', value: element },
-        { key: '特性', value: type }
+        { key: '属性', value: element, icon: this.getWikiIcon(element) },
+        { key: '特性', value: type, icon: this.getWikiIcon(type) }
       ],
       stats: [
         { key: '生命', value: (base.hp_max || 0) + (maxLv.hp_max || 0) },
@@ -1676,20 +1683,26 @@ export class Wiki extends plugin {
       '雷': 'bh3_雷.svg',
       '雷电': 'bh3_雷.svg',
       '雷伤': 'bh3_雷.svg',
-      '生物': 'bh3_生物.svg',
-      '量子': 'bh3_量子.svg',
-      '虚数': 'bh3_虚数.svg',
-      '异能': 'bh3_异能.svg',
-      '机械': 'bh3_机械.svg',
-      '星尘': 'bh3_星尘.svg',
-      '星辰': 'bh3_星尘.svg',
-      '星尘属性': 'bh3_星尘.svg',
-      '星辰属性': 'bh3_星尘.svg',
-      '界域共鸣': '星环特性.svg',
-      '星影偕行': '星环特性.svg',
-      '复盈相生': '星环特性.svg',
+      '生物': 'bh3_生物.png',
+      '量子': 'bh3_量子.png',
+      '虚数': 'bh3_虚数.png',
+      '异能': 'bh3_异能.png',
+      '机械': 'bh3_机械.png',
+      '星尘': 'bh3_星尘.png',
+      '星辰': 'bh3_星尘.png',
+      '星尘属性': 'bh3_星尘.png',
+      '星辰属性': 'bh3_星尘.png',
+      '世界之星': 'xzh_世界之星.png',
+      '无存之仪': 'xzh_无存之仪.png',
+      '命运之轮': 'xzh_命运之轮.png',
+      '升变之理': 'xzh_升变之理.png',
+      '天衍之杯': 'xzh_天衍之杯.png',
+      '界域共鸣': 'xzh_界域共鸣.png',
+      '万有之星': 'xzh_万有之星.png',
+      '星影偕行': 'xzh_星影偕行.png',
+      '天渊易位': 'xzh_天渊易位.png',
+      '复盈相生': 'xzh_复盈相生.png',
       '星之环特性': '星环特性.svg',
-      '天衍之杯': '星环分野.svg',
       '星之环分野': '星环分野.svg',
       '角色定位': '定位.svg',
       '输出': '定位.svg',
@@ -1697,21 +1710,32 @@ export class Wiki extends plugin {
     };
 
     const img = (basicPart.avatar || icon || '').startsWith('http') ? (basicPart.avatar || icon) : `https://api-takumi-static.mihoyo.com/hoyowiki/bh3_wiki${basicPart.avatar || icon}`;
-    const element_icon = element_icon_map[element] || (String(element).includes('星') ? 'bh3_星尘.svg' : 'bh3_物理.svg');
+    const element_icon = element_icon_map[element] || (String(element).includes('星') ? 'bh3_星尘.png' : 'bh3_物理.svg');
     const getAttrIcon = (key = '', value = '') => {
       const text = `${key} ${value}`;
       for (const [k, icon] of Object.entries(element_icon_map)) {
         if (text.includes(k)) return icon;
       }
-      if (text.includes('星')) return 'bh3_星尘.svg';
+      if (text.includes('星')) return 'bh3_星尘.png';
       return '';
     };
 
     for (const item of introFields) item.icon = getAttrIcon(item.key, item.value);
     for (const item of subFields) item.icon = getAttrIcon(item.key, item.value);
 
+    const starRingField = basic_info['星之环分野'] || '';
+    const starRingTraits = String(basic_info['星之环特性'] || '')
+      .split(/[、,，\/]/).map(s => s.trim()).filter(Boolean);
+    const starRing = (starRingField || starRingTraits.length)
+      ? {
+          field: starRingField,
+          fieldIcon: starRingField ? getAttrIcon('星之环分野', starRingField) : '',
+          traits: starRingTraits.map(t => ({ name: t, icon: getAttrIcon('星之环特性', t) }))
+        }
+      : null;
+
     const attr = Object.entries(basic_info)
-      .filter(([key, value]) => key && value)
+      .filter(([key, value]) => key && value && key !== '星之环特性' && key !== '星之环分野')
       .map(([key, value]) => ({ key, value, icon: getAttrIcon(key, value) }));
 
     const hexagon = (basicPart.hexagon || []).map(item => ({
@@ -1770,6 +1794,7 @@ export class Wiki extends plugin {
       summary: content.summary || '',
       img,
       attr,
+      starRing,
       introFields,
       subFields,
       hexagon,

@@ -168,5 +168,35 @@ body {
   box-shadow: 0 0 5px 0 rgba(159, 182, 168, 0.6);
 }
 
+/* 怪物分级配色：BOSS 金 / 精英 紫 / 小怪 灰青，与名字牌同一套色 */
+.box_ img.rank-boss {
+  border: 2px solid #e8b53a;
+  box-shadow:
+    0 0 8px 0 rgba(232, 181, 58, 0.9),
+    inset 0 0 8px 0 rgba(232, 181, 58, 0.32);
+  background: rgba(232, 181, 58, 0.22);
+}
+
+.box_ img.rank-elite {
+  border: 2px solid #a874e0;
+  box-shadow:
+    0 0 8px 0 rgba(168, 116, 224, 0.85),
+    inset 0 0 8px 0 rgba(168, 116, 224, 0.28);
+  background: rgba(168, 116, 224, 0.2);
+}
+
+.box_ img.rank-normal {
+  border: 2px solid #9fb6a8;
+  box-shadow: 0 0 4px 0 rgba(159, 182, 168, 0.45);
+  background: rgba(159, 182, 168, 0.12);
+}
+
+.box_ p.rank-boss { background: #f7d67e; color: #6b4a00; font-weight: 700; box-shadow: inset 0 0 0 1px #d8a93e; }
+.box_ p.rank-elite { background: #dcbcf2; color: #4a2470; font-weight: 700; box-shadow: inset 0 0 0 1px #a874e0; }
+.box_ p.rank-normal { background: #dde5df; color: #5a6b60; font-weight: 700; box-shadow: inset 0 0 0 1px #9fb6a8; }
+.box_ .img-ph.rank-boss { color: #c9a23a; }
+.box_ .img-ph.rank-elite { color: #9a6cd0; }
+.box_ .img-ph.rank-normal { color: #94a89d; }
+
 .mini-badge { display: inline-flex; align-items: center; gap: 1px; max-width: 40px; padding: 1px 4px; border-radius: 999px; background: rgba(255,255,255,.68); color: #3f4a42; font-size: 8px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini-badge img { width: 10px; height: 10px; object-fit: contain; flex: 0 0 10px; }

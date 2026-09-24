@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import { yaml } from '#xhh';
 
 // 卡池计时器 / UP 总览数据层
@@ -18,6 +18,7 @@ export const TIMER_GAMES = {
 
 const BH3_YAML_PATH = './plugins/xhh/system/default/bh3_gacha_pool_history.yaml';
 const BH3_JSON_PATH = './plugins/xhh/system/default/bh3_gacha_pool_history.json';
+const BH3_JS_NAMES_PATH = './plugins/xhh/system/default/bh3_js_names.yaml';
 
 const CACHE = new Map();
 
@@ -230,22 +231,64 @@ async function bh3Search(keyword) {
     }
 }
 
-// 依次放宽：词条完全一致 → 去掉【】后缀/前后包含，取第一个带图的
-function pickBh3Icon(entryList, keyword) {
+// 依次放宽：词条完全一致 → 去掉【】后缀/前后包含（优先「女武神」角色词条）
+function pickBh3Entry(entryList, keyword) {
     const q = cleanName(keyword);
-    if (!q) return '';
-    let loose = '';
+    if (!q) return null;
+    let exact = null, exactRole = null, loose = null;
     for (const v of entryList) {
         const title = String(v?.title || '').trim();
-        const icon = String(v?.icon || '');
-        if (!title || !/^https:\/\//.test(icon)) continue;
+        if (!title) continue;
         const t = cleanName(title.replace(/【[^】]*】/g, ''));
         if (!t) continue;
-        if (t === q) return icon;
-        if (loose) continue;
-        if (t.includes(q) && !BH3_ICON_NOISE.test(title)) loose = icon;
+        const hasIcon = /^https:\/\//.test(String(v?.icon || ''));
+        const ch = Array.isArray(v?.channels) ? v.channels[0] : v?.channels;
+        const isRole = String(ch?.channel_id || '') === '18';
+        if (t === q) {
+            if (isRole && !exactRole) exactRole = v;
+            if (!exact) exact = v;
+        } else if (!loose && t.includes(q) && !BH3_ICON_NOISE.test(title) && hasIcon) {
+            loose = v;
+        }
     }
-    return loose;
+    return exactRole || exact || loose;
+}
+
+// 角色立绘：详情页 valkyrie/basicIntroduction 模板的 data.avatar（比词条封面头像更完整）
+async function bh3ContentAvatar(id) {
+    if (!id) return '';
+    const key = `bh3avatar-${id}`;
+    const hit = CACHE.get(key);
+    if (hit && Date.now() - hit.t < BH3_ICON_TTL) return hit.v;
+    let avatar = '';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+        const res = await globalThis.fetch(
+            `${BH3_WIKI_API}/v1/content/info?app_sn=bh3_wiki&content_id=${encodeURIComponent(id)}`,
+            { headers: { 'User-Agent': UA, Referer: 'https://baike.mihoyo.com/bh3/wiki/' }, signal: controller.signal }
+        );
+        if (res.ok) {
+            const j = await res.json();
+            const text = (j?.data?.content?.contents || []).map(c => String(c?.text || '')).join('');
+            for (const m of text.matchAll(/data-data="([^"]+)"/g)) {
+                try {
+                    const arr = JSON.parse(decodeURIComponent(m[1]));
+                    const part = (Array.isArray(arr) ? arr : []).find(p => p?.tmplKey === 'valkyrie' && p?.data?.avatar);
+                    if (part) { avatar = String(part.data.avatar); break; }
+                } catch (_) {}
+            }
+            if (!avatar) {
+                avatar = (decodeURIComponent(text).match(/"avatar":"(https:\/\/[^"]+)"/) || [])[1] || '';
+            }
+        }
+    } catch (err) {
+        globalThis.logger?.warn(`[xhh][卡池计时器] 崩三立绘获取失败 id=${id}: ${err?.message || err}`);
+    } finally {
+        clearTimeout(timer);
+    }
+    CACHE.set(key, { t: Date.now(), v: avatar });
+    return avatar;
 }
 
 async function bh3Icon(name) {
@@ -264,7 +307,14 @@ async function bh3Icon(name) {
     let icon = '';
     for (const kw of tries) {
         if (icon) break;
-        icon = pickBh3Icon(await bh3Search(kw), kw);
+        const entry = pickBh3Entry(await bh3Search(kw), kw);
+        if (!entry) continue;
+        // 优先角色立绘，失败回退词条封面（头像）
+        if (entry.id) {
+            const avatar = await bh3ContentAvatar(entry.id);
+            if (avatar) { icon = avatar; break; }
+        }
+        if (/^https:\/\//.test(String(entry.icon || ''))) icon = String(entry.icon);
     }
     CACHE.set(key, { t: Date.now(), v: icon });
     return icon;
@@ -297,6 +347,33 @@ function cleanName(name = '') {
  * @param {string} keyword 名称
  * @param {string} game 限定游戏，all 为全部
  */
+
+// 崩三：把用户输入的名称经图鉴别名表归一化到主名（规则与 apps/wiki.js 的 resolveBh3RoleAlias 一致）
+function loadBh3JsNames() {
+    return cached('bh3-js-names', 30 * 60 * 1000, () => {
+        try { return yaml.get(BH3_JS_NAMES_PATH) || {}; } catch (err) {
+            globalThis.logger?.warn(`[xhh][卡池计时器] 崩三别名表读取失败: ${err?.message || err}`);
+            return {};
+        }
+    });
+}
+function resolveBh3Alias(name = '') {
+    const roleNames = loadBh3JsNames();
+    if (roleNames[name]) return name;
+    const clean = String(name || '').replace(/[\s·・!！♪♥☆★「」『』:：-]/g, '').toLowerCase();
+    if (!clean) return '';
+    let first = '';
+    for (const [role, aliases] of Object.entries(roleNames)) {
+        const list = [role, ...(Array.isArray(aliases) ? aliases : [])];
+        for (const alias of list) {
+            const a = String(alias || '').replace(/[\s·・!！♪♥☆★「」『』:：-]/g, '').toLowerCase();
+            if (!a) continue;
+            if (a === clean) return role;
+            if (!first && (a.includes(clean) || clean.includes(a))) first = role;
+        }
+    }
+    return first;
+}
 async function find(keyword, game = 'all', limit = 12) {
     const q = cleanName(keyword);
     if (!q) return [];
@@ -316,14 +393,32 @@ async function find(keyword, game = 'all', limit = 12) {
             if (n === q || n.includes(q) || (q.length >= 3 && q.includes(n))) out.push(it);
         }
     }
-    return out.sort((a, b) => {
+
+    // 崩三：图鉴里常用的别名/简称（如「星辰爱莉」「爱莉希雅」）不在史料库的 s/a/target 字段里，
+    // 单独再走一遍别名归一化，把关键词映射到主名后再匹配一次。
+    if (games.includes('bh3')) {
+        const aliasKey = resolveBh3Alias(keyword);
+        if (aliasKey) {
+            const aq = cleanName(aliasKey);
+            const bh3Items2 = await list('bh3');
+            for (const it of bh3Items2) {
+                const n = cleanName(it.name);
+                if (!n) continue;
+                if (n === aq || n.includes(aq) || (aq.length >= 3 && aq.includes(n))) {
+                    if (!out.includes(it)) out.push(it);
+                }
+            }
+        }
+    }
+    const hits = out.sort((a, b) => {
         const ae = cleanName(a.name) === q ? 0 : 1;
         const be = cleanName(b.name) === q ? 0 : 1;
         if (ae !== be) return ae - be;
         return (b.days ?? -1) - (a.days ?? -1);
     }).slice(0, limit);
-    await fillBh3Icons(out);
-    return out;
+    // 崩三条目补头像（之前写在 return 后面，永远执行不到，单条查询一直没图）
+    await fillBh3Icons(hits);
+    return hits;
 }
 
 /**

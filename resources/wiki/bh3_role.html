@@ -53,7 +53,32 @@
       </div>
     </section>
 
-
+    {{if starRing}}
+    <section class="section-block starring-section">
+      <div class="section-head">
+        <span class="section-kicker">ASTRA RING</span>
+        <h2>星之环</h2>
+      </div>
+      <div class="starring">
+        {{if starRing.field}}
+        <div class="starring-field">
+          {{if starRing.fieldIcon}}<img class="starring-field-icon" src="{{ppath}}wiki/imgs/{{starRing.fieldIcon}}">{{/if}}
+          <div class="starring-field-text"><span>星之环分野</span><b>{{starRing.field}}</b></div>
+        </div>
+        {{/if}}
+        {{if starRing.traits && starRing.traits.length}}
+        <div class="starring-traits">
+          {{each starRing.traits t}}
+          <div class="starring-trait">
+            {{if t.icon}}<img class="starring-trait-icon" src="{{ppath}}wiki/imgs/{{t.icon}}">{{/if}}
+            <span>{{t.name}}</span>
+          </div>
+          {{/each}}
+        </div>
+        {{/if}}
+      </div>
+    </section>
+    {{/if}}
 
     {{if introFields && introFields.length}}
     <section class="section-block intro-section">

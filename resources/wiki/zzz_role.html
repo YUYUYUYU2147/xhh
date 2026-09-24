@@ -33,7 +33,7 @@
       <div class="block-title"><span>INFO</span><h2>基础信息</h2></div>
       <div class="info-grid">
         {{each info as v}}
-          <div class="info-item"><span>{{v.key}}</span><b>{{v.value}}</b></div>
+          <div class="info-item"><span>{{v.key}}</span>{{if v.icon}}<img class="info-icon" src="{{ppath}}wiki/imgs/{{v.icon}}">{{/if}}<b>{{v.value}}</b></div>
         {{/each}}
       </div>
     </section>

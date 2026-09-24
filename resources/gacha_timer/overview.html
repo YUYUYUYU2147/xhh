@@ -18,7 +18,7 @@
         <div class="grid">
           {{each running v}}
           <div class="cell">
-            <img class="icon" src="{{v.icon}}" onerror="this.style.visibility='hidden'" />
+            {{if v.icon}}<img class="icon" src="{{v.icon}}" onerror="this.style.visibility='hidden'" />{{else}}<div class="icon icon-empty"></div>{{/if}}
             <p class="cname">{{v.name}}</p>
             <p class="cday">{{v.days}}天前</p>
           </div>

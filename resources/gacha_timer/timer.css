@@ -124,6 +124,14 @@ body {
   background: rgba(255, 255, 255, 0.45);
 }
 
+/* 没拿到头像时的占位块，代替之前的碎图 */
+.icon-empty {
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.45)
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="%23a8b6c8" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8 14c1 1.4 2.4 2 4 2s3-.6 4-2"/><circle cx="9" cy="10" r="0.6" fill="%23a8b6c8"/><circle cx="15" cy="10" r="0.6" fill="%23a8b6c8"/></svg>')
+    center / 28px no-repeat;
+}
+
 .cname {
   margin-top: 2px;
   font-size: 11px;

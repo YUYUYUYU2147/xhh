@@ -169,3 +169,57 @@ body {
   background: rgba(7, 12, 28, .28);
   backdrop-filter: blur(2px);
 }
+
+/* 星之环 */
+.starring { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; }
+.starring-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  border-radius: 18px;
+  background: rgba(88, 232, 255, .1);
+  border: 1px solid rgba(88, 232, 255, .32);
+}
+.starring-field-icon { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(90, 223, 255, .55)); }
+.starring-field-text span { display: block; color: #8fb1d2; font-size: 13px; margin-bottom: 2px; }
+.starring-field-text b { font-size: 22px; color: #9bf2ff; }
+.starring-traits { display: flex; flex-wrap: wrap; gap: 12px; }
+.starring-trait {
+  width: 104px;
+  padding: 14px 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(148, 218, 255, .16);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.starring-trait-icon { width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(0 0 7px rgba(90, 223, 255, .45)); }
+.starring-trait span { font-size: 13px; color: #d4e9ff; text-align: center; }
+
+/* ===== 整体配色：贴近游戏「星之环」的深蓝紫星空 + 蓝色点缀，去掉青/粉霓虹光 ===== */
+.wiki-page {
+  background-image:
+    radial-gradient(circle at 80% 8%, rgba(96, 132, 255, .20), transparent 36%),
+    radial-gradient(circle at 14% 24%, rgba(139, 123, 255, .16), transparent 32%),
+    linear-gradient(145deg, rgba(10, 14, 32, .62), rgba(14, 16, 38, .54)),
+    url('../srlogs/imgs/bg.jpg');
+  background-size: cover;
+  background-position: center top;
+}
+.tech-ring { border-color: rgba(124, 155, 255, .20); }
+.ring-a { box-shadow: inset 0 0 70px rgba(96, 132, 255, .14); }
+.ring-b { box-shadow: inset 0 0 55px rgba(139, 123, 255, .12); }
+.hero-card::before { background: linear-gradient(#6d8bff, #8b7bff, #ffd56e); }
+.eyebrow { color: #93aeff; }
+.name { text-shadow: 0 0 28px rgba(120, 150, 255, .38); }
+.tag.primary { background: rgba(109, 139, 255, .14); border-color: rgba(109, 139, 255, .38); color: #b6c8ff; }
+.ability-bar i { background: linear-gradient(90deg, #6d8bff, #ffcf73); box-shadow: 0 0 14px rgba(109, 139, 255, .4); }
+.starring-field { background: rgba(109, 139, 255, .12); border-color: rgba(109, 139, 255, .34); }
+.starring-field-text b { color: #b6c8ff; }
+/* 图标不再叠加青色光晕，还原官方原色 */
+.attr-icon, .intro-icon, .sub-info-icon, .starring-field-icon, .starring-trait-icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .45));
+}

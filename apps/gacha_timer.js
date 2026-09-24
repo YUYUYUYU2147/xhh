@@ -1,4 +1,4 @@
-import { render, config, pluginPriority } from '#xhh';
+﻿import { render, config, pluginPriority } from '#xhh';
 import gachaTimer from '../system/gacha_timer.js';
 
 // 卡池计时器：多久没复刻 / UP 总览
@@ -12,7 +12,7 @@ const GAME_ALIAS = {
 };
 
 const GAME_WORDS = '原神|genshin|ys|星穹铁道|崩坏星穹铁道|铁道|穹铁|星铁|sr|绝区零|绝区|zzz|ZZZ|崩坏3|崩坏三|崩三|bh3|Bh3|BH3';
-const ACTION_WORDS = '多久没复刻|多久没UP|多久没up|多久没卡池|没复刻多久|未复刻';
+const ACTION_WORDS = '多久没复刻|多久没UP|多久没up|多久没卡池|没复刻多久|未复刻|复刻统计|复刻记录';
 
 export class gacha_timer extends plugin {
     constructor(e) {
