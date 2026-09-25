@@ -192,6 +192,32 @@ export const supportGuoba = () => ({
         componentProps: { min: 0, max: 59, step: 1 },
       },
       {
+        field: 'bbs_zd_sign',
+        label: '社区自动签到',
+        helpMessage: '开启后按下方时间，使用 sign.yaml 中登记的群成员执行米游社社区签到',
+        component: 'RadioGroup',
+        componentProps: {
+          options: [
+            { label: '关闭', value: 0 },
+            { label: '开启', value: 1 },
+          ],
+        },
+      },
+      {
+        field: 'bbs_sign_hour',
+        label: '社区签到时',
+        helpMessage: '0~23，保存后无需重启，下一次到点执行',
+        component: 'InputNumber',
+        componentProps: { min: 0, max: 23, step: 1 },
+      },
+      {
+        field: 'bbs_sign_minute',
+        label: '社区签到分',
+        helpMessage: '0~59，保存后无需重启，下一次到点执行',
+        component: 'InputNumber',
+        componentProps: { min: 0, max: 59, step: 1 },
+      },
+      {
         field: 'sbai',
         label: '签到失败@提醒',
         helpMessage: '自动签到结束后@失败用户',
@@ -207,6 +233,18 @@ export const supportGuoba = () => ({
         field: 'bbs_sign_group',
         label: '社区签到白名单群',
         helpMessage: '米游社社区/全部签到可用群，多个群号用英文逗号分隔，留空则不限制',
+        component: 'InputTextArea',
+      },
+      {
+        field: 'sign_users',
+        label: '游戏自动签到用户白名单',
+        helpMessage: '格式：群号:QQ1,QQ2；多个群用换行或分号分隔',
+        component: 'InputTextArea',
+      },
+      {
+        field: 'bbs_sign_users',
+        label: '社区自动签到用户白名单',
+        helpMessage: '格式：群号:QQ1,QQ2；和游戏自动签到用户分开配置',
         component: 'InputTextArea',
       },
       {
@@ -1002,9 +1040,14 @@ export const supportGuoba = () => ({
         zd_sign: sign.zd_sign ?? 0,
         sign_hour: sign.sign_hour ?? 0,
         sign_minute: sign.sign_minute ?? 0,
+        bbs_zd_sign: sign.bbs_zd_sign ?? 0,
+        bbs_sign_hour: sign.bbs_sign_hour ?? 3,
+        bbs_sign_minute: sign.bbs_sign_minute ?? 30,
         sbai: !!sign.sbai,
         sign_group: (sign.sign_group || []).join(','),
         bbs_sign_group: (sign.bbs_sign_group || []).join(','),
+        sign_users: formatSignUsers(sign.sign || {}),
+        bbs_sign_users: formatSignUsers(sign.bbs_sign || {}),
         manual_gt_enable: cfg.manual_gt_enable !== false,
         manual_gt_public_url: cfg.manual_gt_public_url || '',
         manual_gt_port: cfg.manual_gt_port ?? 3000,
@@ -1216,11 +1259,22 @@ export const supportGuoba = () => ({
         : 0
       yaml.set(_path + 'sign.yaml', 'sign_hour', signHour)
       yaml.set(_path + 'sign.yaml', 'sign_minute', signMinute)
+      yaml.set(_path + 'sign.yaml', 'bbs_zd_sign', Number(data.bbs_zd_sign) ? 1 : 0)
+      const bbsSignHour = Number.isFinite(Number(data.bbs_sign_hour))
+        ? Math.max(0, Math.min(23, Math.trunc(Number(data.bbs_sign_hour))))
+        : 3
+      const bbsSignMinute = Number.isFinite(Number(data.bbs_sign_minute))
+        ? Math.max(0, Math.min(59, Math.trunc(Number(data.bbs_sign_minute))))
+        : 30
+      yaml.set(_path + 'sign.yaml', 'bbs_sign_hour', bbsSignHour)
+      yaml.set(_path + 'sign.yaml', 'bbs_sign_minute', bbsSignMinute)
       yaml.set(_path + 'sign.yaml', 'sbai', !!data.sbai)
       const signGroups = String(data.sign_group || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
       yaml.set(_path + 'sign.yaml', 'sign_group', signGroups)
       const bbsSignGroups = String(data.bbs_sign_group || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
       yaml.set(_path + 'sign.yaml', 'bbs_sign_group', bbsSignGroups)
+      yaml.set(_path + 'sign.yaml', 'sign', parseSignUsers(data.sign_users))
+      yaml.set(_path + 'sign.yaml', 'bbs_sign', parseSignUsers(data.bbs_sign_users))
       const broadcastGroups = parseList(data.groups)
         .map(v => Number(v))
         .filter(v => Number.isSafeInteger(v) && v > 0)
@@ -1303,6 +1357,30 @@ export const supportGuoba = () => ({
 
 function parseList(value) {
   return String(value || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
+}
+
+function formatSignUsers(users = {}) {
+  if (!users || typeof users !== 'object') return ''
+  return Object.entries(users)
+    .filter(([, qqs]) => Array.isArray(qqs) && qqs.length)
+    .map(([group, qqs]) => `${group}:${qqs.join(',')}`)
+    .join('\n')
+}
+
+function parseSignUsers(value = '') {
+  const result = {}
+  for (const line of String(value || '').split(/[\n;]+/)) {
+    const text = line.trim()
+    if (!text) continue
+    const [group, usersText = ''] = text.split(/[=：:]/)
+    const gid = String(group || '').trim()
+    if (!/^\d+$/.test(gid)) continue
+    const users = usersText.split(/[,，\s]+/)
+      .map(v => v.trim())
+      .filter(v => /^\d+$/.test(v))
+    if (users.length) result[gid] = [...new Set(users)]
+  }
+  return result
 }
 
 function formatGroupConfig(groupConfig = {}) {

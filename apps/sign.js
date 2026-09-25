@@ -3,14 +3,18 @@ import {
     MysSign,
     zd_MysSign,
     BbsSign,
+    BbsAutoSign,
+    sendBbsAutoResult,
     yaml,
     sleep,
+    reply_recallMsg,
     pluginPriority
 } from '#xhh';
 import lodash from 'lodash';
 import Runtime from '../../../lib/plugins/runtime.js';
 
 let signing = false;
+let bbsSigning = false;
 export class Sign extends plugin {
     constructor(e) {
         super({
@@ -36,7 +40,10 @@ export class Sign extends plugin {
         this.task = {
             cron: '0 * * * * *', //每分钟检查一次，实际执行时间由 sign.yaml 的 sign_hour/sign_minute 控制
             name: '[小花火]米游社签到',
-            fnc: () => this.scheduled_sign(),
+            fnc: async () => {
+                await this.scheduled_sign();
+                await this.scheduled_bbs_sign();
+            },
             log: true,
         };
     }
@@ -79,7 +86,7 @@ export class Sign extends plugin {
 
     async bbsSign(e) {
         if (!config().sign) return false;
-        if (signing) return e.reply('有签到任务进行中, 过会儿再试吧！');
+        if (signing || bbsSigning) return e.reply('有签到任务进行中, 过会儿再试吧！');
         if (e.isGroup) {
             const signData = yaml.get('./plugins/xhh/config/sign.yaml') || {};
             const wl = signData.bbs_sign_group || [];
@@ -87,7 +94,10 @@ export class Sign extends plugin {
         }
         signing = true;
         try {
-            await e.reply('正在进行米游社社区签到，请稍等……', true);
+            // 社区签到可能需要逐账号、逐版块请求；进度提示必须显式设置撤回时间，
+            // 不能依赖框架默认值，否则会一直留在群里。
+            await reply_recallMsg(e, '正在进行米游社社区签到，请稍等……', 60, false);
+            addBbs(e);
             await BbsSign(e);
         } catch (error) {
             logger.error(`社区签到异常: ${error.message}`);
@@ -97,10 +107,37 @@ export class Sign extends plugin {
         return true;
     }
 
+    async scheduled_bbs_sign() {
+        const data = yaml.get('./plugins/xhh/config/sign.yaml') || {};
+        if (!data.bbs_zd_sign || !data.bbs_sign || typeof data.bbs_sign !== 'object') return false;
+        if (!isSignTime(data, 'bbs_sign_hour', 'bbs_sign_minute')) return false;
+        if (bbsSigning) return false;
+        bbsSigning = true;
+        try {
+            let groups = Object.keys(data.bbs_sign || {}).filter(group =>
+                Array.isArray(data.bbs_sign[group]) && data.bbs_sign[group].length > 0
+            );
+            if (Array.isArray(data.bbs_sign_group) && data.bbs_sign_group.length) {
+                const allow = new Set(data.bbs_sign_group.map(v => String(v)));
+                groups = groups.filter(group => allow.has(String(group)));
+            }
+            for (const group of groups) {
+                const result = await BbsAutoSign(data.bbs_sign[group]);
+                await sendBbsAutoResult(group, result);
+                await sleep(1000);
+            }
+        } catch (error) {
+            logger.error(`社区自动签到异常: ${error.message}`);
+        } finally {
+            bbsSigning = false;
+        }
+        return true;
+    }
+
     async scheduled_sign() {
         const data = yaml.get('./plugins/xhh/config/sign.yaml') || {};
         const isManual = !!this.e?.msg;
-        if (!isManual && !isSignTime(data)) return false;
+        if (!isManual && !isSignTime(data, 'sign_hour', 'sign_minute')) return false;
         if (!data.zd_sign || !data.sign || typeof data.sign != 'object') return false;
         signing = true;
         try {
@@ -168,6 +205,20 @@ function del(qqs, group) {
     return yaml.set(path, 'sign', data.sign);
 }
 
+function addBbs(e) {
+    const path = './plugins/xhh/config/sign.yaml';
+    const data = yaml.get(path) || {};
+    if (!data.bbs_zd_sign || !e.isGroup) return;
+    if (!isAllowSignGroup(data.bbs_sign_group, e.group_id)) return;
+    if (!data.bbs_sign || typeof data.bbs_sign !== 'object') data.bbs_sign = {};
+    const group = String(e.group_id);
+    const qq = String(e.user_id);
+    const qqs = Array.isArray(data.bbs_sign[group]) ? data.bbs_sign[group].map(String) : [];
+    if (!qqs.includes(qq)) qqs.push(qq);
+    data.bbs_sign[group] = qqs;
+    return yaml.set(path, 'bbs_sign', data.bbs_sign);
+}
+
 function isAllowSignGroup(signGroup, group) {
     // sign_group 为空数组/空值表示不限制；旧逻辑把 [] 当成 truthy，导致所有群都被跳过。
     if (!Array.isArray(signGroup) || signGroup.length === 0) return true;
@@ -175,9 +226,9 @@ function isAllowSignGroup(signGroup, group) {
     return signGroup.map(v => String(v)).includes(gid);
 }
 
-function isSignTime(data = {}) {
-    const hour = clampInt(data.sign_hour, 0, 23, 0);
-    const minute = clampInt(data.sign_minute, 0, 59, 0);
+function isSignTime(data = {}, hourKey = 'sign_hour', minuteKey = 'sign_minute') {
+    const hour = clampInt(data[hourKey], 0, 23, 0);
+    const minute = clampInt(data[minuteKey], 0, 59, 0);
     const now = new Date();
     return now.getHours() === hour && now.getMinutes() === minute;
 }

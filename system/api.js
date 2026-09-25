@@ -88,20 +88,6 @@ async function api(e, data = {}) {
                 }),
             },
         },
-        //米游社社区签到
-        bbs_sign_info: {
-            url: 'https://bbs-api.miyoushe.com/apihub/api/checkInInfo',
-            obj: {
-                method: 'GET',
-            },
-        },
-        bbs_sign: {
-            url: 'https://bbs-api.miyoushe.com/apihub/api/checkIn',
-            obj: {
-                method: 'POST',
-                body: '{}',
-            },
-        },
         //货币战争
         huobi: {
             url: `https://api-takumi-record.mihoyo.com/game_record/app/hkrpg/api/grid_fight?server=${server}&role_id=${uid}`,
@@ -259,9 +245,20 @@ async function api(e, data = {}) {
     let res
 
     try {
-        res = await fetch(url, obj).then(res => res.json());
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        const resp = await fetch(url, { ...obj, signal: controller.signal });
+        clearTimeout(timer);
+        const text = await resp.text();
+        try {
+            res = JSON.parse(text);
+        } catch {
+            logger.error(`[xhh][api] ${data.type} 返回非JSON: ${text.slice(0, 300)}`);
+            res = { retcode: -500, message: '接口返回异常(非JSON)', _raw: text };
+        }
     } catch (error) {
         logger.error(error);
+        res = { retcode: -500, message: '请求失败: ' + (error.name === 'AbortError' ? '超时' : error.message) };
     }
     const sign = data.type.includes('sign');
     const isCaptcha = [1034, 10035].includes(Number(res?.retcode));

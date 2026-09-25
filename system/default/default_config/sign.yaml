@@ -7,6 +7,13 @@ zd_sign: 0
 sign_hour: 0
 sign_minute: 0
 
+#社区自动签到：0关闭 1开启
+bbs_zd_sign: 0
+
+#社区自动签到时间（24小时制）
+bbs_sign_hour: 3
+bbs_sign_minute: 30
+
 #在自动签到结束后，是否把自动签到失败的用户@出来？：true是  false否
 sbai: false
 
@@ -33,3 +40,9 @@ bbs_sign_group:
 #           - 123456456
 #           - 987651234
 sign:
+
+# 社区自动签到用户白名单，和游戏自动签到分开维护
+# bbs_sign:
+#   123456789:
+#     - 123123123
+bbs_sign:
