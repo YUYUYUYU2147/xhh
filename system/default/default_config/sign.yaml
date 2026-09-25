@@ -3,6 +3,10 @@
 #自动签到：0关闭 1开启
 zd_sign: 0
 
+#自动签到时间（24小时制）
+sign_hour: 0
+sign_minute: 0
+
 #在自动签到结束后，是否把自动签到失败的用户@出来？：true是  false否
 sbai: false
 

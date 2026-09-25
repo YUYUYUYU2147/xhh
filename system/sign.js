@@ -252,7 +252,7 @@ function add(e) {
     const path = './plugins/xhh/config/sign.yaml';
     const data = yaml.get(path);
     if (!data.zd_sign || !e.isGroup) return;
-    if (data.sign_group && !data.sign_group.includes(e.group_id)) return;
+    if (!isAllowSignGroup(data.sign_group, e.group_id)) return;
     if (!data.sign) {
         data.sign = {};
     } else {
@@ -265,6 +265,12 @@ function add(e) {
     qqs.push(e.user_id);
     data.sign[e.group_id] = qqs;
     return yaml.set(path, 'sign', data.sign);
+}
+
+function isAllowSignGroup(signGroup, group) {
+    if (!Array.isArray(signGroup) || signGroup.length === 0) return true;
+    const gid = String(group);
+    return signGroup.map(v => String(v)).includes(gid);
 }
 
 

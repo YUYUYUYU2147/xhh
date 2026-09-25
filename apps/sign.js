@@ -34,7 +34,7 @@ export class Sign extends plugin {
             ],
         });
         this.task = {
-            cron: '0 0 0 * * *', //凌晨0.00自动签到
+            cron: '0 * * * * *', //每分钟检查一次，实际执行时间由 sign.yaml 的 sign_hour/sign_minute 控制
             name: '[小花火]米游社签到',
             fnc: () => this.scheduled_sign(),
             log: true,
@@ -98,7 +98,9 @@ export class Sign extends plugin {
     }
 
     async scheduled_sign() {
-        const data = yaml.get('./plugins/xhh/config/sign.yaml');
+        const data = yaml.get('./plugins/xhh/config/sign.yaml') || {};
+        const isManual = !!this.e?.msg;
+        if (!isManual && !isSignTime(data)) return false;
         if (!data.zd_sign || !data.sign || typeof data.sign != 'object') return false;
         signing = true;
         try {
@@ -109,8 +111,8 @@ export class Sign extends plugin {
             if (this.e?.msg?.includes('本群') && this.e.isGroup)
                 groups = [this.e.group_id];
             for (const group of groups) {
-                if (data.sign_group && !data.sign_group.includes(group)) continue; //非白名单群
-                if (data.sign[group].length === 0) continue; //群里没人
+                if (!isAllowSignGroup(data.sign_group, group)) continue; //非白名单群
+                if (!Array.isArray(data.sign[group]) || data.sign[group].length === 0) continue; //群里没人
                 let data_ = {
                     qqs: data.sign[group],
                 };
@@ -164,6 +166,26 @@ function del(qqs, group) {
     const data = yaml.get(path);
     data.sign[group] = removeCommonElements(data.sign[group], qqs)
     return yaml.set(path, 'sign', data.sign);
+}
+
+function isAllowSignGroup(signGroup, group) {
+    // sign_group 为空数组/空值表示不限制；旧逻辑把 [] 当成 truthy，导致所有群都被跳过。
+    if (!Array.isArray(signGroup) || signGroup.length === 0) return true;
+    const gid = String(group);
+    return signGroup.map(v => String(v)).includes(gid);
+}
+
+function isSignTime(data = {}) {
+    const hour = clampInt(data.sign_hour, 0, 23, 0);
+    const minute = clampInt(data.sign_minute, 0, 59, 0);
+    const now = new Date();
+    return now.getHours() === hour && now.getMinutes() === minute;
+}
+
+function clampInt(value, min, max, fallback) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    return Math.max(min, Math.min(max, Math.trunc(num)));
 }
 
 function removeCommonElements(arr1, arr2) {

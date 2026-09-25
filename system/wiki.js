@@ -132,23 +132,55 @@ export class Wiki extends plugin {
     });
   }
 
-  getWikiIcon(text = '') {
+  getWikiIcon(text = '', game = '') {
     text = String(text || '');
-    const iconMap = {
+    if (/^(一|二|三|四|五)星$|^[SAB]级$/.test(text)) return '';
+
+    const gsIconMap = {
+      '水': '水.png', '火': '火.png', '冰': '冰.png', '雷': '雷.png',
+      '风': '风.png', '岩': '岩.png', '草': '草.png'
+    };
+    const srIconMap = {
+      '物理': 'sr_物理.png', '火': 'sr_火.png', '冰': 'sr_冰.png',
+      '雷': 'sr_雷.png', '风': 'sr_风.png', '量子': 'sr_量子.png', '虚数': 'sr_虚数.png',
+      '毁灭': '毁灭.png', '巡猎': '巡猎.png', '智识': '智识.png', '同谐': '同谐.png',
+      '虚无': '虚无.png', '存护': '存护.png', '丰饶': '丰饶.png', '记忆': '记忆.png'
+    };
+    const zzzIconMap = {
+      '物理': 'zzz_物理.png', '火': 'zzz_火.png', '冰': 'zzz_冰.png', '电': 'zzz_电.png',
+      '以太': 'zzz_以太.png', '风': 'zzz_风.png', '强攻': 'zzz_强攻.png',
+      '击破': 'zzz_击破.png', '异常': 'zzz_异常.png', '支援': 'zzz_支援.png',
+      '防护': 'zzz_防护.png', '命破': 'zzz_命破.png'
+    };
+    const bh3IconMap = {
       '星尘': 'bh3_星尘.png', '星辰': 'bh3_星尘.png',
       '生物': 'bh3_生物.png', '异能': 'bh3_异能.png', '机械': 'bh3_机械.png', '量子': 'bh3_量子.png', '虚数': 'bh3_虚数.png',
-      '物理': 'bh3_物理.svg', '火伤': 'bh3_火.svg', '火焰': 'bh3_火.svg', '火': 'bh3_火.svg',
-      '冰伤': 'bh3_冰.svg', '冰冻': 'bh3_冰.svg', '冰': 'bh3_冰.svg',
-      '雷伤': 'bh3_雷.svg', '雷电': 'bh3_雷.svg', '雷': 'bh3_雷.svg',
+      // 崩三列表的“伤害类型”按官方异常状态图标显示：
+      // 物理→流血，火伤→点燃，冰伤→冻结，雷伤→麻痹。
+      '物理': 'bh3_流血.png',
+      '火伤': 'bh3_点燃.png', '火焰元素': 'bh3_点燃.png', '火焰': 'bh3_点燃.png', '火': 'bh3_点燃.png',
+      '冰伤': 'bh3_冻结.png', '冰冻元素': 'bh3_冻结.png', '冰冻': 'bh3_冻结.png', '冰': 'bh3_冻结.png',
+      '雷伤': 'bh3_麻痹.png', '雷电元素': 'bh3_麻痹.png', '雷电': 'bh3_麻痹.png', '雷': 'bh3_麻痹.png',
       '世界之星': 'xzh_世界之星.png', '无存之仪': 'xzh_无存之仪.png', '命运之轮': 'xzh_命运之轮.png', '升变之理': 'xzh_升变之理.png', '天衍之杯': 'xzh_天衍之杯.png',
       '界域共鸣': 'xzh_界域共鸣.png', '万有之星': 'xzh_万有之星.png', '星影偕行': 'xzh_星影偕行.png', '天渊易位': 'xzh_天渊易位.png', '复盈相生': 'xzh_复盈相生.png',
       '星之环特性': '星环特性.svg', '星之环分野': '星环分野.svg',
       '输出': '定位.svg', '辅助': '定位.svg', '定位': '定位.svg'
     };
-    for (const [key, icon] of Object.entries(iconMap)) {
+
+    if (game === 'zzz') return zzzIconMap[text] || '';
+    if (game === 'sr') return srIconMap[text] || '';
+    if (game === 'gs') return gsIconMap[text] || '';
+    if (game === 'bh3') {
+      for (const [key, icon] of Object.entries(bh3IconMap)) {
+        if (text.includes(key)) return icon;
+      }
+      return '';
+    }
+    const genericMap = { ...gsIconMap, ...srIconMap, ...zzzIconMap, ...bh3IconMap };
+    if (genericMap[text]) return genericMap[text];
+    for (const [key, icon] of Object.entries(bh3IconMap)) {
       if (text.includes(key)) return icon;
     }
-    if (text.includes('星')) return 'bh3_星尘.png';
     return '';
   }
 
@@ -405,9 +437,14 @@ export class Wiki extends plugin {
       reply_recallMsg(e, `正在获取${_name}列表中,请等待...`, 30);
     data = data.map(item => ({
       ...item,
-      badges: [item.ji, item.yuanshu, item.wuqi]
+      badges: (isBH3
+        ? [item.yuanshu, ...(Array.isArray(item.damage) ? item.damage : [item.damage]), item.starRingField, ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]), item.wuqi]
+        : [item.ji, item.yuanshu, item.wuqi])
         .filter(v => v && v !== '未知' && v !== 'false')
-        .map(v => ({ text: v, icon: this.getWikiIcon(v) }))
+        .map(v => {
+          const icon = this.getWikiIcon(v, isZZZ ? 'zzz' : isSr ? 'sr' : isBH3 ? 'bh3' : 'gs');
+          return { text: v, icon, kind: icon ? 'icon-only' : '' };
+        })
     }));
     data = {
       name: _name,
@@ -1460,15 +1497,18 @@ export class Wiki extends plugin {
 
     const element_icon_map = {
       '物理': 'bh3_物理.svg',
-      '火': 'bh3_火.svg',
-      '火焰': 'bh3_火.svg',
       '火伤': 'bh3_火.svg',
-      '冰': 'bh3_冰.svg',
-      '冰冻': 'bh3_冰.svg',
+      '火焰元素': 'bh3_火.svg',
+      '火焰': 'bh3_火.svg',
+      '火': 'bh3_火.svg',
       '冰伤': 'bh3_冰.svg',
-      '雷': 'bh3_雷.svg',
-      '雷电': 'bh3_雷.svg',
+      '冰冻元素': 'bh3_冰.svg',
+      '冰冻': 'bh3_冰.svg',
+      '冰': 'bh3_冰.svg',
       '雷伤': 'bh3_雷.svg',
+      '雷电元素': 'bh3_雷.svg',
+      '雷电': 'bh3_雷.svg',
+      '雷': 'bh3_雷.svg',
       '生物': 'bh3_生物.png',
       '量子': 'bh3_量子.png',
       '虚数': 'bh3_虚数.png',
@@ -1508,6 +1548,30 @@ export class Wiki extends plugin {
 
     for (const item of introFields) item.icon = getAttrIcon(item.key, item.value);
     for (const item of subFields) item.icon = getAttrIcon(item.key, item.value);
+
+    // 部分崩三角色的「武器类型」只存在于 basicIntroduction.mainFields，
+    // 不一定会出现在 content.basic_info；显式从主字段兜底，避免角色图鉴漏显示。
+    const weaponTypeField = [
+      ...introFields,
+      ...(basicPart.mainFields || []).flatMap(item => [
+        { key: item.nameL, value: item.valueL },
+        { key: item.nameR, value: item.valueR }
+      ])
+    ].find(item => /武器类型|武器/.test(String(item.key || '')) && String(item.value || '').trim());
+    if (weaponTypeField && !Object.entries(basic_info).some(([key, value]) =>
+      /武器类型|武器/.test(String(key)) && String(value || '').trim()
+    )) {
+      basic_info['武器类型'] = stripHtml(weaponTypeField.value);
+    }
+    const starRingText = subFields
+      .filter(item => item.key === '星之环')
+      .map(item => stripHtml(item.value))
+      .join('\n');
+    const starRingField = basic_info['星之环分野'] ||
+      (starRingText.match(/分野\s*[：:]\s*(.*?)(?=特性\s*[：:]|$)/)?.[1] || '').trim();
+    const starRingTraits = String(basic_info['星之环特性'] ||
+      (starRingText.match(/特性\s*[：:]\s*(.*?)(?=注\s*[：:]|$)/)?.[1] || ''))
+      .split(/[、,，\/]/).map(s => s.trim()).filter(Boolean);
 
     const attr = Object.entries(basic_info)
       .filter(([key, value]) => key && value)
@@ -1571,6 +1635,11 @@ export class Wiki extends plugin {
       attr,
       introFields,
       subFields,
+      starRing: (starRingField || starRingTraits.length) ? {
+        field: starRingField,
+        fieldIcon: starRingField ? getAttrIcon('星之环分野', starRingField) : '',
+        traits: starRingTraits.map(t => ({ name: t, icon: getAttrIcon('星之环特性', t) }))
+      } : null,
       hexagon,
       equipment,
       skills,

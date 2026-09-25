@@ -844,12 +844,22 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
         } else {
             data = [];
             const channelKey = type == 'wq' ? 'c_20' : type == 'syw' ? 'c_19' : type == 'js' ? 'c_18' : type == 'hb' ? 'c_218' : 'c_21';
+            const normalizeDamageTypes = (text = '', title = '') => {
+                const src = String(text || '');
+                const result = [];
+                const add = v => {
+                    v = { 火焰: '火伤', 冰冻: '冰伤', 雷电: '雷伤', 物理属性: '物理' }[v] || v;
+                    if (v && !result.includes(v)) result.push(v);
+                };
+                for (const m of src.matchAll(/物理属性|物理|火伤|冰伤|雷伤|火焰|冰冻|雷电|流血/g)) add(m[0]);
+                return result;
+            };
             for (let n in list) {
                 const item = list[n];
                 const title = item.title.replace(/ /g, '');
                 if (title.includes('预告')) continue;
 
-                let ji = '未知', attribute = '未知', wuqi = type == 'syw' ? '未知' : '未知', isSet = 'false';
+                let ji = '未知', attribute = '未知', damage = '', wuqi = type == 'syw' ? '未知' : '未知', isSet = 'false';
                 try {
                     const ext = JSON.parse(item.ext || '{}');
                     const filterText = ext[channelKey]?.filter?.text || ext.filter?.text || '[]';
@@ -862,6 +872,8 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                             ji = s.replace(/(武器|圣痕|人偶)?星级\//, '');
                         } else if (s.includes('属性')) {
                             attribute = s.replace('属性/', '');
+                        } else if (s.includes('装甲特性')) {
+                            damage = s.replace('装甲特性/', '');
                         } else if (s.includes('武器类型')) {
                             wuqi = s.replace('武器类型/', '');
                         } else if (s.includes('人偶类型')) {
@@ -883,8 +895,63 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                     ji,
                     yuanshu: attribute,
                     wuqi,
+                    damage: normalizeDamageTypes(damage, title),
+                    starRingField: '',
+                    starRing: [],
                     isSet
                 });
+            }
+            // 2.0 之后的部分角色列表筛选项不再提供武器类型、伤害类型和星之环特性；
+            // 这些字段仍在角色详情的 basicIntroduction 模板里，补到列表卡片使用。
+            if (type === 'js') {
+                const parseDetailFields = detail => {
+                    const content = detail?.content || {};
+                    const parts = [];
+                    for (const section of content.contents || []) {
+                        for (const match of String(section.text || '').matchAll(/data-data="([^"]+)"/g)) {
+                            try {
+                                const parsed = JSON.parse(decodeURIComponent(match[1]));
+                                if (Array.isArray(parsed)) parts.push(...parsed);
+                            } catch (_) {}
+                        }
+                    }
+                    const basic = parts.find(v =>
+                        v?.tmplKey === 'valkyrie' && v?.partKey === 'basicIntroduction'
+                    )?.data || {};
+                    const fields = (basic.mainFields || []).flatMap(v => [
+                        { key: v.nameL, value: v.valueL },
+                        { key: v.nameR, value: v.valueR }
+                    ]);
+                    const value = key => fields.find(v => v.key === key && String(v.value || '').trim())?.value || '';
+                    const ring = fields.find(v => v.key === '星之环')?.value || '';
+                    const subRing = (basic.subFields || []).find(v => v.name === '星之环')?.value || '';
+                    const ringText = String(ring || subRing)
+                        .replace(/<[^>]+>/g, '')
+                        .replace(/&nbsp;/g, ' ');
+                    const field = ringText.match(/分野\s*[：:]\s*(.*?)(?=特性\s*[：:]|$)/)?.[1] || '';
+                    const traits = ringText.match(/特性\s*[：:]\s*(.*?)(?=注\s*[：:]|$)/)?.[1] || '';
+                    const roleType = value('装甲特性') || value('角色定位');
+                    const damage = normalizeDamageTypes(roleType, content.title);
+                    return {
+                        weapon: value('武器类型'),
+                        damage,
+                        starRingField: field.trim(),
+                        starRing: traits.split(/[、,，\/]+/).map(v => v.trim()).filter(Boolean)
+                    };
+                };
+                const missingMeta = data.filter(item => !item.wuqi || item.wuqi === '未知');
+                for (let i = 0; i < missingMeta.length; i += 8) {
+                    await Promise.all(missingMeta.slice(i, i + 8).map(async item => {
+                        try {
+                            const detail = await this.bh3_detail(item.id);
+                            const fields = parseDetailFields(detail);
+                            if (fields.weapon) item.wuqi = fields.weapon;
+                            if (fields.damage) item.damage = fields.damage;
+                            if (fields.starRingField) item.starRingField = fields.starRingField;
+                            if (fields.starRing) item.starRing = fields.starRing;
+                        } catch (_) {}
+                    }));
+                }
             }
             return data;
         }

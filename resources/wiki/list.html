@@ -19,7 +19,7 @@
           {{if s.badges && s.badges.length}}
           <div class="badge-row">
             {{each s.badges b}}
-              <span class="mini-badge">{{if b.icon}}<img src="{{if b.icon.startsWith('http')}}{{b.icon}}{{else}}{{ppath}}wiki/imgs/{{b.icon}}{{/if}}">{{/if}}{{b.text}}</span>
+              <span class="mini-badge {{b.kind || ''}}">{{if b.icon}}<img src="{{if b.icon.startsWith('http')}}{{b.icon}}{{else}}{{ppath}}wiki/imgs/{{b.icon}}{{/if}}">{{/if}}{{b.text}}</span>
             {{/each}}
           </div>
           {{/if}}

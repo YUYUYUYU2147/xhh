@@ -178,6 +178,20 @@ export const supportGuoba = () => ({
         },
       },
       {
+        field: 'sign_hour',
+        label: '自动签到时',
+        helpMessage: '0~23，保存后无需重启，下一次到点执行',
+        component: 'InputNumber',
+        componentProps: { min: 0, max: 23, step: 1 },
+      },
+      {
+        field: 'sign_minute',
+        label: '自动签到分',
+        helpMessage: '0~59，保存后无需重启，下一次到点执行',
+        component: 'InputNumber',
+        componentProps: { min: 0, max: 59, step: 1 },
+      },
+      {
         field: 'sbai',
         label: '签到失败@提醒',
         helpMessage: '自动签到结束后@失败用户',
@@ -986,6 +1000,8 @@ export const supportGuoba = () => ({
         huobi_num: cfg.huobi_num ?? 2,
         sign: !!cfg.sign,
         zd_sign: sign.zd_sign ?? 0,
+        sign_hour: sign.sign_hour ?? 0,
+        sign_minute: sign.sign_minute ?? 0,
         sbai: !!sign.sbai,
         sign_group: (sign.sign_group || []).join(','),
         bbs_sign_group: (sign.bbs_sign_group || []).join(','),
@@ -1192,6 +1208,14 @@ export const supportGuoba = () => ({
       if (memeBaseUrl) yaml.set(_path + 'config.yaml', 'meme_baseUrl', memeBaseUrl)
 
       yaml.set(_path + 'sign.yaml', 'zd_sign', Number(data.zd_sign) ?? 0)
+      const signHour = Number.isFinite(Number(data.sign_hour))
+        ? Math.max(0, Math.min(23, Math.trunc(Number(data.sign_hour))))
+        : 0
+      const signMinute = Number.isFinite(Number(data.sign_minute))
+        ? Math.max(0, Math.min(59, Math.trunc(Number(data.sign_minute))))
+        : 0
+      yaml.set(_path + 'sign.yaml', 'sign_hour', signHour)
+      yaml.set(_path + 'sign.yaml', 'sign_minute', signMinute)
       yaml.set(_path + 'sign.yaml', 'sbai', !!data.sbai)
       const signGroups = String(data.sign_group || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
       yaml.set(_path + 'sign.yaml', 'sign_group', signGroups)
