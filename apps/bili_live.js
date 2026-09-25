@@ -92,7 +92,7 @@ export class bili_live_plugin extends plugin {
     }
 
     if (!roomId) {
-      return e.reply('没认出直播间：可以直接给房间号/链接，也可以引用B站分享卡片再发这个指令。', true, { recallMsg: 60 });
+      return e.reply('没认出直播间：可以直接给房间号/链接，也可以引用B站分享卡片再发这个指令。', true);
     }
 
     await this.send(e, roomId, true);
@@ -142,15 +142,15 @@ export class bili_live_plugin extends plugin {
 
     if (/解绑|取消绑定/.test(act)) {
       await redis.del(key);
-      return e.reply('已解绑直播间', true, { recallMsg: 30 });
+      return e.reply('已解绑直播间', true);
     }
     if (/查看/.test(act)) {
       const id = await redis.get(key);
       return e.reply(id ? `当前绑定的直播间：${id}\nhttps://live.bilibili.com/${id}` : '还没绑定直播间');
     }
-    if (!room) return e.reply('用法：#直播间绑定 房间号', true, { recallMsg: 30 });
+    if (!room) return e.reply('用法：#直播间绑定 房间号', true);
     await redis.set(key, room);
-    return e.reply(`已绑定直播间 ${room}\n之后直接发「#弹幕 内容」就会发到这个房间`, true, { recallMsg: 60 });
+    return e.reply(`已绑定直播间 ${room}\n之后直接发「#弹幕 内容」就会发到这个房间`, true);
   }
 
   // 群按群存，私聊按人存
@@ -180,7 +180,7 @@ export class bili_live_plugin extends plugin {
     const arg = String(String(e.msg || '').match(SHOT_RE)?.[1] || '');
     const { roomId } = await this.resolveRoom(e, arg);
     if (!roomId) {
-      return e.reply('没指定直播间：「#直播截图 房间号」，或先「#直播间绑定 房间号」，也可以引用B站分享卡片再发。', true, { recallMsg: 60 });
+      return e.reply('没指定直播间：「#直播截图 房间号」，或先「#直播间绑定 房间号」，也可以引用B站分享卡片再发。', true);
     }
 
     // 没开播就没画面，先问一下，省得白等
@@ -189,12 +189,12 @@ export class bili_live_plugin extends plugin {
       info = await bili_live.roomInfo(roomId);
     } catch (err) { }
     if (info && info.liveStatus !== 1) {
-      return e.reply(`直播间 ${roomId} 现在没在直播（${info.liveStatus === 2 ? '轮播中' : '未开播'}），截不了画面。`, true, { recallMsg: 60 });
+      return e.reply(`直播间 ${roomId} 现在没在直播（${info.liveStatus === 2 ? '轮播中' : '未开播'}），截不了画面。`, true);
     }
 
     const qn = Number(config().bili_live_qn ?? 250) || 250;
     bili_live.cleanTemp();
-    await e.reply(`正在截取直播间 ${roomId} 的实时画面…`, true, { recallMsg: 120 }).catch(() => { });
+    await e.reply(`正在截取直播间 ${roomId} 的实时画面…`, true).catch(() => { });
 
     try {
       const img = await bili_live.screenshot(roomId, { qn, seconds: 2 });
@@ -204,7 +204,7 @@ export class bili_live_plugin extends plugin {
       return true;
     } catch (err) {
       logger.warn(`[xhh][bili_live] 截屏失败: ${err?.message || err}`);
-      return e.reply(`截屏失败：${err?.message || err}`, true, { recallMsg: 60 });
+      return e.reply(`截屏失败：${err?.message || err}`, true);
     }
   }
 
@@ -215,33 +215,33 @@ export class bili_live_plugin extends plugin {
 
     const { roomId, rest: text } = await this.resolveRoom(e, String(String(e.msg || '').match(DM_RE)?.[1] || ''));
     if (!roomId) {
-      return e.reply('还没指定直播间：先「#直播间绑定 房间号」，或用「#弹幕 房间号 内容」，也可以引用B站分享卡片再发。', true, { recallMsg: 60 });
+      return e.reply('还没指定直播间：先「#直播间绑定 房间号」，或用「#弹幕 房间号 内容」，也可以引用B站分享卡片再发。', true);
     }
-    if (!text) return e.reply('弹幕内容不能为空呀', true, { recallMsg: 30 });
+    if (!text) return e.reply('弹幕内容不能为空呀', true);
 
     const len = [...text].length; // 中文按字算，别把 emoji 拆成两半
-    if (len > 20) return e.reply(`直播间弹幕最多20个字，你这条 ${len} 个字`, true, { recallMsg: 30 });
+    if (len > 20) return e.reply(`直播间弹幕最多20个字，你这条 ${len} 个字`, true);
 
-    if (!this.dmCan(e, cfg)) return e.reply('你没有发弹幕的权限（可在锅巴面板改）', true, { recallMsg: 30 });
+    if (!this.dmCan(e, cfg)) return e.reply('你没有发弹幕的权限（可在锅巴面板改）', true);
 
     // 冷却，防止一群人连点被B站限流
     const cd = Number(cfg.bili_live_dm_cd ?? 5);
     if (cd > 0 && !e.isMaster) {
       const cdKey = `xhh_bili_live_dm_cd:${e.isGroup ? e.group_id : 'u' + e.user_id}`;
-      if (await redis.get(cdKey)) return e.reply(`弹幕冷却中，${cd} 秒后再试`, true, { recallMsg: 30 });
+      if (await redis.get(cdKey)) return e.reply(`弹幕冷却中，${cd} 秒后再试`, true);
       await redis.set(cdKey, '1', { EX: cd });
     }
 
     const ck = await bili.getck();
-    if (!ck) return e.reply('还没登录B站，先发「小花火b站登录」扫码登录后才能发弹幕', true, { recallMsg: 60 });
+    if (!ck) return e.reply('还没登录B站，先发「小花火b站登录」扫码登录后才能发弹幕', true);
 
     try {
       await bili_live.sendDanmaku(roomId, text, ck);
       logger.mark(`[xhh][bili_live] 弹幕已发送 ${roomId}: ${text}`);
-      return e.reply(`弹幕已发到直播间 ${roomId}：${text}`, true, { recallMsg: 60 });
+      return e.reply(`弹幕已发到直播间 ${roomId}：${text}`, true);
     } catch (err) {
       logger.warn(`[xhh][bili_live] 弹幕发送失败: ${err?.message || err}`);
-      return e.reply(`弹幕发送失败：${err?.message || err}`, true, { recallMsg: 60 });
+      return e.reply(`弹幕发送失败：${err?.message || err}`, true);
     }
   }
 
@@ -275,7 +275,7 @@ export class bili_live_plugin extends plugin {
       info = await bili_live.roomInfo(roomId);
     } catch (err) {
       logger.warn(`[xhh][bili_live] 直播间 ${roomId} 解析失败: ${err?.message || err}`);
-      return e.reply(`直播间 ${roomId} 解析失败：${err?.message || '接口异常'}`, true, { recallMsg: 60 });
+      return e.reply(`直播间 ${roomId} 解析失败：${err?.message || '接口异常'}`, true);
     }
 
     // 未开播的直播间是否静默
@@ -300,7 +300,7 @@ export class bili_live_plugin extends plugin {
     const maxBytes = maxMB > 0 ? maxMB * 1024 * 1024 : 0;
 
     bili_live.cleanTemp();
-    await e.reply(`正在录制 ${seconds} 秒直播片段（${bili_live.LIVE_QN[qn] || qn}），请稍等…`, true, { recallMsg: 300 }).catch(() => { });
+    await e.reply(`正在录制 ${seconds} 秒直播片段（${bili_live.LIVE_QN[qn] || qn}），请稍等…`, true).catch(() => { });
 
     let rawPath = '';
     try {
@@ -316,7 +316,7 @@ export class bili_live_plugin extends plugin {
     } catch (err) {
       logger.warn(`[xhh][bili_live] 直播片段录制失败: ${err?.message || err}`);
       if (rawPath) fs.rmSync(rawPath, { force: true });
-      return e.reply(`直播片段录制失败：${err?.message || err}`, true, { recallMsg: 60 });
+      return e.reply(`直播片段录制失败：${err?.message || err}`, true);
     }
   }
 

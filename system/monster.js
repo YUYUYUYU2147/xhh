@@ -364,10 +364,15 @@ async function bh3Data() {
                 items.push(item);
             }
         }
-        // 不阻塞本次返回：先出图，等级在后台慢慢补全，下一次列表就是三档了
-        setTimeout(() => { bh3EnrichRanks(items).catch(() => {}); }, 0);
         return { items };
     });
+}
+
+// 列表只需补全当前页的条目，确保崩三 BOSS 首次展示时就带上官方详情中的怪物属性。
+async function enrichBh3Items(items = []) {
+    const targets = items.filter(v => v?.id && v.rank === 'boss' && !bh3RankCache.has(v.id));
+    if (targets.length) await bh3EnrichRanks(targets);
+    else for (const item of items) bh3ApplyCached(item);
 }
 
 async function bh3Search(keyword, limit = 10) {
@@ -632,6 +637,7 @@ export default {
     RANK_CLASS,
     sortByRank,
     list,
+    enrichBh3Items,
     search,
     detail,
     cleanName,

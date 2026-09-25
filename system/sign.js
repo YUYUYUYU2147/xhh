@@ -455,7 +455,9 @@ async function zd_MysSign(qqs) {
             let user = (await NoteUser.create(qq)).getMysUser(game); //只要当前xx游戏绑定ck的账号信息（原神可能有多个，如渠道服）
             if (!user) continue;
             const ck = user.ck;
-            const uids = user.uids[game];
+            // 部分用户只绑定了 CK，但没有该游戏的 UID；
+            // 直接读取 uids[game].length 会导致自动签到任务整体中断。
+            const uids = Array.isArray(user.uids?.[game]) ? user.uids[game] : [];
             for (let i = 0; i < uids.length; i++) {
                 z_num++;
                 const uid = uids[i];

@@ -5,7 +5,7 @@ const { window } = new JSDOM();
 const DOMParser = window.DOMParser;
 
 // 绝区零角色/音擎别名，分别配置在 system/default/zzz_js_names.yaml、zzz_wq_names.yaml（格式：正式名: [别名列表]）
-// 单字别名（如“雅”）过于宽泛，不能直接参与模糊兜底，否则随机串会误命中，只做精确匹配。
+// 单字别名（如"雅"）过于宽泛，不能直接参与模糊兜底，否则随机串会误命中，只做精确匹配。
 const _zzzAliasCache = {};
 const ZZZ_ALIAS_FILES = {
   43: 'zzz_js_names.yaml',   // 代理人
@@ -236,7 +236,7 @@ export class Wiki extends plugin {
 
   getWikiIcon(text = '', game = '') {
     text = String(text || '');
-    // 星级不是元素/类型图标，不能用“包含星”兜底，否则“五星”会误显示成崩三星尘。
+    // 星级不是元素/类型图标，不能用"包含星"兜底，否则"五星"会误显示成崩三星尘。
     if (/^(一|二|三|四|五)星$|^[SAB]级$/.test(text)) return '';
 
     const gsIconMap = {
@@ -266,12 +266,19 @@ export class Wiki extends plugin {
     const bh3IconMap = {
       '星尘': 'bh3_星尘.png', '星辰': 'bh3_星尘.png',
       '生物': 'bh3_生物.png', '异能': 'bh3_异能.png', '机械': 'bh3_机械.png', '量子': 'bh3_量子.png', '虚数': 'bh3_虚数.png',
-      // 崩三列表的“伤害类型”按官方异常状态图标显示：
-      // 物理→流血，火伤→点燃，冰伤→冻结，雷伤→麻痹。
-      '物理': 'bh3_流血.png',
-      '火伤': 'bh3_点燃.png', '火焰元素': 'bh3_点燃.png', '火焰': 'bh3_点燃.png', '火': 'bh3_点燃.png',
-      '冰伤': 'bh3_冻结.png', '冰冻元素': 'bh3_冻结.png', '冰冻': 'bh3_冻结.png', '冰': 'bh3_冻结.png',
-      '雷伤': 'bh3_麻痹.png', '雷电元素': 'bh3_麻痹.png', '雷电': 'bh3_麻痹.png', '雷': 'bh3_麻痹.png',
+      // 崩三伤害类型使用崩三本地资源；异常状态徽章与伤害类型徽章分开。
+      '物理': 'bh3_物理.png',
+      '火伤': 'bh3_火伤.png', '火焰元素': 'bh3_火伤.png', '火焰': 'bh3_火伤.png', '火': 'bh3_火伤.png',
+      '冰伤': 'bh3_冰伤.png', '冰冻元素': 'bh3_冰伤.png', '冰冻': 'bh3_冰伤.png', '冰': 'bh3_冰伤.png',
+      '雷伤': 'bh3_雷伤.png', '雷电元素': 'bh3_雷伤.png', '雷电': 'bh3_雷伤.png', '雷': 'bh3_雷伤.png',
+      '双枪': 'bh3_双枪.png', '大剑': 'bh3_大剑.png', '太刀': 'bh3_太刀.png', '拳套': 'bh3_拳套.png',
+      '弓箭': 'bh3_弓箭.png', '十字架': 'bh3_十字架.png', '环刃': 'bh3_环刃.png', '链刃': 'bh3_链刃.png',
+      '镰刀': 'bh3_镰刀.png', '骑枪': 'bh3_骑枪.png', '机关杖': 'bh3_机关杖.png', '速射弩': 'bh3_速射弩.png',
+      '重炮': 'bh3_重炮.png', '火箭锤': 'bh3_火箭锤.png', '梭镖': 'bh3_梭镖.png',
+      '冻结': 'bh3_冻结.png', '点燃': 'bh3_点燃.png', '流血': 'bh3_流血.png', '麻痹': 'bh3_麻痹.png',
+      '召唤物': 'bh3_召唤物.png', '吸引': 'bh3_吸引.png', '对空': 'bh3_对空.png', '时空': 'bh3_时空.png',
+      '治疗': 'bh3_治疗.png', '虚弱': 'bh3_虚弱.png', '脆弱': 'bh3_脆弱.png', '高频': 'bh3_高频.png',
+      '重击': 'bh3_重击.png', '驱动核心': 'bh3_驱动核心.png', '爆发': 'bh3_爆发.png', '眩晕': 'bh3_眩晕.png',
       '世界之星': 'xzh_世界之星.png', '无存之仪': 'xzh_无存之仪.png', '命运之轮': 'xzh_命运之轮.png', '升变之理': 'xzh_升变之理.png', '天衍之杯': 'xzh_天衍之杯.png',
       '界域共鸣': 'xzh_界域共鸣.png', '万有之星': 'xzh_万有之星.png', '星影偕行': 'xzh_星影偕行.png', '天渊易位': 'xzh_天渊易位.png', '复盈相生': 'xzh_复盈相生.png',
       '星之环特性': '星环特性.svg', '星之环分野': '星环分野.svg',
@@ -288,7 +295,7 @@ export class Wiki extends plugin {
       return '';
     }
 
-    // 未指定游戏时只做精确匹配，避免“五星/星铁”等被误判成星尘。
+    // 未指定游戏时只做精确匹配，避免"五星/星铁"等被误判成星尘。
     const genericMap = { ...gsIconMap, ...srIconMap, ...zzzIconMap, ...bh3IconMap };
     if (genericMap[text]) return genericMap[text];
     for (const [key, icon] of Object.entries(bh3IconMap)) {
@@ -327,8 +334,8 @@ export class Wiki extends plugin {
     if (isZZZ && hasZzzExclusiveWords) {
       if (await this.zzzExclusiveEquip(e, name)) return true;
     }
-    // 没写游戏前缀时也支持“艾莲专武图鉴 / 希儿专武图鉴”。
-    // 先按原神/星铁武器别名表匹配（“XX专武”多在此表登记），命中即出图；
+    // 没写游戏前缀时也支持"艾莲专武图鉴 / 希儿专武图鉴"。
+    // 先按原神/星铁武器别名表匹配（"XX专武"多在此表登记），命中即出图；
     // 再按绝区零代理人、崩三装甲匹配；都没命中时继续走普通图鉴。
     if (!isSr && !isZZZ && !isBH3) {
       if (hasZzzExclusiveWords || hasBh3ExclusiveWords) {
@@ -370,7 +377,7 @@ export class Wiki extends plugin {
         if (await this[method](...args)) return true;
         if (await this[method](...args, true)) return true;
       }
-      // 未写游戏前缀时，也兜底尝试绝区零，支持“安比图鉴 / 图鉴安比”这类写法。
+      // 未写游戏前缀时，也兜底尝试绝区零，支持"安比图鉴 / 图鉴安比"这类写法。
       for (const { method, args } of checkTypes) {
         if (await this[method](...args, false, true)) return true;
       }
@@ -407,7 +414,9 @@ export class Wiki extends plugin {
   }
 
   async list(e, name, isSr = false, isZZZ = false, isBH3 = false) {
-    if (/光锥|遗器|虚无|巡猎|物理|量子|虚数|毁灭|智识|同谐|存护|丰饶|记忆/.test(name)) isSr = true;
+    // “虚数/量子/物理”等在崩三也会作为属性出现；显式崩三上下文优先，
+    // 否则会把崩三的虚数徽章误映射成星铁图标。
+    if (!isBH3 && /光锥|遗器|虚无|巡猎|物理|量子|虚数|毁灭|智识|同谐|存护|丰饶|记忆/.test(name)) isSr = true;
     if (/音擎|驱动盘|邦布|以太|强攻|击破|防护|支援|异常/.test(name)) isZZZ = true;
     if (/圣痕|人偶|协同者|生物|机械|量子|虚数|星尘|星辰|异能|火焰|冰冻|雷电/.test(name)) isBH3 = true;
 
@@ -604,18 +613,30 @@ export class Wiki extends plugin {
       reply_recallMsg(e, `正在获取${_name}列表中,请等待...`, 30);
     // 星级描边配色：五星/S级金色、四星/A级紫色、三星/B级蓝色（绝区零与原神/星铁统一）
     const rankClassMap = { 五星: 'r5', 'S级': 'r5', 四星: 'r4', 'A级': 'r4', 三星: 'r3', 'B级': 'r3', 二星: 'r2', 一星: 'r1' };
-    data = data.map(item => ({
-      ...item,
-      rankClass: rankClassMap[item.ji] || 'r0',
-      badges: (isBH3
-        ? [item.yuanshu, ...(Array.isArray(item.damage) ? item.damage : [item.damage]), item.starRingField, ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]), item.wuqi]
-        : [item.ji, item.yuanshu, item.wuqi])
-        .filter(v => v && v !== '未知' && v !== 'false')
-        .map(v => {
-          const icon = this.getWikiIcon(v, isZZZ ? 'zzz' : isSr ? 'sr' : isBH3 ? 'bh3' : 'gs');
-          return { text: v, icon, kind: icon ? 'icon-only' : '' };
-        })
-    }));
+    data = data.map(item => {
+      const damageBadges = new Set(Array.isArray(item.damage) ? item.damage : [item.damage]);
+      const weaponBadges = new Set(Array.isArray(item.wuqi) ? item.wuqi : [item.wuqi]);
+      return {
+        ...item,
+        rankClass: rankClassMap[item.ji] || 'r0',
+        badges: (isBH3
+          ? [
+            item.yuanshu,
+            ...(Array.isArray(item.damage) ? item.damage : [item.damage]),
+            ...(Array.isArray(item.abnormal) ? item.abnormal : [item.abnormal]),
+            item.starRingField,
+            ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]),
+            item.wuqi
+          ]
+          : [item.ji, item.yuanshu, item.wuqi])
+          .filter(v => v && v !== '未知' && v !== 'false')
+          .map(v => {
+          const icon = this.getWikiIcon(v, isBH3 ? 'bh3' : isZZZ ? 'zzz' : isSr ? 'sr' : 'gs');
+            const largeBh3Icon = isBH3 && (damageBadges.has(v) || weaponBadges.has(v));
+            return { text: v, icon, kind: `${icon ? 'icon-only' : ''}${largeBh3Icon ? ' damage-icon' : ''}`.trim() };
+          })
+      };
+    });
     data = {
       name: _name,
       data: data,
@@ -666,7 +687,7 @@ export class Wiki extends plugin {
     const list = await this.getZzzWikiEntries(channelId);
     const keysOf = item => [item.title, item.alias, ...(item.aliases || [])].map(v => this.normalizeZzzKey(v)).filter(Boolean);
     let hit = list.find(item => keysOf(item).some(v => v === key));
-    // 单字别名（如“雅”）过于宽泛，禁止其参与 key.includes(v) 兜底，避免随机串误命中
+    // 单字别名（如"雅"）过于宽泛，禁止其参与 key.includes(v) 兜底，避免随机串误命中
     if (!hit) hit = list.find(item => keysOf(item).some(v => v.includes(key) || (v.length >= 2 && key.includes(v))));
     return hit?.title || name;
   }
@@ -880,7 +901,7 @@ export class Wiki extends plugin {
       main: mainStats.join(' / '),
       sub: subNames.join(' / ')
     };
-    // 档案简介是图鉴核心内容，不做字数截断；之前 260 字会在部分角色末尾显示“…”。
+    // 档案简介是图鉴核心内容，不做字数截断；之前 260 字会在部分角色末尾显示"…"。
     const profile = this.zzzCleanText(partner.profile_desc || c.desc || '', 9999);
     const obcIcon = await this.getZzzObcIcon(c.name, 43);
     const ascendMaterials = await mys.zzzParseRoleAscendMaterials(c.level);
@@ -1703,19 +1724,19 @@ export class Wiki extends plugin {
     const type = basic_info['装甲特性'] || basic_info['角色定位'] || '未知';
 
     const element_icon_map = {
-      '物理': 'bh3_物理.svg',
-      '火伤': 'bh3_火.svg',
-      '火焰元素': 'bh3_火.svg',
-      '火焰': 'bh3_火.svg',
-      '火': 'bh3_火.svg',
-      '冰伤': 'bh3_冰.svg',
-      '冰冻元素': 'bh3_冰.svg',
-      '冰冻': 'bh3_冰.svg',
-      '冰': 'bh3_冰.svg',
-      '雷伤': 'bh3_雷.svg',
-      '雷电元素': 'bh3_雷.svg',
-      '雷电': 'bh3_雷.svg',
-      '雷': 'bh3_雷.svg',
+      '物理': 'bh3_物理.png',
+      '火伤': 'bh3_火伤.png', '火焰元素': 'bh3_火伤.png', '火焰': 'bh3_火伤.png', '火': 'bh3_火伤.png',
+      '冰伤': 'bh3_冰伤.png', '冰冻元素': 'bh3_冰伤.png', '冰冻': 'bh3_冰伤.png', '冰': 'bh3_冰伤.png',
+      '雷伤': 'bh3_雷伤.png', '雷电元素': 'bh3_雷伤.png', '雷电': 'bh3_雷伤.png', '雷': 'bh3_雷伤.png',
+      // 崩三武器类型 / 状态效果徽章（官方高清，来自 图标SR）
+      '双枪': 'bh3_双枪.png', '大剑': 'bh3_大剑.png', '太刀': 'bh3_太刀.png', '拳套': 'bh3_拳套.png',
+      '弓箭': 'bh3_弓箭.png', '十字架': 'bh3_十字架.png', '环刃': 'bh3_环刃.png', '链刃': 'bh3_链刃.png',
+      '镰刀': 'bh3_镰刀.png', '骑枪': 'bh3_骑枪.png', '机关杖': 'bh3_机关杖.png', '速射弩': 'bh3_速射弩.png',
+      '重炮': 'bh3_重炮.png', '火箭锤': 'bh3_火箭锤.png', '梭镖': 'bh3_梭镖.png',
+      '冻结': 'bh3_冻结.png', '点燃': 'bh3_点燃.png', '流血': 'bh3_流血.png', '麻痹': 'bh3_麻痹.png',
+      '召唤物': 'bh3_召唤物.png', '吸引': 'bh3_吸引.png', '对空': 'bh3_对空.png', '时空': 'bh3_时空.png',
+      '治疗': 'bh3_治疗.png', '虚弱': 'bh3_虚弱.png', '脆弱': 'bh3_脆弱.png', '高频': 'bh3_高频.png',
+      '重击': 'bh3_重击.png', '驱动核心': 'bh3_驱动核心.png', '爆发': 'bh3_爆发.png', '眩晕': 'bh3_眩晕.png',
       '生物': 'bh3_生物.png',
       '量子': 'bh3_量子.png',
       '虚数': 'bh3_虚数.png',

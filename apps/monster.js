@@ -87,6 +87,15 @@ export class monster extends plugin {
         const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
         page = Math.min(page, pages);
         const slice = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        // 崩三列表接口只提供敌人类型；当前页详情中才有怪物属性。
+        // 等属性补全后再生成徽章，避免首次打开列表时漏掉属性标签。
+        if (game === 'bh3') {
+            try {
+                await monsterWiki.enrichBh3Items(slice);
+            } catch (err) {
+                this.dbg('崩三当前页属性补全失败:', err?.message || err);
+            }
+        }
 
         this.dbg('列表渲染:', `game=${game}`, `总数=${total}`, `页码=${page}/${pages}`);
 

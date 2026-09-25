@@ -860,6 +860,8 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                 if (title.includes('预告')) continue;
 
                 let ji = '未知', attribute = '未知', damage = '', wuqi = type == 'syw' ? '未知' : '未知', isSet = 'false';
+                let starRingField = '';
+                const starRing = [];
                 try {
                     const ext = JSON.parse(item.ext || '{}');
                     const filterText = ext[channelKey]?.filter?.text || ext.filter?.text || '[]';
@@ -876,6 +878,11 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                             damage = s.replace('装甲特性/', '');
                         } else if (s.includes('武器类型')) {
                             wuqi = s.replace('武器类型/', '');
+                        } else if (s.startsWith('星之环分野/')) {
+                            starRingField = s.slice('星之环分野/'.length).trim();
+                        } else if (s.startsWith('星之环特性/')) {
+                            const trait = s.slice('星之环特性/'.length).trim();
+                            if (trait && !starRing.includes(trait)) starRing.push(trait);
                         } else if (s.includes('人偶类型')) {
                             wuqi = s.replace('人偶类型/', '');
                         } else if (s.includes('圣痕位置')) {
@@ -888,6 +895,7 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                     try { if ((yaml.get('./plugins/xhh/config/config.yaml') || {}).debug) logger.mark(`[xhh] BH3 wiki ext解析失败: ${title}`); } catch (_) {}
                 }
 
+                const damageTypes = normalizeDamageTypes(damage, title);
                 data.push({
                     name: title,
                     id: item.content_id,
@@ -895,9 +903,10 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                     ji,
                     yuanshu: attribute,
                     wuqi,
-                    damage: normalizeDamageTypes(damage, title),
-                    starRingField: '',
-                    starRing: [],
+                    damage: damageTypes,
+                    abnormal: [],
+                    starRingField,
+                    starRing,
                     isSet
                 });
             }
@@ -932,23 +941,36 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                     const traits = ringText.match(/特性\s*[：:]\s*(.*?)(?=注\s*[：:]|$)/)?.[1] || '';
                     const roleType = value('装甲特性') || value('角色定位');
                     const damage = normalizeDamageTypes(roleType, content.title);
+                    // 异常状态不能从元素伤害直接推导：只有详情技能确实描述该异常的
+                    // 积蓄值或伤害时才展示，避免把火伤误当点燃、冰伤误当冻结等。
+                    const detailText = (content.contents || [])
+                        .map(section => String(section.text || '')
+                            .replace(/&nbsp;/g, ' ')
+                            .replace(/&amp;/g, '&')
+                            .replace(/<[^>]+>/g, ' '))
+                        .join(' ');
+                    const abnormal = ['点燃', '冻结', '麻痹', '流血', '眩晕']
+                        .filter(status => new RegExp(`${status}[^。；;]{0,30}(?:积蓄值|伤害)`).test(detailText));
                     return {
                         weapon: value('武器类型'),
                         damage,
+                        abnormal,
                         starRingField: field.trim(),
                         starRing: traits.split(/[、,，\/]+/).map(v => v.trim()).filter(Boolean)
                     };
                 };
-                const missingMeta = data.filter(item => !item.wuqi || item.wuqi === '未知');
-                for (let i = 0; i < missingMeta.length; i += 8) {
-                    await Promise.all(missingMeta.slice(i, i + 8).map(async item => {
+                // 详情字段才是异常状态的可靠来源；即使列表已有武器/伤害字段，
+                // 也要读取详情补齐真正拥有的异常状态徽章。
+                for (let i = 0; i < data.length; i += 8) {
+                    await Promise.all(data.slice(i, i + 8).map(async item => {
                         try {
                             const detail = await this.bh3_detail(item.id);
                             const fields = parseDetailFields(detail);
                             if (fields.weapon) item.wuqi = fields.weapon;
                             if (fields.damage) item.damage = fields.damage;
+                            item.abnormal = fields.abnormal;
                             if (fields.starRingField) item.starRingField = fields.starRingField;
-                            if (fields.starRing) item.starRing = fields.starRing;
+                            if (fields.starRing?.length) item.starRing = fields.starRing;
                         } catch (_) {}
                     }));
                 }
