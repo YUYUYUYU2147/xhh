@@ -155,12 +155,12 @@ export class Wiki extends plugin {
     const bh3IconMap = {
       '星尘': 'bh3_星尘.png', '星辰': 'bh3_星尘.png',
       '生物': 'bh3_生物.png', '异能': 'bh3_异能.png', '机械': 'bh3_机械.png', '量子': 'bh3_量子.png', '虚数': 'bh3_虚数.png',
-      // 伤害类型与异常状态是两类徽章，不能互相替代。
-      '物理': 'bh3_物理.svg',
-      '火伤': 'bh3_火伤.png', '火焰元素': 'bh3_火伤.png', '火焰': 'bh3_火伤.png', '火': 'bh3_火伤.png',
-      '冰伤': 'bh3_冰伤.png', '冰冻元素': 'bh3_冰伤.png', '冰冻': 'bh3_冰伤.png', '冰': 'bh3_冰伤.png',
-      '雷伤': 'bh3_雷伤.png', '雷电元素': 'bh3_雷伤.png', '雷电': 'bh3_雷伤.png', '雷': 'bh3_雷伤.png',
-      '点燃': 'bh3_点燃.png', '冻结': 'bh3_冻结.png', '麻痹': 'bh3_麻痹.png', '流血': 'bh3_流血.png', '眩晕': 'bh3_眩晕.png',
+      // 崩三列表的“伤害类型”按官方异常状态图标显示：
+      // 物理→流血，火伤→点燃，冰伤→冻结，雷伤→麻痹。
+      '物理': 'bh3_流血.png',
+      '火伤': 'bh3_点燃.png', '火焰元素': 'bh3_点燃.png', '火焰': 'bh3_点燃.png', '火': 'bh3_点燃.png',
+      '冰伤': 'bh3_冻结.png', '冰冻元素': 'bh3_冻结.png', '冰冻': 'bh3_冻结.png', '冰': 'bh3_冻结.png',
+      '雷伤': 'bh3_麻痹.png', '雷电元素': 'bh3_麻痹.png', '雷电': 'bh3_麻痹.png', '雷': 'bh3_麻痹.png',
       '世界之星': 'xzh_世界之星.png', '无存之仪': 'xzh_无存之仪.png', '命运之轮': 'xzh_命运之轮.png', '升变之理': 'xzh_升变之理.png', '天衍之杯': 'xzh_天衍之杯.png',
       '界域共鸣': 'xzh_界域共鸣.png', '万有之星': 'xzh_万有之星.png', '星影偕行': 'xzh_星影偕行.png', '天渊易位': 'xzh_天渊易位.png', '复盈相生': 'xzh_复盈相生.png',
       '星之环特性': '星环特性.svg', '星之环分野': '星环分野.svg',
@@ -252,8 +252,7 @@ export class Wiki extends plugin {
   }
 
   async list(e, name, isSr = false, isZZZ = false, isBH3 = false) {
-    // “虚数/量子/物理”等也会作为崩三属性；已有崩三上下文时不可再推断为星铁。
-    if (!isBH3 && /光锥|遗器|虚无|巡猎|物理|量子|虚数|毁灭|智识|同谐|存护|丰饶|记忆/.test(name)) isSr = true;
+    if (/光锥|遗器|虚无|巡猎|物理|量子|虚数|毁灭|智识|同谐|存护|丰饶|记忆/.test(name)) isSr = true;
     if (/音擎|驱动盘|邦布|以太|强攻|击破|防护|支援|异常/.test(name)) isZZZ = true;
     if (/圣痕|人偶|协同者|生物|机械|量子|虚数|星尘|星辰|异能|火焰|冰冻|雷电/.test(name)) isBH3 = true;
 
@@ -439,18 +438,11 @@ export class Wiki extends plugin {
     data = data.map(item => ({
       ...item,
       badges: (isBH3
-        ? [
-          item.yuanshu,
-          ...(Array.isArray(item.damage) ? item.damage : [item.damage]),
-          ...(Array.isArray(item.abnormal) ? item.abnormal : [item.abnormal]),
-          item.starRingField,
-          ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]),
-          item.wuqi
-        ]
+        ? [item.yuanshu, ...(Array.isArray(item.damage) ? item.damage : [item.damage]), item.starRingField, ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]), item.wuqi]
         : [item.ji, item.yuanshu, item.wuqi])
         .filter(v => v && v !== '未知' && v !== 'false')
         .map(v => {
-          const icon = this.getWikiIcon(v, isBH3 ? 'bh3' : isZZZ ? 'zzz' : isSr ? 'sr' : 'gs');
+          const icon = this.getWikiIcon(v, isZZZ ? 'zzz' : isSr ? 'sr' : isBH3 ? 'bh3' : 'gs');
           return { text: v, icon, kind: icon ? 'icon-only' : '' };
         })
     }));

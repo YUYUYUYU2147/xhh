@@ -243,22 +243,41 @@ export class bh3_remind extends plugin {
       let text = String(item.msg)
         .replace(/\{time\}/g, `${String(due.eventTime.getHours()).padStart(2, '0')}:${String(due.eventTime.getMinutes()).padStart(2, '0')}`)
         .replace(/\{advance\}/g, String(item.advance_minutes || 0));
+      let codexIcon = '';
       if (item.key === 'abyss_start') {
-        let abyssText = '';
         try {
-          { const { getAnyCurrentAbyssText } = await loadBh3BossModule(); abyssText = await getAnyCurrentAbyssText(true); }
+          const { getAnyCurrentAbyssText, getCurrentAbyssBossName, getBh3BossCodex } = await loadBh3BossModule();
+          const abyssText = await getAnyCurrentAbyssText(true);
+          if (abyssText) {
+            text += `\n\n${abyssText}`;
+            // 联动崩三敌人图鉴：能匹配到当期 Boss 就附上图鉴卡（文字+图标），匹配不到静默忽略
+            let codex = null;
+            try {
+              const boss = await getCurrentAbyssBossName();
+              if (boss) codex = await getBh3BossCodex(boss);
+            } catch (_) { codex = null; }
+            if (codex && typeof codex === 'object') {
+              text += `\n${codex.text}`;
+              if (codex.url) text += `\n数据来源：${codex.url}`;
+              codexIcon = codex.icon || '';
+            }
+            text += '\n\n发送 #崩三深渊攻略 查看详细作业图。';
+          } else {
+            text += '\n\n发送 #崩三当前深渊 可快速查询当期 Boss，发送 #崩三深渊攻略 查看作业图。';
+          }
         } catch (err) {
           logger.warn(`[bh3_remind] 获取当前深渊速查失败，仍发送基础提醒: ${err.message}`);
+          text += '\n\n发送 #崩三当前深渊 可快速查询当期 Boss，发送 #崩三深渊攻略 查看作业图。';
         }
-        text += abyssText
-          ? `\n\n${abyssText}\n\n发送 #崩三深渊攻略 查看详细作业图。`
-          : '\n\n发送 #崩三当前深渊 可快速查询当期 Boss，发送 #崩三深渊攻略 查看作业图。';
       }
       const msg = buildPushMessage(cfg, item, text);
+      const finalMsg = codexIcon
+        ? (Array.isArray(msg) ? msg.concat(['\n', segment.image(codexIcon)]) : [msg, '\n', segment.image(codexIcon)])
+        : msg;
 
       for (const groupId of groups) {
         try {
-          await sendGroupMsgCompat(groupId, msg);
+          await sendGroupMsgCompat(groupId, finalMsg);
           logger.mark(`[bh3_remind] 已发送到群 ${groupId}: ${item.key || item.name}`);
         } catch (err) {
           logger.warn(`[bh3_remind] 发送到群 ${groupId} 失败: ${err.message}`);

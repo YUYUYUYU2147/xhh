@@ -11,63 +11,13 @@ async function loadAbyssBossModule() {
   return await import(`../system/bh3_abyss_boss.js?v=${version}`);
 }
 
-// segment 在部分运行环境并非全局变量：优先取全局，取不到再从 oicq / icqq 动态引入，
-// 最后兜底成 OneBot 的 image 段。避免 segment 未定义时抛 ReferenceError 让整条指令无输出。
-async function imageSegment(file) {
-  const seg = globalThis.segment || globalThis.oicq?.segment;
-  if (seg?.image) return seg.image(file);
-  for (const name of ['oicq', 'icqq']) {
-    try {
-      const mod = await import(name);
-      if (mod?.segment?.image) return mod.segment.image(file);
-    } catch (_) {}
-  }
-  return { type: 'image', data: { file } };
-}
-
-// 把远程图片地址先下载成 base64://。NapCat/ICQQ 对 base64 兼容性最好，
-// 直接发 https 链接时适配器要自己去下载，失败就整张图丢掉（表现为"只有文字没有图"）。
-async function toBase64Url(url) {
-  try {
-    let doFetch = typeof fetch === 'function' ? fetch : globalThis.fetch;
-    if (typeof doFetch !== 'function') {
-      try { doFetch = (await import('node-fetch')).default; } catch (_) { return null; }
-    }
-    if (typeof doFetch !== 'function') return null;
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), 15000);
-    try {
-      const res = await doFetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ac.signal });
-      if (!res.ok) return null;
-      const buf = Buffer.from(await res.arrayBuffer());
-      return buf.length ? `base64://${buf.toString('base64')}` : null;
-    } finally {
-      clearTimeout(timer);
-    }
-  } catch (_) {
-    return null;
-  }
-}
-
-// 版本戳：部署后日志里必须先出现这一行，否则说明跑的还是旧代码
-const ABYSS_BOSS_VERSION = 'v2026-09-25c';
-
-function sendSegments(e, segs, opts = {}) {
-  if (e.group) return e.group.sendMsg(segs);
-  if (e.friend) return e.friend.sendMsg(segs);
-  return e.reply(segs, true, opts);
-}
-
-async function sendMsg(e, msg, opts = {}) {
+function sendMsg(e, msg, opts = {}) {
   if (opts?.recallMsg !== undefined) return e.reply(msg, true, opts);
   if (typeof msg === 'object' && msg.constructor?.name === 'Buffer') {
-    const seg = await imageSegment(msg);
-    return sendSegments(e, [seg], opts);
-  }
-  // 已经是消息段（segment.image 的返回值，或兜底的 { type: 'image' }）：
-  // 必须原样发出去，否则会被下面的文本分支包成 { type:'text', data:{ text: 对象 } } 发不出去。
-  if (Array.isArray(msg) || (msg && typeof msg === 'object' && typeof msg.type === 'string')) {
-    return sendSegments(e, Array.isArray(msg) ? msg : [msg], opts);
+    const seg = segment.image(msg);
+    if (e.group) return e.group.sendMsg([seg]);
+    if (e.friend) return e.friend.sendMsg([seg]);
+    return e.reply(seg, true, opts);
   }
   if (e.group) return e.group.sendMsg([{ type: 'text', data: { text: msg } }]);
   if (e.friend) return e.friend.sendMsg([{ type: 'text', data: { text: msg } }]);
@@ -227,7 +177,6 @@ async abyss(e) {
   }
 
   async abyssBoss(e) {
-    logger.mark(`[xhh][bh3_abyss] abyssBoss ${ABYSS_BOSS_VERSION} 已加载`);
     const { getCurrentAbyssInfoByEvent, formatCurrentAbyssInfo } = await loadAbyssBossModule();
     const info = await getCurrentAbyssInfoByEvent(e);
     if (!info) {
@@ -241,64 +190,23 @@ async abyss(e) {
     // 联动怪物图鉴：能匹配到 Boss 就合并转发（深渊信息 + 图鉴卡），匹配不到就附一行提示
     let codex = null;
     try { codex = await getBh3BossCodex(info.boss); } catch (_) { codex = null; }
-    logger.mark(`[xhh][bh3_abyss] 图鉴联动 boss=${info.boss} codex=${codex === null ? 'null(异常)' : (codex === false ? 'false(未收录)' : 'ok')} icon=${codex && typeof codex === 'object' && codex.icon ? '有' : '无'}`);
 
     if (codex && typeof codex === 'object') {
-      const codexText = codex.text + (codex.url ? `\n数据来源：${codex.url}` : '');
-      // 远程图先转 base64 再发，避免适配器自己去下载失败导致丢图
-      let iconFile = codex.icon;
-      let iconMode = iconFile ? 'url' : 'none';
-      if (typeof iconFile === 'string' && /^https?:/i.test(iconFile)) {
-        const b64 = await toBase64Url(iconFile);
-        if (b64) { iconFile = b64; iconMode = 'base64'; }
-      }
-      logger.mark(`[xhh][bh3_abyss] Boss 图准备: ${iconMode}`);
-      const codexImg = iconFile ? await imageSegment(iconFile) : null;
-      let sent = 0;
-      const splitSend = async () => {
-        await sendMsg(e, abyssText); sent++;
-        if (codexImg) {
-          try { await sendMsg(e, codexImg); sent++; }
-          catch (err) { logger.warn(`[xhh][bh3_abyss] Boss 图发送失败: ${err?.message || err}`); }
-        }
-        await sendMsg(e, codexText); sent++;
-        logger.mark(`[xhh][bh3_abyss] 已分条发送 ${sent} 条（含 Boss 图 ${codexImg ? '是' : '否'}）`);
-        return true;
-      };
+      const nodes = [abyssText];
+      const codexNode = [];
+      if (codex.icon) codexNode.push(segment.image(codex.icon));
+      codexNode.push(codex.text);
+      if (codex.url) codexNode.push(`\n数据来源：${codex.url}`);
+      nodes.push(codexNode);
       try {
-        // 节点构造也放进 try：segment.image 等可能抛错（运行环境没有全局 segment），
-        // 且每条发送都要 await——否则 e.reply 的 reject 不会被 catch 捕获，指令会静默无输出。
-        const nodes = [abyssText];
-        const codexNode = [];
-        if (codexImg) codexNode.push(codexImg);
-        codexNode.push(codexText);
-        nodes.push(codexNode);
         const fwd = await makeForwardMsg(e, nodes, `崩三当前深渊 · ${info.boss}图鉴`, e.group_id);
-        // makeForwardMsg 在适配器不支持时不会抛错，而是静默返回纯文本：
-        // 这时改成分条发送，至少把 Boss 图发出来（否则图只剩 [图片] 占位）
-        if (typeof fwd === 'string') {
-          logger.warn('[xhh][bh3_abyss] 合并转发被降级为纯文本（适配器不支持），改为分条发送含 Boss 图');
-          return await splitSend();
-        }
-        await e.reply(fwd);
-        logger.mark(`[xhh][bh3_abyss] 已合并转发（含 Boss 图 ${codexImg ? '是' : '否'}）`);
-        return true;
+        return e.reply(fwd);
       } catch (err) {
         logger.warn(`[xhh][bh3_abyss] 合并转发失败，回退分条发送: ${err?.message || err}`);
-        try {
-          return await splitSend();
-        } catch (err2) {
-          logger.warn(`[xhh][bh3_abyss] 分条发送也失败，退回纯文本: ${err2?.message || err2}`);
-        }
-        // 最后兜底：至少把深渊信息和图鉴文字发出去，不能什么都不发
-        try {
-          await sendMsg(e, `${abyssText}\n${codexText}`);
-          logger.mark('[xhh][bh3_abyss] 已退回纯文本发送');
-          return true;
-        } catch (err3) {
-          logger.error(`[xhh][bh3_abyss] 纯文本兜底也失败: ${err3?.message || err3}`);
-          return false;
-        }
+        sendMsg(e, abyssText);
+        if (codex.icon) sendMsg(e, segment.image(codex.icon));
+        sendMsg(e, codex.text + (codex.url ? `\n数据来源：${codex.url}` : ''));
+        return true;
       }
     }
 

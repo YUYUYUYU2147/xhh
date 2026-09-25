@@ -266,7 +266,7 @@ export class Wiki extends plugin {
     const bh3IconMap = {
       '星尘': 'bh3_星尘.png', '星辰': 'bh3_星尘.png',
       '生物': 'bh3_生物.png', '异能': 'bh3_异能.png', '机械': 'bh3_机械.png', '量子': 'bh3_量子.png', '虚数': 'bh3_虚数.png',
-      // 崩三伤害类型使用崩三本地资源；异常状态徽章与伤害类型徽章分开。
+      // 崩三伤害类型 / 武器类型 / 状态效果徽章（官方高清，来自 图标SR）
       '物理': 'bh3_物理.png',
       '火伤': 'bh3_火伤.png', '火焰元素': 'bh3_火伤.png', '火焰': 'bh3_火伤.png', '火': 'bh3_火伤.png',
       '冰伤': 'bh3_冰伤.png', '冰冻元素': 'bh3_冰伤.png', '冰冻': 'bh3_冰伤.png', '冰': 'bh3_冰伤.png',
@@ -325,7 +325,9 @@ export class Wiki extends plugin {
     const skipName = name
       .replace(/^(原神|genshin|ys|gs|星穹铁道|崩坏星穹铁道|星铁|铁道|穹铁|sr|崩坏3|崩坏三|崩三|bh3)/i, '')
       .trim();
-    if (/^(怪物|魔物|敌人|boss|首领)(图鉴|列表|大全)?(\s|·|:|：|$|\d)/i.test(skipName) || /^(怪物|魔物|敌人|boss|首领)$/i.test(skipName)) return false;
+    // 只要以怪物类关键词开头（「怪物图鉴」「怪物」「怪物摩录多图鉴」「boss地藏」…）就交给 monster 插件；
+    // 旧正则只认「怪物图鉴」「怪物」，「怪物摩录多图鉴」会漏过去被当成角色「怪物摩录多」查然后回「没有找到」
+    if (/^(怪物|魔物|敌人|boss|首领|enemy|monster)/i.test(skipName)) return false;
     const hasBh3ExclusiveWords = /(专武|专属武器|专属圣痕|专属套|毕业圣痕|圣痕套)/.test(name);
     const hasZzzExclusiveWords = /(专武|专属武器|专属音擎|签名音擎|专属驱动盘|推荐驱动盘|驱动盘套|驱动套)/.test(name);
     if (isBH3 && hasBh3ExclusiveWords) {
@@ -414,9 +416,7 @@ export class Wiki extends plugin {
   }
 
   async list(e, name, isSr = false, isZZZ = false, isBH3 = false) {
-    // “虚数/量子/物理”等在崩三也会作为属性出现；显式崩三上下文优先，
-    // 否则会把崩三的虚数徽章误映射成星铁图标。
-    if (!isBH3 && /光锥|遗器|虚无|巡猎|物理|量子|虚数|毁灭|智识|同谐|存护|丰饶|记忆/.test(name)) isSr = true;
+    if (/光锥|遗器|虚无|巡猎|物理|量子|虚数|毁灭|智识|同谐|存护|丰饶|记忆/.test(name)) isSr = true;
     if (/音擎|驱动盘|邦布|以太|强攻|击破|防护|支援|异常/.test(name)) isZZZ = true;
     if (/圣痕|人偶|协同者|生物|机械|量子|虚数|星尘|星辰|异能|火焰|冰冻|雷电/.test(name)) isBH3 = true;
 
@@ -613,30 +613,18 @@ export class Wiki extends plugin {
       reply_recallMsg(e, `正在获取${_name}列表中,请等待...`, 30);
     // 星级描边配色：五星/S级金色、四星/A级紫色、三星/B级蓝色（绝区零与原神/星铁统一）
     const rankClassMap = { 五星: 'r5', 'S级': 'r5', 四星: 'r4', 'A级': 'r4', 三星: 'r3', 'B级': 'r3', 二星: 'r2', 一星: 'r1' };
-    data = data.map(item => {
-      const damageBadges = new Set(Array.isArray(item.damage) ? item.damage : [item.damage]);
-      const weaponBadges = new Set(Array.isArray(item.wuqi) ? item.wuqi : [item.wuqi]);
-      return {
-        ...item,
-        rankClass: rankClassMap[item.ji] || 'r0',
-        badges: (isBH3
-          ? [
-            item.yuanshu,
-            ...(Array.isArray(item.damage) ? item.damage : [item.damage]),
-            ...(Array.isArray(item.abnormal) ? item.abnormal : [item.abnormal]),
-            item.starRingField,
-            ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]),
-            item.wuqi
-          ]
-          : [item.ji, item.yuanshu, item.wuqi])
-          .filter(v => v && v !== '未知' && v !== 'false')
-          .map(v => {
-          const icon = this.getWikiIcon(v, isBH3 ? 'bh3' : isZZZ ? 'zzz' : isSr ? 'sr' : 'gs');
-            const largeBh3Icon = isBH3 && (damageBadges.has(v) || weaponBadges.has(v));
-            return { text: v, icon, kind: `${icon ? 'icon-only' : ''}${largeBh3Icon ? ' damage-icon' : ''}`.trim() };
-          })
-      };
-    });
+    data = data.map(item => ({
+      ...item,
+      rankClass: rankClassMap[item.ji] || 'r0',
+      badges: (isBH3
+        ? [item.yuanshu, ...(Array.isArray(item.damage) ? item.damage : [item.damage]), item.starRingField, ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]), item.wuqi]
+        : [item.ji, item.yuanshu, item.wuqi])
+        .filter(v => v && v !== '未知' && v !== 'false')
+        .map(v => {
+          const icon = this.getWikiIcon(v, isZZZ ? 'zzz' : isSr ? 'sr' : isBH3 ? 'bh3' : 'gs');
+          return { text: v, icon, kind: icon ? 'icon-only' : '' };
+        })
+    }));
     data = {
       name: _name,
       data: data,
@@ -2231,39 +2219,6 @@ export class Wiki extends plugin {
     }
     tags.unshift(poolType === 'hb' ? '类别：协同者' : '类别：人偶');
 
-    // 协同者百科把星环特性放在 basicIntroduction 的「特征」字段，
-    // 角色图鉴则常用「星之环：分野/特性」格式；两种都兼容。
-    const starRingTraits = [];
-    const addStarRingTraits = text => {
-      for (const trait of String(text || '').split(/[、,，/；;]+/).map(v => v.trim()).filter(Boolean)) {
-        if (!starRingTraits.includes(trait)) starRingTraits.push(trait);
-      }
-    };
-    for (const section of content.contents || []) {
-      for (const match of String(section.text || '').matchAll(/data-data="([^"]+)"/g)) {
-        try {
-          for (const part of JSON.parse(decodeURIComponent(match[1]))) {
-            if (part?.partKey !== 'basicIntroduction') continue;
-            let basic = part.data || {};
-            if (typeof basic === 'string') { try { basic = JSON.parse(basic); } catch (_) { basic = {}; } }
-            for (const field of basic.mainFields || []) {
-              if (/^(特征|星之环特性)$/.test(String(field.nameL || ''))) addStarRingTraits(field.valueL);
-              if (/^(特征|星之环特性)$/.test(String(field.nameR || ''))) addStarRingTraits(field.valueR);
-              if (field.nameL === '星之环') addStarRingTraits(String(field.valueL || '').match(/特性\s*[：:]?\s*([^<\n]+)/)?.[1]);
-              if (field.nameR === '星之环') addStarRingTraits(String(field.valueR || '').match(/特性\s*[：:]?\s*([^<\n]+)/)?.[1]);
-            }
-            for (const field of basic.subFields || []) {
-              if (field.name === '星之环') addStarRingTraits(String(field.value || '').match(/特性\s*[：:]?\s*([^<\n]+)/)?.[1]);
-            }
-          }
-        } catch (_) {}
-      }
-    }
-    const starRingBadges = starRingTraits.map(name => ({
-      name,
-      icon: this.getWikiIcon(name, 'bh3')
-    }));
-
     let summary = String(content.summary || '').trim();
     // summary 只是标题或「标题-协同者」时，不当作简介复读
     if (!summary || summary === title || summary.replace(/-?协同者$/, '').trim() === title) summary = '';
@@ -2274,8 +2229,7 @@ export class Wiki extends plugin {
     data = {
       name: title,
       desc,
-      icon,
-      starRingBadges
+      icon
     };
     render('wiki/bh3_yq', data, { e, ret: true });
 

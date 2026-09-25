@@ -1,5 +1,15 @@
-// 统一用运行环境内置的 fetch（Node 18+），不额外依赖 node-fetch
-const doFetch = typeof fetch === 'function' ? fetch : globalThis.fetch;
+import fs from 'fs';
+import YAML from 'yaml';
+
+// 取数用的 fetch：优先运行环境内置（Node 18+），老版本 Node 没有全局 fetch 时回退 node-fetch。
+// 若此处取不到 fetch，崩三图鉴取数会直接抛错，导致「当前深渊」的图鉴联动退化成纯文本
+// （没有合并转发、也没有 Boss 图），所以这里必须留好回退。
+let _fetchImpl = typeof fetch === 'function' ? fetch : globalThis.fetch;
+async function resolveFetch() {
+    if (typeof _fetchImpl === 'function') return _fetchImpl;
+    try { _fetchImpl = (await import('node-fetch')).default; } catch (_) {}
+    return _fetchImpl;
+}
 
 // 怪物/BOSS 图鉴数据层
 // 数据源：原神 / 星穹铁道 -> Alioth.wiki 静态 JSON
@@ -75,6 +85,35 @@ function cleanName(name = '') {
         .replace(/[\s·・:：\-—_（）()【】「」『』《》"'"'、，,。.!！?？*]/g, '');
 }
 
+// 崩三深渊/社区昵称（虚数猪…）映射到图鉴标准名（帕凡提…）。
+// 别名表统一放在 system/default/bh3_boss_names.yaml（格式同 bh3_js_names.yaml）。
+const BH3_BOSS_NAMES_FILE = './plugins/xhh/system/default/bh3_boss_names.yaml';
+let _bh3BossAliasCache = null;
+function loadBh3BossAlias() {
+    if (_bh3BossAliasCache) return _bh3BossAliasCache;
+    try {
+        _bh3BossAliasCache = YAML.parse(fs.readFileSync(BH3_BOSS_NAMES_FILE, 'utf-8')) || {};
+    } catch (err) {
+        globalThis.logger?.warn(`[xhh][monster] 崩三Boss别名表读取失败: ${err?.message || err}`);
+        _bh3BossAliasCache = {};
+    }
+    return _bh3BossAliasCache;
+}
+
+// 仅对崩三生效：昵称 → 标准名；非崩三昵称原样返回
+export function resolveBh3BossAlias(name = '') {
+    if (!name) return name;
+    const raw = String(name).trim();
+    const clean = cleanName(raw);
+    const table = loadBh3BossAlias();
+    for (const [canonical, aliases] of Object.entries(table)) {
+        const list = [canonical, ...(Array.isArray(aliases) ? aliases : [])];
+        if (list.includes(raw)) return canonical;
+        if (clean && list.some(a => cleanName(String(a)) === clean)) return canonical;
+    }
+    return name;
+}
+
 async function cached(key, ttl, fn) {
     const hit = CACHE.get(key);
     if (hit && Date.now() - hit.t < ttl) return hit.v;
@@ -88,6 +127,8 @@ async function getJson(url, headers = {}, ttl = 12 * 3600 * 1000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 15000);
         try {
+            const doFetch = await resolveFetch();
+            if (typeof doFetch !== 'function') throw new Error('当前运行环境缺少 fetch（请升级 Node 到 18+ 或安装 node-fetch）');
             const res = await doFetch(url, { headers: { 'User-Agent': UA, ...headers }, signal: controller.signal });
             if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
             return await res.json();
@@ -463,10 +504,12 @@ async function list(game) {
  * @param {string} keyword 名称关键字
  */
 async function search(game, keyword, limit = 10) {
-    const q = cleanName(keyword);
+    const rawKw = resolveBh3BossAlias(keyword); // 崩三昵称（虚数猪）→ 标准名（帕凡提）
+    const q = cleanName(rawKw);
     if (!q) return [];
     if (game === 'bh3') {
         // 全量列表已经能覆盖绝大多数名字，先本地匹配（快且稳），再用搜索接口补别名
+        const kw = rawKw;
         const out = [];
         const seen = new Set();
         try {
@@ -481,7 +524,7 @@ async function search(game, keyword, limit = 10) {
             globalThis.logger?.warn(`[xhh][monster] bh3 本地列表加载失败: ${err?.message || err}`);
         }
         try {
-            for (const v of await bh3Search(keyword, limit)) {
+            for (const v of await bh3Search(kw, limit)) {
                 if (seen.has(String(v.id))) continue;
                 out.push({ ...v, game: 'bh3', rank: v.rank || 'normal', rankClass: v.rankClass || rankClassOf('normal') });
                 seen.add(String(v.id));
@@ -496,7 +539,9 @@ async function search(game, keyword, limit = 10) {
             return (a.name || '').length - (b.name || '').length;
         }).slice(0, limit);
     }
-    const games = game === 'all' ? ['gs', 'sr', 'zzz'] : [game];
+    // 不写游戏前缀时跨游戏搜索：崩三（bh3）条目常与其它游戏重名/互补，之前漏在跨服搜索之外，
+    // 导致「#怪物 摩录多」这种（摩录多只在崩三）查不到
+    const games = game === 'all' ? ['gs', 'sr', 'zzz', 'bh3'] : [game];
     const out = [];
     for (const g of games) {
         let items = [];

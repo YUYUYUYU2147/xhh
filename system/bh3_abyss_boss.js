@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import moment from 'moment';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
 import { yaml, mhy, api, config } from '#xhh';
+import monsterWiki, { resolveBh3BossAlias } from './monster.js';
 
 const STOKEN_DIR = './plugins/xhh/data/Stoken';
 // 与 apps/bh3_abyss.js 的 getAuth 保持一致：不从 Stoken 里挑 cn_gf01/cn_qd01 官服条目，
@@ -192,9 +193,41 @@ function cleanBossName(text = '') {
     .replace(/[【】\[\]（）()]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  boss = boss.replace(/^(本期|这期|此次|本次|天|量子|机械|生物|异能|虚数|量子)/, '').trim();
+  // 只剥「本期/这期/属性」等真前缀；刻意不含「量子/虚数/星尘」——
+  // 它们是 Boss 名前缀（量子泥鳅/虚数猪/星尘龙虾），剥掉会丢字（见下面 ABYSS_WEATHER_WORDS 注释）
+  boss = boss.replace(/^(本期|这期|此次|本次|天|机械|生物|异能)/, '').trim();
   if (/怎么|咋|求|没有|没带|无武器|武器|圣痕|阵容|配队|推荐|可以|能不能|吗|？|\?/.test(boss)) return '';
   return boss.slice(0, 32);
+}
+
+// 超弦空间攻略帖标题常见格式：…{练度/阵容}官服红莲[扰动值][天气]Boss名[分数]
+// 例：「希娜，全S0+1…官服红莲火伤虚数猪842」→ 虚数猪；「爱龙符摸鱼红莲冰伤绯狱丸830+」→ 绯狱丸
+// 仅靠下面硬编码的 titleBossRules + 正文「Boss:」字段覆盖不到这类标题，会导致「当前深渊」提不出 Boss。
+const ABYSS_LEVEL_RE = /(?:红莲|寂灭|苦痛[ⅠⅡⅢ]?|原罪[ⅠⅡⅢ]?|禁忌)[\s]*\d{0,4}\s*[扰度]?/;
+// 关卡名与 Boss 名之间的天气/伤害类型词，解析时需剥掉；刻意不含「量子/虚数/星尘」——
+// 它们是 Boss 名前缀（量子泥鳅/虚数猪/星尘龙虾），剥掉会丢字
+const ABYSS_WEATHER_WORDS = ['共鸣', '物理', '火伤', '冰伤', '雷伤', '物伤', '远程', '天衍', '极源', '影星', '扰动', '点燃', '流血', '升变', '异能', '生物', '机械', '霜', '寒'];
+const ABYSS_BOSS_BAD_RE = /分|扰|度|流程|思路|攻略|作业|阵容|配队|推荐|天气|位置/;
+
+function extractBossFromTitle(subject = '') {
+  const title = String(subject || '');
+  const m = ABYSS_LEVEL_RE.exec(title);
+  if (!m) return '';
+  let rest = title.slice(m.index + m[0].length).replace(/^[\s:：·，,]+/, '');
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const w of ABYSS_WEATHER_WORDS) {
+      if (rest.startsWith(w)) {
+        rest = rest.slice(w.length).replace(/^[\s:：·，,]+/, '');
+        changed = true;
+        break;
+      }
+    }
+  }
+  const boss = /^([\u4e00-\u9fa5]{1,8})/.exec(rest)?.[1] || '';
+  if (!boss || ABYSS_BOSS_BAD_RE.test(boss)) return '';
+  return boss;
 }
 
 function extractBossFromPost(post = {}) {
@@ -209,6 +242,9 @@ function extractBossFromPost(post = {}) {
   for (const [reg, name] of titleBossRules) {
     if (reg.test(subject)) return name;
   }
+  // 标题格式解析，覆盖作者帖「…红莲天气Boss分」这类无「Boss:」字段的标题
+  const titleBoss = extractBossFromTitle(subject);
+  if (titleBoss) return titleBoss;
   const text = [post.subject, post.content, post.structured_content]
     .filter(Boolean)
     .join('\n')
@@ -543,4 +579,72 @@ export async function getAnyCurrentAbyssText(compact = true) {
   const auth = await findAnyBh3Auth();
   const info = auth ? await fetchCurrentAbyssInfo(auth) : null;
   return info ? formatCurrentAbyssInfo(info, compact) : '';
+}
+
+// 取当前深渊 Boss 名（供图鉴联动用），优先读缓存，避免每次提醒都重新拉接口
+export async function getCurrentAbyssBossName() {
+  try {
+    const cached = await redis.get(CACHE_KEY);
+    if (cached) {
+      const info = JSON.parse(cached);
+      if (isCachedAbyssInfoValid(info) && info.boss && info.boss !== '未知') return info.boss;
+    }
+  } catch (_) {}
+  const auth = await findAnyBh3Auth();
+  const info = auth ? await fetchCurrentAbyssInfo(auth) : null;
+  return (info && info.boss && info.boss !== '未知') ? info.boss : '';
+}
+
+// 深渊/社区里经常用昵称称呼 Boss（虚数猪/冰猪…），而图鉴用的是标准名（摩录多/帕凡提…）。
+// 别名解析统一放在 system/monster.js 的 resolveBh3BossAlias（读 system/default/bh3_boss_names.yaml），
+// 手动图鉴查询与深渊提醒共用同一张表。
+
+// 当前深渊 Boss → 崩三敌人图鉴（圣芙蕾雅档案馆）卡面信息。
+// 返回：{name, text, icon, url} 命中；false=检索过但图鉴没收录该 Boss；null=异常跳过。
+// 注意：深渊 Boss 与「图鉴>敌人」并非一一对应，量子泥鳅/星尘龙虾等暂无对应图鉴条目。
+export async function getBh3BossCodex(bossName) {
+  if (!bossName) return null;
+  const queryName = resolveBh3BossAlias(bossName);
+  let candidates = [];
+  try {
+    candidates = await monsterWiki.search('bh3', queryName, 8);
+  } catch (err) {
+    logger.warn(`[xhh][bh3_abyss_boss] 图鉴搜索异常: ${queryName} ${err?.message || err}`);
+    return null;
+  }
+  if (!candidates.length) return false;
+  const q = monsterWiki.cleanName(queryName);
+  const exact = candidates.find(v => monsterWiki.cleanName(v.name) === q);
+  const pick = exact || candidates[0];
+  // 图标归一化为绝对 URL：已是 http(s) 原样，//... 补 https:，/... 补 baike 域名
+  const absIcon = (raw = '') => {
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith('//')) return 'https:' + raw;
+    if (raw.startsWith('/')) return 'https://baike.mihoyo.com' + raw;
+    return '';
+  };
+  let info = null;
+  try {
+    info = await monsterWiki.detail('bh3', pick.id);
+  } catch (err) {
+    logger.warn(`[xhh][bh3_abyss_boss] 图鉴详情异常: ${pick.id} ${err?.message || err}`);
+  }
+  // 详情接口失败时不要直接放弃：搜索候选本身已带名称与绝对图标 URL，用它兜底仍能出图，
+  // 否则这里一 return 就会让「当前深渊」退化成纯文本（没有合并转发、也没有 Boss 图）。
+  if (!info) {
+    const name = pick.name || queryName;
+    const text = [`${name}（崩三敌人图鉴）`, pick.summary || ''].filter(Boolean).join('\n');
+    return { name, text, icon: absIcon(pick.icon), url: `https://baike.mihoyo.com/bh3/wiki/content/${pick.id}/detail` };
+  }
+  const lines = [`${info.name}（崩三敌人图鉴）`];
+  for (const row of (info.rows || [])) {
+    if (row?.k && row?.v) lines.push(`${row.k}：${row.v}`);
+  }
+  if ((info.tags || []).length) lines.push(`标签：${info.tags.join(' / ')}`);
+  const skills = (info.groups || []).flatMap(g => (g.items || []).map(it => it.name).filter(Boolean));
+  if (skills.length) lines.push(`技能：${skills.slice(0, 8).join('、')}`);
+  // 详情没给图时退回搜索候选的图标，尽量保证 Boss 图不丢
+  const icon = absIcon(info.icon || info.image || pick.icon);
+  return { name: info.name, text: lines.filter(Boolean).join('\n'), icon, url: info.url || '' };
 }
