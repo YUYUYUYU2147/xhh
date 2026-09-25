@@ -138,7 +138,15 @@ body {
   padding-left: 20px;
   color: #ee8e8ef8;
 }
-.badge-row { width: 90px; display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: center; gap: 2px; margin-top: 3px; }
+.badge-row {
+  width: 90px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: start;
+  align-items: center;
+  gap: 2px;
+  margin-top: 3px;
+}
 /* 星级描边：原神五星/绝区零S级=金色，四星/A级=紫色，三星/B级=蓝色 */
 .box_ img.r5 {
   border: 2px solid #e8b53a;
@@ -198,7 +206,7 @@ body {
 .box_ .img-ph.rank-elite { color: #9a6cd0; }
 .box_ .img-ph.rank-normal { color: #94a89d; }
 
-.mini-badge { display: inline-flex; align-items: center; justify-content: center; gap: 1px; max-width: 40px; padding: 1px 4px; border-radius: 999px; background: rgba(255,255,255,.68); color: #3f4a42; font-size: 8px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-badge { display: inline-flex; width: 100%; min-width: 0; align-items: center; justify-content: center; gap: 1px; max-width: 100%; padding: 1px 0; border-radius: 999px; background: rgba(255,255,255,.68); color: #3f4a42; font-size: 7px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini-badge img { width: 12px; height: 12px; object-fit: contain; flex: 0 0 12px; }
 .mini-badge.icon-only,
-.mini-badge:has(img) { flex: 0 0 26px; max-width: 26px; padding: 1px; font-size: 0; }
+.mini-badge:has(img) { width: 100%; max-width: 100%; padding: 1px; font-size: 0; }

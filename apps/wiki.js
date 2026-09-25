@@ -2231,6 +2231,39 @@ export class Wiki extends plugin {
     }
     tags.unshift(poolType === 'hb' ? '类别：协同者' : '类别：人偶');
 
+    // 协同者百科把星环特性放在 basicIntroduction 的「特征」字段，
+    // 角色图鉴则常用「星之环：分野/特性」格式；两种都兼容。
+    const starRingTraits = [];
+    const addStarRingTraits = text => {
+      for (const trait of String(text || '').split(/[、,，/；;]+/).map(v => v.trim()).filter(Boolean)) {
+        if (!starRingTraits.includes(trait)) starRingTraits.push(trait);
+      }
+    };
+    for (const section of content.contents || []) {
+      for (const match of String(section.text || '').matchAll(/data-data="([^"]+)"/g)) {
+        try {
+          for (const part of JSON.parse(decodeURIComponent(match[1]))) {
+            if (part?.partKey !== 'basicIntroduction') continue;
+            let basic = part.data || {};
+            if (typeof basic === 'string') { try { basic = JSON.parse(basic); } catch (_) { basic = {}; } }
+            for (const field of basic.mainFields || []) {
+              if (/^(特征|星之环特性)$/.test(String(field.nameL || ''))) addStarRingTraits(field.valueL);
+              if (/^(特征|星之环特性)$/.test(String(field.nameR || ''))) addStarRingTraits(field.valueR);
+              if (field.nameL === '星之环') addStarRingTraits(String(field.valueL || '').match(/特性\s*[：:]?\s*([^<\n]+)/)?.[1]);
+              if (field.nameR === '星之环') addStarRingTraits(String(field.valueR || '').match(/特性\s*[：:]?\s*([^<\n]+)/)?.[1]);
+            }
+            for (const field of basic.subFields || []) {
+              if (field.name === '星之环') addStarRingTraits(String(field.value || '').match(/特性\s*[：:]?\s*([^<\n]+)/)?.[1]);
+            }
+          }
+        } catch (_) {}
+      }
+    }
+    const starRingBadges = starRingTraits.map(name => ({
+      name,
+      icon: this.getWikiIcon(name, 'bh3')
+    }));
+
     let summary = String(content.summary || '').trim();
     // summary 只是标题或「标题-协同者」时，不当作简介复读
     if (!summary || summary === title || summary.replace(/-?协同者$/, '').trim() === title) summary = '';
@@ -2241,7 +2274,8 @@ export class Wiki extends plugin {
     data = {
       name: title,
       desc,
-      icon
+      icon,
+      starRingBadges
     };
     render('wiki/bh3_yq', data, { e, ret: true });
 

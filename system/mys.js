@@ -910,9 +910,9 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                     isSet
                 });
             }
-            // 2.0 之后的部分角色列表筛选项不再提供武器类型、伤害类型和星之环特性；
-            // 这些字段仍在角色详情的 basicIntroduction 模板里，补到列表卡片使用。
-            if (type === 'js') {
+            // 2.0 之后部分角色/协同者的列表筛选项不再提供完整字段；
+            // 从详情 basicIntroduction 补齐角色徽章及协同者星环特性。
+            if (type === 'js' || type === 'hb') {
                 const parseDetailFields = detail => {
                     const content = detail?.content || {};
                     const parts = [];
@@ -939,6 +939,11 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                         .replace(/&nbsp;/g, ' ');
                     const field = ringText.match(/分野\s*[：:]\s*(.*?)(?=特性\s*[：:]|$)/)?.[1] || '';
                     const traits = ringText.match(/特性\s*[：:]\s*(.*?)(?=注\s*[：:]|$)/)?.[1] || '';
+                    // 协同者详情把星环特性标为「特征」（如“命运之轮”），
+                    // 而非角色详情使用的「星之环」字段。
+                    const collaboratorTrait = type === 'hb'
+                        ? fields.find(v => /^(特征|星之环特性)$/.test(v.key) && String(v.value || '').trim())?.value || ''
+                        : '';
                     const roleType = value('装甲特性') || value('角色定位');
                     const damage = normalizeDamageTypes(roleType, content.title);
                     // 异常状态不能从元素伤害直接推导：只有详情技能确实描述该异常的
@@ -956,7 +961,8 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                         damage,
                         abnormal,
                         starRingField: field.trim(),
-                        starRing: traits.split(/[、,，\/]+/).map(v => v.trim()).filter(Boolean)
+                        starRing: String(collaboratorTrait || traits)
+                            .split(/[、,，、\/；;]+/).map(v => v.trim()).filter(Boolean)
                     };
                 };
                 // 详情字段才是异常状态的可靠来源；即使列表已有武器/伤害字段，
@@ -966,9 +972,11 @@ js,wq,syw,yq 角色,武器,圣痕,人偶
                         try {
                             const detail = await this.bh3_detail(item.id);
                             const fields = parseDetailFields(detail);
-                            if (fields.weapon) item.wuqi = fields.weapon;
-                            if (fields.damage) item.damage = fields.damage;
-                            item.abnormal = fields.abnormal;
+                            if (type === 'js') {
+                                if (fields.weapon) item.wuqi = fields.weapon;
+                                if (fields.damage) item.damage = fields.damage;
+                                item.abnormal = fields.abnormal;
+                            }
                             if (fields.starRingField) item.starRingField = fields.starRingField;
                             if (fields.starRing?.length) item.starRing = fields.starRing;
                         } catch (_) {}

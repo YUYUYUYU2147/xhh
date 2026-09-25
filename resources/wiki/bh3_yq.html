@@ -13,6 +13,17 @@
         <div class="eyebrow">Honkai Impact 3rd · Partner File</div>
         <h1 class="name">{{name}}</h1>
         <p class="subtitle">人偶 / 协同者资料卡，摘要信息重新排版展示。</p>
+        {{if starRingBadges && starRingBadges.length}}
+        <div class="star-ring-badges">
+          <span class="star-ring-label">星环特性</span>
+          {{each starRingBadges badge}}
+          <span class="star-ring-badge">
+            {{if badge.icon}}<img src="{{ppath}}wiki/imgs/{{badge.icon}}">{{/if}}
+            <b>{{badge.name}}</b>
+          </span>
+          {{/each}}
+        </div>
+        {{/if}}
       </div>
     </section>
     <section class="desc-card">

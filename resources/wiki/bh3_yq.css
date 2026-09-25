@@ -12,6 +12,10 @@ body { width: 860px; min-width: 860px; background: #080d18; color: #fff; font-fa
 .eyebrow { color: #88e9ff; font-size: 15px; letter-spacing: 1.8px; text-transform: uppercase; margin-bottom: 14px; }
 .name { font-size: 46px; line-height: 1.12; font-weight: 900; text-shadow: 0 0 25px rgba(255,210,112,.28); }
 .subtitle { margin-top: 12px; color: #d7e7fb; font-size: 18px; line-height: 1.6; }
+.star-ring-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; }
+.star-ring-label { color: #8eeaff; font-size: 14px; font-weight: 700; letter-spacing: .5px; }
+.star-ring-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 4px 11px; border: 1px solid rgba(116,218,255,.38); border-radius: 999px; background: rgba(72,154,210,.16); color: #eafaff; font-size: 15px; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.star-ring-badge img { width: 28px; height: 28px; object-fit: contain; }
 .desc-card { margin-top: 24px; padding: 26px; border-radius: 26px; }
 .panel-head { margin-bottom: 18px; }
 .panel-head span { color: #ffd16e; font-size: 13px; letter-spacing: 2px; }
