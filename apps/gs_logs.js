@@ -87,7 +87,7 @@ export class gs_logs extends plugin {
   }
 
   async time(e) {
-    if (!config().sr_strategy) return false;
+    if (!config().gs_logs) return false;
     let data = await yaml.get(path);
     let date_list = Object.keys(data.date);
     if (!date_list.some(v => v.includes(`【${GS_CURRENT_VERSION}`))) {

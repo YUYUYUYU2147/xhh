@@ -1,6 +1,22 @@
 import fetch from 'node-fetch';
 import { yaml } from '#xhh'
 class yyjson {
+    cleanName(name = '') {
+        return String(name || '').replace(/[\s·・\-—_「」『』《》【】\[\]（）()]/g, '').toLowerCase()
+    }
+
+    decodeText(text = '') {
+        return String(text || '')
+            .replace(/<br\s*\/?>/g, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/\\u([dD][89a-fA-F][0-9a-fA-F]{2})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
+            .replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)))
+    }
+
     // async gs_download(id) {
     //     let url = `https://api-takumi-static.mihoyo.com/hoyowiki/genshin/wapi/entry_page?app_sn=ys_obc&entry_page_id=${id}`;
     //     let data = await (await fetch(url)).json();
@@ -174,6 +190,61 @@ class yyjson {
             })
         }
         return { list, id }
+    }
+
+    async bh3_other_download(name) {
+        const listUrl = 'https://api-takumi-static.mihoyo.com/common/blackboard/bh3_wiki/v1/home/content/list?app_sn=bh3_wiki&channel_id=18'
+        const dataUrl = id => `https://api-takumi-static.mihoyo.com/common/blackboard/bh3_wiki/v1/content/info?app_sn=bh3_wiki&content_id=${id}`
+        const aliases = yaml.get('./plugins/xhh/system/default/bh3_js_names.yaml') || {}
+        for (const [real, arr] of Object.entries(aliases)) {
+            if (real === name || (Array.isArray(arr) && arr.includes(name))) {
+                name = real
+                break
+            }
+        }
+        const key = this.cleanName(name)
+        if (!key) return false
+        const listRes = await fetch(listUrl).then(res => res.json())
+        const items = listRes?.data?.list?.[0]?.list || []
+        const keysOf = item => [
+            item.title,
+            item.alias_name,
+            ...(String(item.alias_name || '').split(/[、,，/|；;\s]+/))
+        ].map(v => this.cleanName(v)).filter(Boolean)
+        const hit = items.find(item => keysOf(item).some(v => v === key))
+            || items.find(item => keysOf(item).some(v => v.includes(key) || (v.length >= 2 && key.includes(v))))
+        if (!hit?.content_id) return false
+        const detail = await fetch(dataUrl(hit.content_id)).then(res => res.json())
+        const contents = detail?.data?.content?.contents || []
+        const list = []
+        for (const section of contents) {
+            const html = String(section.text || '')
+            for (const match of html.matchAll(/data-data="([^"]+)"/g)) {
+                let arr = []
+                try {
+                    arr = JSON.parse(decodeURIComponent(match[1]))
+                } catch (_) {
+                    continue
+                }
+                for (const part of Array.isArray(arr) ? arr : []) {
+                    if (part?.partKey !== 'voiceTab') continue
+                    for (const group of part?.data?.attr || []) {
+                        for (const item of group?.items || []) {
+                            if (!item?.audio) continue
+                            list.push({
+                                audio: item.audio,
+                                id: item.audio,
+                                tab: group.name_ || '',
+                                title: item.name || '语音',
+                                dec: this.decodeText(item.content || ''),
+                            })
+                        }
+                    }
+                }
+            }
+        }
+        if (!list.length) return false
+        return { list, id: `bh3-${hit.content_id}`, game: 'bh3' }
     }
 
 

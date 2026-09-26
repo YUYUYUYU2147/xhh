@@ -7,6 +7,15 @@ at_mode: none
 at_users: []
 # 提醒附带图片，支持网络图片URL或本地图片路径，留空不发送图片
 image: ''
+# 四游戏体力自动推送
+stamina_push_enable: false
+stamina_push_interval: 5
+stamina_push_at_user: false
+stamina_push_gs_threshold: 200
+stamina_push_sr_threshold: 240
+stamina_push_zzz_threshold: 240
+stamina_push_bh3_threshold: 240
+all_note_groups: []
 # 默认按国服常见刷新时间提醒，可在锅巴或本文件里关闭/调整
 items:
   - key: abyss_start

@@ -1,4 +1,5 @@
 import yaml from './system/yaml.js'
+import { getGroupNameMap, refreshGroupNames } from './system/group_name.js'
 
 const _path = './plugins/xhh/config/'
 
@@ -57,7 +58,56 @@ const priorityInput = (field, label, defaultValue) => ({
   componentProps: { min: -9999999999, max: 9999999999, step: 1 },
 })
 
-export const supportGuoba = () => ({
+export const supportGuoba = () => {
+  const cfg = getCfg()
+  const bh3Remind = getBh3Remind()
+  const sign = getSign()
+  const activityRemind = getActivityRemind()
+  const toGroupArray = (groups) => {
+    if (!groups) return []
+    if (typeof groups.values === 'function') return Array.from(groups.values())
+    if (Array.isArray(groups)) return groups
+    if (typeof groups === 'object') return Object.values(groups)
+    return []
+  }
+  const bot = globalThis.Bot || {}
+  const botGroupList = [
+    ...toGroupArray(bot.gl),
+    ...Object.values(bot.bots || {}).flatMap(item => toGroupArray(item?.gl)),
+  ]
+  const pickGroupId = (item = {}) =>
+    item.group_id ?? item.groupId ?? item.id ?? item.gid ?? item.group ?? ''
+  const pickGroupName = (item = {}) =>
+    item.group_name ?? item.groupName ?? item.name ?? item.group_name_ ?? ''
+  const groupOptions = botGroupList
+    .map(item => {
+      const value = String(pickGroupId(item) ?? '')
+      const name = String(pickGroupName(item) ?? '').trim()
+      return { label: name ? `${name} - ${value}` : value, value }
+    })
+    .filter(item => item.value && item.value !== 'undefined')
+  const configuredGroups = [
+    ...(bh3Remind.groups || []),
+    ...(bh3Remind.all_note_groups || []),
+    ...(sign.sign_group || []),
+    ...(sign.bbs_sign_group || []),
+    ...Object.values(activityRemind.groups || {}).flat(),
+    ...(Array.isArray(cfg.groups) ? cfg.groups : []),
+  ].map(v => String(v).trim()).filter(Boolean)
+  const nameMap = getGroupNameMap()
+  for (const id of new Set(configuredGroups)) {
+    if (!nameMap.get(String(id))) refreshGroupNames([id])
+  }
+  const cachedOptions = [...getGroupNameMap().entries()].map(([id, name]) => ({ label: `${name} - ${id}`, value: id }))
+  const groupList = [...new Map(
+    [...groupOptions, ...cachedOptions, ...configuredGroups.map(value => {
+      const name = getGroupNameMap().get(String(value))
+      return { label: name ? `${name} - ${value}` : `群 ${value}（名称未知）`, value }
+    })]
+      .map(item => [String(item.value), { ...item, value: String(item.value) }]),
+  ).values()]
+
+  return ({
   pluginInfo: {
     name: 'xhh',
     title: '小花火(xhh)',
@@ -123,11 +173,6 @@ export const supportGuoba = () => ({
         label: '游戏攻略',
       },
       {
-        field: 'sr_strategy',
-        label: '星铁攻略开关',
-        component: 'Switch',
-      },
-      {
         field: 'gs_logs',
         label: '原神历史卡池',
         component: 'Switch',
@@ -138,8 +183,41 @@ export const supportGuoba = () => ({
         component: 'Switch',
       },
       {
+        field: 'zzz_logs',
+        label: '绝区零历史卡池',
+        component: 'Switch',
+      },
+      {
+        field: 'bh3_logs',
+        label: '崩坏3历史卡池',
+        component: 'Switch',
+      },
+      {
         field: 'all_voice',
-        label: '原神/星铁语音',
+        label: '角色语音总开关',
+        helpMessage: '关闭后四个游戏语音全部停用',
+        component: 'Switch',
+      },
+      {
+        field: 'gs_voice',
+        label: '原神语音',
+        component: 'Switch',
+      },
+      {
+        field: 'sr_voice',
+        label: '星铁语音',
+        component: 'Switch',
+      },
+      {
+        field: 'zzz_voice',
+        label: '绝区零语音',
+        helpMessage: '开关已预留；当前仓库暂无绝区零角色语音数据源',
+        component: 'Switch',
+      },
+      {
+        field: 'bh3_voice',
+        label: '崩坏3语音',
+        helpMessage: '开关已预留；当前仓库暂无崩坏3角色语音数据源',
         component: 'Switch',
       },
       {
@@ -226,14 +304,26 @@ export const supportGuoba = () => ({
       {
         field: 'sign_group',
         label: '游戏签到白名单群',
-        helpMessage: '多个群号用英文逗号分隔，留空则不限制',
-        component: 'InputTextArea',
+        helpMessage: '直接选择群，留空则不限制',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         field: 'bbs_sign_group',
         label: '社区签到白名单群',
-        helpMessage: '米游社社区/全部签到可用群，多个群号用英文逗号分隔，留空则不限制',
-        component: 'InputTextArea',
+        helpMessage: '直接选择群，留空则不限制',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         field: 'sign_users',
@@ -248,40 +338,20 @@ export const supportGuoba = () => ({
         component: 'InputTextArea',
       },
       {
-        field: 'manual_gt_enable',
-        label: '签到手动验证码',
-        helpMessage: '游戏签到遇验证码时生成手动验证网页，完成后自动重试',
-        component: 'Switch',
-      },
-      {
-        field: 'manual_gt_public_url',
-        label: '手动验证公网地址',
-        helpMessage: '例如 http://你的域名:3000；群友需要能访问，留空则用127.0.0.1仅本机可用',
-        component: 'InputTextArea',
-      },
-      {
-        field: 'manual_gt_port',
-        label: '手动验证端口',
-        helpMessage: '默认3000，修改后需重启Bot',
-        component: 'InputNumber',
-        componentProps: { min: 1, max: 65535, step: 1 },
-      },
-      {
-        field: 'manual_gt_timeout',
-        label: '手动验证超时秒',
-        helpMessage: '默认120秒',
-        component: 'InputNumber',
-        componentProps: { min: 30, max: 600, step: 10 },
-      },
-      {
         component: 'SOFT_GROUP_BEGIN',
         label: '米游社',
       },
       {
         field: 'groups',
         label: '米游社视频播报群',
-        helpMessage: '多个群号用英文逗号/换行分隔；也可用“添加播报群”命令维护',
-        component: 'InputTextArea',
+        helpMessage: '直接选择播报群；也可用“添加播报群”命令维护',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         field: 'forwardMsg',
@@ -516,15 +586,68 @@ export const supportGuoba = () => ({
       },
       {
         field: 'bh3_all_note_enable',
-        label: '四游戏体力聚合',
-        helpMessage: '原神/星铁/绝区零/崩三体力一键查询',
+        label: '启用四游戏体力聚合',
+        helpMessage: '控制 #体力/#小花火体力 等四游戏总览；关闭后仍可使用 #原神体力/#星铁体力 等单游戏查询',
         component: 'Switch',
       },
       {
         field: 'bh3_all_note_groups',
         label: '四游戏体力推送群',
-        helpMessage: '多个群号用英文逗号分隔',
-        component: 'InputTextArea',
+        helpMessage: '直接选择推送群，留空则不推送',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
+      },
+      {
+        field: 'stamina_push_enable',
+        label: '启用体力自动推送',
+        helpMessage: '按群成员的绑定账号检查原神/星铁/绝区零/崩坏3体力，达到阈值后推送一次',
+        component: 'Switch',
+      },
+      {
+        field: 'stamina_push_interval',
+        label: '体力检查间隔（分钟）',
+        helpMessage: '插件每分钟轮询一次，按这里的间隔实际请求；建议 5 分钟以上',
+        component: 'InputNumber',
+        componentProps: { min: 1, max: 60, step: 1 },
+      },
+      {
+        field: 'stamina_push_at_user',
+        label: '体力推送艾特用户',
+        helpMessage: '推送某位群成员的体力时，是否在消息开头艾特该成员',
+        component: 'Switch',
+      },
+      {
+        field: 'stamina_push_gs_threshold',
+        label: '原神体力推送阈值',
+        helpMessage: '原粹树脂达到该数值后推送；默认 200',
+        component: 'InputNumber',
+        componentProps: { min: 1, max: 300, step: 1 },
+      },
+      {
+        field: 'stamina_push_sr_threshold',
+        label: '星铁体力推送阈值',
+        helpMessage: '开拓力达到该数值后推送；默认 240',
+        component: 'InputNumber',
+        componentProps: { min: 1, max: 500, step: 1 },
+      },
+      {
+        field: 'stamina_push_zzz_threshold',
+        label: '绝区零体力推送阈值',
+        helpMessage: '电量达到该数值后推送；默认 240',
+        component: 'InputNumber',
+        componentProps: { min: 1, max: 500, step: 1 },
+      },
+      {
+        field: 'stamina_push_bh3_threshold',
+        label: '崩坏3体力推送阈值',
+        helpMessage: '体力达到该数值后推送；默认 240',
+        component: 'InputNumber',
+        componentProps: { min: 1, max: 500, step: 1 },
       },
       {
         field: 'bh3_remind_enable',
@@ -535,8 +658,14 @@ export const supportGuoba = () => ({
       {
         field: 'bh3_remind_groups',
         label: '崩三提醒群',
-        helpMessage: '多个群号用英文逗号分隔，也可群内发送 #小花火开启崩三提醒',
-        component: 'InputTextArea',
+        helpMessage: '直接选择提醒群，也可群内发送 #小花火开启崩三提醒',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         field: 'bh3_remind_at_mode',
@@ -612,26 +741,50 @@ export const supportGuoba = () => ({
       {
         field: 'activity_remind_gs_groups',
         label: '原神活动到期提醒群',
-        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #原神开启活动到期推送',
-        component: 'InputTextArea',
+        helpMessage: '直接选择提醒群，留空则不推送；也可群内发送 #原神开启活动到期推送',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         field: 'activity_remind_sr_groups',
         label: '星铁活动到期提醒群',
-        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #星铁开启活动到期推送',
-        component: 'InputTextArea',
+        helpMessage: '直接选择提醒群，留空则不推送；也可群内发送 #星铁开启活动到期推送',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         field: 'activity_remind_zzz_groups',
         label: '绝区零活动到期提醒群',
-        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #绝区零开启活动到期推送',
-        component: 'InputTextArea',
+        helpMessage: '直接选择提醒群，留空则不推送；也可群内发送 #绝区零开启活动到期推送',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         field: 'activity_remind_bh3_groups',
         label: '崩三活动到期提醒群',
-        helpMessage: '多个群号用英文逗号/换行分隔，也可群内发送 #崩三开启活动到期推送',
-        component: 'InputTextArea',
+        helpMessage: '直接选择提醒群，留空则不推送；也可群内发送 #崩三开启活动到期推送',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
       },
       {
         component: 'SOFT_GROUP_BEGIN',
@@ -927,7 +1080,6 @@ export const supportGuoba = () => ({
       priorityInput('gacha_pool_priority', '全游戏当前卡池(gacha_pool)', -1000000000),
       priorityInput('gs_logs_priority', '原神历史卡池(gs_logs)', -99),
       priorityInput('sr_logs_priority', '星铁历史卡池(sr_logs)', -88),
-      priorityInput('sr_strategy_priority', '星铁攻略图(sr_strategy)', -99),
       priorityInput('mhy_estimate_priority', '预估/攻略搜索(mhy_estimate)', -9999999999),
       priorityInput('video_priority', '米哈游最新视频(video)', 1),
       priorityInput('voice_priority', '角色语音(voice)', 15),
@@ -1001,7 +1153,8 @@ export const supportGuoba = () => ({
       },
       {
         field: 'Tl',
-        label: '小花火体力为默认',
+        label: '启用小花火体力组件',
+        helpMessage: '开启后由小花火处理体力指令；#体力/小花火体力等为四游戏总览，#原神体力等为单游戏查询',
         component: 'Switch',
       },
       {
@@ -1031,10 +1184,15 @@ export const supportGuoba = () => ({
         bdsb: !!cfg.bdsb,
         tlp: !!cfg.tlp,
         tlpcs: cfg.tlpcs ?? 3,
-        sr_strategy: !!cfg.sr_strategy,
         gs_logs: !!cfg.gs_logs,
         sr_logs: !!cfg.sr_logs,
+        zzz_logs: !!cfg.zzz_logs,
+        bh3_logs: !!cfg.bh3_logs,
         all_voice: !!cfg.all_voice,
+        gs_voice: cfg.gs_voice !== false,
+        sr_voice: cfg.sr_voice !== false,
+        zzz_voice: cfg.zzz_voice !== false,
+        bh3_voice: cfg.bh3_voice !== false,
         huobi_num: cfg.huobi_num ?? 2,
         sign: !!cfg.sign,
         zd_sign: sign.zd_sign ?? 0,
@@ -1044,15 +1202,13 @@ export const supportGuoba = () => ({
         bbs_sign_hour: sign.bbs_sign_hour ?? 3,
         bbs_sign_minute: sign.bbs_sign_minute ?? 30,
         sbai: !!sign.sbai,
-        sign_group: (sign.sign_group || []).join(','),
-        bbs_sign_group: (sign.bbs_sign_group || []).join(','),
+        sign_group: (sign.sign_group || []).map(String),
+        bbs_sign_group: (sign.bbs_sign_group || []).map(String),
         sign_users: formatSignUsers(sign.sign || {}),
         bbs_sign_users: formatSignUsers(sign.bbs_sign || {}),
-        manual_gt_enable: cfg.manual_gt_enable !== false,
-        manual_gt_public_url: cfg.manual_gt_public_url || '',
-        manual_gt_port: cfg.manual_gt_port ?? 3000,
-        manual_gt_timeout: cfg.manual_gt_timeout ?? 120,
-        groups: (Array.isArray(cfg.groups) ? cfg.groups : []).join(','),
+        bh3_remind_groups: parseMultiList(bh3Remind.groups),
+        bh3_all_note_groups: parseMultiList(bh3Remind.all_note_groups),
+        groups: parseMultiList(cfg.groups),
         forwardMsg: other.forwardMsg !== false,
         bh3: !!other.bh3,
         by: !!other.by,
@@ -1107,7 +1263,6 @@ export const supportGuoba = () => ({
         gacha_pool_priority: cfg.gacha_pool_priority ?? -1000000000,
         gs_logs_priority: cfg.gs_logs_priority ?? -99,
         sr_logs_priority: cfg.sr_logs_priority ?? -88,
-        sr_strategy_priority: cfg.sr_strategy_priority ?? -99,
         mhy_estimate_priority: Number.isFinite(Number(cfg.mhy_estimate_priority)) ? Number(cfg.mhy_estimate_priority) : -9999999999,
         video_priority: cfg.video_priority ?? 1,
         voice_priority: cfg.voice_priority ?? 15,
@@ -1123,8 +1278,15 @@ export const supportGuoba = () => ({
         currency_balance_priority: cfg.currency_balance_priority ?? 100,
         bh3_remind_enable: !!bh3Remind.enable,
         bh3_all_note_enable: !!cfg.bh3_all_note_enable,
-        bh3_all_note_groups: (cfg.bh3_all_note_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean).join(','),
-        bh3_remind_groups: (bh3Remind.groups || []).join(','),
+        bh3_all_note_groups: (bh3Remind.all_note_groups || []).map(String),
+        stamina_push_enable: !!bh3Remind.stamina_push_enable,
+        stamina_push_interval: Number(bh3Remind.stamina_push_interval || 5),
+        stamina_push_at_user: !!bh3Remind.stamina_push_at_user,
+        stamina_push_gs_threshold: Number(bh3Remind.stamina_push_gs_threshold || 200),
+        stamina_push_sr_threshold: Number(bh3Remind.stamina_push_sr_threshold || 240),
+        stamina_push_zzz_threshold: Number(bh3Remind.stamina_push_zzz_threshold || 240),
+        stamina_push_bh3_threshold: Number(bh3Remind.stamina_push_bh3_threshold || 240),
+        bh3_remind_groups: parseMultiList(bh3Remind.groups),
         bh3_remind_at_mode: bh3Remind.at_mode || 'none',
         bh3_remind_at_users: (bh3Remind.at_users || []).join(','),
         bh3_remind_image: bh3Remind.image || '',
@@ -1134,10 +1296,10 @@ export const supportGuoba = () => ({
         activity_remind_at_mode: activityRemind.at_mode || 'none',
         activity_remind_at_users: (activityRemind.at_users || []).join(','),
         activity_remind_ban_words: activityRemind.ban_words || '',
-        activity_remind_gs_groups: (activityGroups.gs || []).join(','),
-        activity_remind_sr_groups: (activityGroups.sr || []).join(','),
-        activity_remind_zzz_groups: (activityGroups.zzz || []).join(','),
-        activity_remind_bh3_groups: (activityGroups.bh3 || []).join(','),
+        activity_remind_gs_groups: parseMultiList(activityGroups.gs),
+        activity_remind_sr_groups: parseMultiList(activityGroups.sr),
+        activity_remind_zzz_groups: parseMultiList(activityGroups.zzz),
+        activity_remind_bh3_groups: parseMultiList(activityGroups.bh3),
         mys_global_guide_search: cfg.mys_global_guide_search !== false,
         bh3_guide_abyss_sources: cfg.bh3_guide_abyss_sources || defaultBh3GuideSources.abyss,
         bh3_guide_battlefield_sources: cfg.bh3_guide_battlefield_sources || defaultBh3GuideSources.battlefield,
@@ -1181,10 +1343,15 @@ export const supportGuoba = () => ({
         wiki: data.wiki,
         bdsb: data.bdsb,
         tlp: data.tlp,
-        sr_strategy: data.sr_strategy,
         gs_logs: data.gs_logs,
         sr_logs: data.sr_logs,
+        zzz_logs: data.zzz_logs,
+        bh3_logs: data.bh3_logs,
         all_voice: data.all_voice,
+        gs_voice: data.gs_voice,
+        sr_voice: data.sr_voice,
+        zzz_voice: data.zzz_voice,
+        bh3_voice: data.bh3_voice,
         sign: data.sign,
         sm: data.sm,
         bilibili: data.bilibili,
@@ -1200,9 +1367,7 @@ export const supportGuoba = () => ({
         Tl: data.Tl,
         hbxx: data.hbxx,
         debug: data.debug,
-        bh3_remind_enable: data.bh3_remind_enable,
         bh3_all_note_enable: data.bh3_all_note_enable,
-        manual_gt_enable: data.manual_gt_enable,
         forwardMsg: data.forwardMsg,
         bh3: data.bh3,
         by: data.by,
@@ -1228,8 +1393,6 @@ export const supportGuoba = () => ({
         qn: data.qn,
         dow_size: data.dow_size,
         b_img_num: data.b_img_num,
-        manual_gt_port: data.manual_gt_port,
-        manual_gt_timeout: data.manual_gt_timeout,
         meme_CD: data.meme_CD,
         meme_maxFileSize: data.meme_maxFileSize,
         bili_live_cd: data.bili_live_cd,
@@ -1246,7 +1409,6 @@ export const supportGuoba = () => ({
       if (data.gacha_art_source) yaml.set(_path + 'config.yaml', 'gacha_art_source', data.gacha_art_source === 'official' ? 'official' : 'custom')
       if (data.gacha_header_art_source) yaml.set(_path + 'config.yaml', 'gacha_header_art_source', data.gacha_header_art_source === 'official' ? 'official' : 'custom')
       if (data.gacha_up_icon_source) yaml.set(_path + 'config.yaml', 'gacha_up_icon_source', data.gacha_up_icon_source === 'official' ? 'official' : 'custom')
-      yaml.set(_path + 'config.yaml', 'manual_gt_public_url', String(data.manual_gt_public_url || '').trim())
       const memeBaseUrl = String(data.meme_baseUrl || '').trim()
       if (memeBaseUrl) yaml.set(_path + 'config.yaml', 'meme_baseUrl', memeBaseUrl)
 
@@ -1269,26 +1431,53 @@ export const supportGuoba = () => ({
       yaml.set(_path + 'sign.yaml', 'bbs_sign_hour', bbsSignHour)
       yaml.set(_path + 'sign.yaml', 'bbs_sign_minute', bbsSignMinute)
       yaml.set(_path + 'sign.yaml', 'sbai', !!data.sbai)
-      const signGroups = String(data.sign_group || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
+      const signGroups = parseMultiList(data.sign_group)
       yaml.set(_path + 'sign.yaml', 'sign_group', signGroups)
-      const bbsSignGroups = String(data.bbs_sign_group || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
+      const bbsSignGroups = parseMultiList(data.bbs_sign_group)
       yaml.set(_path + 'sign.yaml', 'bbs_sign_group', bbsSignGroups)
       yaml.set(_path + 'sign.yaml', 'sign', parseSignUsers(data.sign_users))
       yaml.set(_path + 'sign.yaml', 'bbs_sign', parseSignUsers(data.bbs_sign_users))
-      const broadcastGroups = parseList(data.groups)
+      const broadcastGroups = parseMultiList(data.groups)
         .map(v => Number(v))
         .filter(v => Number.isSafeInteger(v) && v > 0)
       yaml.set(_path + 'config.yaml', 'groups', broadcastGroups)
       yaml.set(_path + 'other.yaml', 'group_config', parseGroupConfig(data.group_config))
 
-      yaml.set(_path + 'bh3_remind.yaml', 'enable', !!data.bh3_remind_enable)
-      yaml.set(_path + 'config.yaml', 'bh3_all_note_enable', !!data.bh3_all_note_enable)
-      const groups = String(data.bh3_remind_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
+      const currentBh3Remind = getBh3Remind()
+      const valueOrCurrent = (key, fallback) => data[key] !== undefined ? data[key] : (currentBh3Remind[key] ?? fallback)
+      const toBool = (value, fallback = false) => {
+        if (value === undefined || value === null || value === '') return fallback
+        if (typeof value === 'string') return ['true', '1', 'on', 'yes'].includes(value.trim().toLowerCase())
+        return !!value
+      }
+      yaml.set(_path + 'bh3_remind.yaml', 'enable', toBool(valueOrCurrent('bh3_remind_enable', false)))
+      const currentCfg = getCfg()
+      yaml.set(_path + 'config.yaml', 'bh3_all_note_enable', data.bh3_all_note_enable !== undefined
+        ? !!data.bh3_all_note_enable
+        : !!currentCfg.bh3_all_note_enable)
+      const groups = parseMultiList(valueOrCurrent('bh3_remind_groups', currentBh3Remind.groups || []))
       yaml.set(_path + 'bh3_remind.yaml', 'groups', groups)
-      yaml.set(_path + 'bh3_remind.yaml', 'at_mode', ['all', 'users', 'none'].includes(data.bh3_remind_at_mode) ? data.bh3_remind_at_mode : 'none')
-      const remindAtUsers = String(data.bh3_remind_at_users || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
+      const allNoteGroups = parseMultiList(valueOrCurrent('bh3_all_note_groups', currentBh3Remind.all_note_groups || []))
+      yaml.set(_path + 'bh3_remind.yaml', 'all_note_groups', allNoteGroups)
+      const pushEnable = toBool(valueOrCurrent('stamina_push_enable', false))
+      const pushInterval = Number(valueOrCurrent('stamina_push_interval', 5))
+      const pushAtUser = toBool(valueOrCurrent('stamina_push_at_user', false))
+      const numberSetting = (key, fallback, max = 9999) => {
+        const value = Number(valueOrCurrent(key, fallback))
+        return Number.isFinite(value) ? Math.max(1, Math.min(max, Math.trunc(value))) : fallback
+      }
+      yaml.set(_path + 'bh3_remind.yaml', 'stamina_push_enable', pushEnable)
+      yaml.set(_path + 'bh3_remind.yaml', 'stamina_push_interval', Number.isFinite(pushInterval) ? Math.max(1, Math.min(60, Math.trunc(pushInterval))) : 5)
+      yaml.set(_path + 'bh3_remind.yaml', 'stamina_push_at_user', pushAtUser)
+      yaml.set(_path + 'bh3_remind.yaml', 'stamina_push_gs_threshold', numberSetting('stamina_push_gs_threshold', 200, 300))
+      yaml.set(_path + 'bh3_remind.yaml', 'stamina_push_sr_threshold', numberSetting('stamina_push_sr_threshold', 240, 500))
+      yaml.set(_path + 'bh3_remind.yaml', 'stamina_push_zzz_threshold', numberSetting('stamina_push_zzz_threshold', 240, 500))
+      yaml.set(_path + 'bh3_remind.yaml', 'stamina_push_bh3_threshold', numberSetting('stamina_push_bh3_threshold', 240, 500))
+      const atMode = valueOrCurrent('bh3_remind_at_mode', 'none')
+      yaml.set(_path + 'bh3_remind.yaml', 'at_mode', ['all', 'users', 'none'].includes(atMode) ? atMode : 'none')
+      const remindAtUsers = String(valueOrCurrent('bh3_remind_at_users', currentBh3Remind.at_users || '') || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
       yaml.set(_path + 'bh3_remind.yaml', 'at_users', remindAtUsers)
-      yaml.set(_path + 'bh3_remind.yaml', 'image', String(data.bh3_remind_image || '').trim())
+      yaml.set(_path + 'bh3_remind.yaml', 'image', String(valueOrCurrent('bh3_remind_image', currentBh3Remind.image || '') || '').trim())
 
       yaml.set(_path + 'activity_remind.yaml', 'enable', !!data.activity_remind_enable)
       yaml.set(_path + 'activity_remind.yaml', 'hours_before', Number(data.activity_remind_hours_before || 24))
@@ -1298,14 +1487,11 @@ export const supportGuoba = () => ({
       yaml.set(_path + 'activity_remind.yaml', 'at_users', activityAtUsers)
       yaml.set(_path + 'activity_remind.yaml', 'ban_words', String(data.activity_remind_ban_words || '').trim())
       yaml.set(_path + 'activity_remind.yaml', 'groups', {
-        gs: String(data.activity_remind_gs_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
-        sr: String(data.activity_remind_sr_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
-        zzz: String(data.activity_remind_zzz_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
-        bh3: String(data.activity_remind_bh3_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean),
+        gs: parseMultiList(data.activity_remind_gs_groups),
+        sr: parseMultiList(data.activity_remind_sr_groups),
+        zzz: parseMultiList(data.activity_remind_zzz_groups),
+        bh3: parseMultiList(data.activity_remind_bh3_groups),
       })
-      const allNoteGroups = String(data.bh3_all_note_groups || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
-      yaml.set(_path + 'bh3_remind.yaml', 'all_note_groups', allNoteGroups)
-
       yaml.set(_path + 'config.yaml', 'bh3_guide_abyss_sources', String(data.bh3_guide_abyss_sources || '').trim())
       yaml.set(_path + 'config.yaml', 'mys_global_guide_search', data.mys_global_guide_search !== false)
       yaml.set(_path + 'config.yaml', 'bh3_guide_battlefield_sources', String(data.bh3_guide_battlefield_sources || '').trim())
@@ -1337,7 +1523,7 @@ export const supportGuoba = () => ({
         'bh3_battlefield_priority', 'bh3_godwar_priority', 'bh3_profile_priority',
         'bh3_all_note_priority', 'bh3_gacha_priority', 'bh3_ledger_priority', 'abyss_report_priority',
         'bilibili_priority', 'bilibili_push_priority', 'bili_live_priority', 'gacha_pool_priority',
-        'gs_logs_priority', 'sr_logs_priority', 'sr_strategy_priority', 'mhy_estimate_priority',
+        'gs_logs_priority', 'sr_logs_priority', 'mhy_estimate_priority',
         'video_priority', 'voice_priority', 'update_priority', 'config_priority', 'tlp_priority',
         'help_priority', 'picture_priority', 'npc_wt_priority', 'huobi_priority',
         'role_combat_priority', 'zzz_md_priority', 'currency_balance_priority',
@@ -1353,10 +1539,16 @@ export const supportGuoba = () => ({
       return Result.ok({}, '保存成功，部分配置需重启生效')
     },
   },
-})
+  })
+}
 
 function parseList(value) {
   return String(value || '').split(/[,，\s]+/).map(v => v.trim()).filter(Boolean)
+}
+
+function parseMultiList(value) {
+  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean)
+  return parseList(value)
 }
 
 function formatSignUsers(users = {}) {

@@ -25,7 +25,7 @@ export class Config extends plugin {
           permission: 'master',
         },
         {
-          reg: `^#*(小花火|xhh)设置(塔罗牌|自动更新|星铁攻略(图)?|b站|B站|哔哩哔哩|bili|bilibili)?(开启|关闭)((查)?委托前缀)?$`,
+          reg: `^#*(小花火|xhh)设置(塔罗牌|自动更新|b站|B站|哔哩哔哩|bili|bilibili)?(开启|关闭)((查)?委托前缀)?$`,
           fnc: 'f2',
           permission: 'master',
         },
@@ -55,7 +55,6 @@ export class Config extends plugin {
     const CLEAN_REGEX = /#|小花火|xhh|设置/g;
     const TYPE_MAP = {
       塔罗牌: 'tlp',
-      星铁攻略: 'srstrategy',
       委托前缀: 'wt',
       'b站|B站|哔哩哔哩|bili|bilibili': 'bilibili',
       自动更新: 'update',
@@ -174,7 +173,6 @@ export class Config extends plugin {
         '--------小花火设置状态--------',
         `塔罗牌：${data.tlp ? '已开启' : '已关闭'}`,
         `塔罗牌每日次数：${data.tlpcs}次`,
-        `星铁攻略：${data.srstrategy ? '已开启' : '已关闭'}`,
         `查委托必须带#前缀：${data.wt ? '已开启' : '已关闭'}`,
         `b站相关功能：${data.bilibili ? '已开启' : '已关闭'}`,
         `b站视频小于多少MB自动下载：${data.dow_size}MB`,
@@ -197,10 +195,6 @@ export class Config extends plugin {
 
       '2.塔罗牌每日次数：',
       '小花火设置塔罗牌次数(+数字)\n',
-
-      '3.星铁攻略：',
-      '小花火设置星铁攻略开启',
-      '小花火设置星铁攻略关闭\n',
 
       '4.查委托是否必须带#前缀：',
       '开启委托前缀',

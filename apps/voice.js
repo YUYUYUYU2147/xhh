@@ -27,7 +27,15 @@ export class voice extends plugin {
                     permission: 'master',
                 },
                 {
-                    reg: '^(#|\\*)?(星铁|原神)?(.*)语音(列表)?$',
+                    reg: '^(#|\\*)?(小花火|xhh)?(崩三|崩坏3|崩坏三|BH3)(.*?)语音(列表)?$',
+                    fnc: 'yylb',
+                },
+                {
+                    reg: '^(#|\\*)?(小花火|xhh)(.+?)语音(列表)?$',
+                    fnc: 'yylb',
+                },
+                {
+                    reg: '^(#|\\*)?(星铁|原神)(.+?)语音(列表)?$',
                     fnc: 'yylb',
                 },
                 {
@@ -57,15 +65,21 @@ export class voice extends plugin {
     }
 
     async yylb(e) {
-        if (!config().all_voice) return false;
-        let name = e.msg.replace(/#|\*|星铁|原神|语音|列表/g, '');
+        const isBh3 = /崩三|崩坏3|崩坏三|BH3/i.test(e.msg);
+        const isSr = /星铁/.test(e.msg);
+        if (isBh3) return this.bh3VoiceList(e);
+        const voiceEnabled = isSr ? config().sr_voice !== false : config().gs_voice !== false;
+        if (!config().all_voice || !voiceEnabled) return false;
+        let name = e.msg.replace(/#|\*|小花火|xhh|星铁|原神|语音|列表/gi, '');
 
-        //调用小花火原神别名
-        let gsnames = yaml.get('./plugins/xhh/system/default/gs_js_names.yaml');
-        for (let i in gsnames) {
-            if (gsnames[i].includes(name)) {
-                name = i;
-                break;
+        if (!isSr && config().gs_voice !== false) {
+            //调用小花火原神别名
+            let gsnames = yaml.get('./plugins/xhh/system/default/gs_js_names.yaml');
+            for (let i in gsnames) {
+                if (gsnames[i].includes(name)) {
+                    name = i;
+                    break;
+                }
             }
         }
         //先查原神
@@ -83,7 +97,9 @@ export class voice extends plugin {
         let img
         // let isSr = false;
         let data, table = []
-        data = await yyjson.gs_other_download(name);
+        data = !isSr && config().gs_voice !== false
+            ? await yyjson.gs_other_download(name)
+            : false;
         if (data) {
             let {
                 list,
@@ -96,7 +112,7 @@ export class voice extends plugin {
                 }
                 img = await this.tu(e, table, name, background);
             }
-        } else {
+        } else if (config().sr_voice !== false) {
             //非原神查星铁
             let srnames = yaml.get('./plugins/xhh/system/default/sr_js_names.yaml');
             for (let i in srnames) {
@@ -159,13 +175,76 @@ export class voice extends plugin {
         return false;
     }
 
+    // 崩坏3语音：走官方 WIKI 的配音展示（mp3 直链）
+    async bh3VoiceList(e) {
+        if (!config().all_voice || config().bh3_voice === false) return false;
+        let name = e.msg.replace(/#|\*|小花火|xhh|崩三|崩坏3|崩坏三|BH3|语音|列表/gi, '').trim();
+        if (!name) return this.bh3VoiceIndex(e);
+        const data = await yyjson.bh3_other_download(name);
+        if (!data?.list?.length) return e.reply(`未找到崩坏3角色「${name}」的语音，换个名字试试~`, true);
+
+        const table = data.list.map((v, idx) => `${idx + 1}. ${v.tab || ''}${v.title}`.trim());
+        const img = await this.tu(
+            e,
+            table,
+            name,
+            '../../../../../plugins/xhh/resources/yytable/bg.png',
+        );
+        if (!img) return false;
+        const f = await e.reply(img);
+        await this.temp();
+        if (f.data?.message_id) f.message_id = f.data.message_id;
+        f.message_id = f.message_id.toString().replace(/\//g, '');
+        fs.writeFileSync(
+            `./plugins/xhh/temp/yy_pic/${f.message_id}.json`,
+            JSON.stringify(data),
+            'utf-8'
+        );
+        return true;
+    }
+
+    // 崩坏3可查语音角色名一览
+    async bh3VoiceIndex(e) {
+        const roles = yaml.get('./plugins/xhh/system/default/bh3_js_names.yaml') || {};
+        const names = Object.keys(roles);
+        if (!names.length) return e.reply('未读取到崩坏3角色数据~', true);
+        const lines = [];
+        for (let i = 0; i < names.length; i += 5) {
+            lines.push(names.slice(i, i + 5).join('、'));
+        }
+        return e.reply(
+            `崩坏3语音支持角色（共${names.length}名）：\n${lines.join('\n')}\n\n用法：#崩三角色名语音，例如 #崩三琪亚娜语音\n（崩坏3语音为中文单语，回复图片发数字即可发送）`,
+            true,
+        );
+    }
+
     async fsyy(e) {
         if (!e.source && !e.getReply) return false;
-        if (!config().all_voice) return false;
-        let source = await getSource(e)
+        if (!config().all_voice || (config().gs_voice === false && config().sr_voice === false)) return false;
+        let source = null
+        // 多账号下图片可能由其他 bot 发出，优先用收到消息的 bot 查，避免拿不到
+        for (const getter of [
+            () => e.bot?.getMsg?.(e.source?.message_id),
+            () => Bot.getMsg(e.source?.message_id),
+            () => (e.source?.message_id ? null : e.getReply?.()),
+        ]) {
+            try {
+                const res = await getter()
+                if (res) {
+                    source = res
+                    break
+                }
+            } catch (_) {}
+        }
+        if (!source) source = await getSource(e)
         if (!source) return false;
-        if (Number(source.user_id) !== Number(Bot.uin)) return false;
-        if (source.message[0]?.type != 'image') return false;
+        // 多账号部署下 Bot.uin 是数组/集合，直接 Number() 会得到 NaN 导致误判
+        const uins = (Array.isArray(Bot.uin) || Bot.uin instanceof Set ? [...Bot.uin] : [Bot.uin])
+            .map(v => Number(v))
+            .filter(Boolean);
+        const sender = Number(source.user_id);
+        if (uins.length && sender && !uins.includes(sender)) return false;
+        if (source.message?.[0]?.type != 'image') return false;
 
         if (e.msg && e.msg.length > 5) return false;
         let xh = /\d+/.exec(e.msg);
@@ -192,13 +271,17 @@ export class voice extends plugin {
 
         source.message_id = source.message_id.toString().replace(/\//g, '');
 
-        if (!fs.existsSync(`./plugins/xhh/temp/yy_pic/${source.message_id}.json`)) return false;
-        let data = JSON.parse(
-            fs.readFileSync(
-                `./plugins/xhh/temp/yy_pic/${source.message_id}.json`,
-                'utf-8'
-            )
-        );
+        const dir = './plugins/xhh/temp/yy_pic/'
+        let cachePath = `${dir}${source.message_id}.json`
+        if (!fs.existsSync(cachePath)) {
+            // 多账号/适配器下 message_id 可能对不上，回退到最近一次的语音列表
+            const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.json')) : []
+            if (!files.length) return false
+            cachePath = `${dir}${files
+                .map(f => ({ f, t: fs.statSync(dir + f).mtimeMs }))
+                .sort((a, b) => b.t - a.t)[0].f}`
+        }
+        let data = JSON.parse(fs.readFileSync(cachePath, 'utf-8'))
         // let isSr = data.isSr;
         // let list = data.list;
         // let table = data.table;
@@ -248,7 +331,7 @@ export class voice extends plugin {
         //     }
         // }
         if (!ffmpeg()) return false;
-        let yy = list[n].id + lx + '.ogg'
+        let yy = data.game === 'bh3' ? list[n].id : list[n].id + lx + '.ogg'
         logger.mark(`\x1B[36m${yy}\x1B[0m`);
         let res = await fetch(yy);
         if (!res.ok) {
@@ -262,7 +345,7 @@ export class voice extends plugin {
                 "Range": "bytes=0-",
                 "sec-fetch-dest": "document",
                 "sec-fetch-mode": "navigate",
-                "referer": id.includes('-character') ? `https://starrail.honeyhunterworld.com/${id}/` : `https://gensh.honeyhunterworld.com/${id}/`,
+                "referer": data.game === 'bh3' ? `https://baike.mihoyo.com/bh3/wiki/content/${String(id).replace('bh3-', '')}/detail` : id.includes('-character') ? `https://starrail.honeyhunterworld.com/${id}/` : `https://gensh.honeyhunterworld.com/${id}/`,
                 "sec-ch-ua": '"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
                 "sec-ch-ua-mobile": "?0",
                 "sec-ch-ua-platform": '"Windows"',

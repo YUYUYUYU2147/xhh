@@ -3228,6 +3228,7 @@ ${r.summary || ''}`;
   }
 
   async zzzVersionPool(e) {
+    if (!config().zzz_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中绝区零版本卡池:', e.msg);
     const data = await this.fetchZzzPools();
     if (!data) return e.reply('绝区零卡池数据获取失败，请稍后再试。');
@@ -3253,6 +3254,7 @@ ${r.summary || ''}`;
   }
 
   async zzzNameHistory(e) {
+    if (!config().zzz_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中绝区零名称卡池:', e.msg);
     const name = e.msg.replace(/^#*(?:xhh)?(小花火)?(绝区零|ZZZ)/, '').replace(/(卡池|复刻)(统计|记录|历史)$/, '').replace(/卡池$/, '').trim();
     return this.replyZzzNameHistory(e, name, false);
@@ -3715,6 +3717,7 @@ ${r.summary || ''}`;
   }
 
   async zzzAllPool(e) {
+    if (!config().zzz_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中绝区零全卡池:', e.msg);
     const data = await this.fetchZzzPools();
     if (!data) return e.reply('绝区零卡池数据获取失败，请稍后再试。');
@@ -3844,6 +3847,7 @@ ${r.summary || ''}`;
   }
 
   async srAllPool(e) {
+    if (!config().sr_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中星铁全卡池:', e.msg);
     const srOfficial = await officialPool.fetch('sr');
     const cards = await this.loadSrLocalCards('', srOfficial.records || [], true);
@@ -3911,6 +3915,7 @@ ${r.summary || ''}`;
   }
 
   async srVersionPool(e) {
+    if (!config().sr_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中星铁版本卡池:', e.msg);
     const m = e.msg.match(/(?:星铁|崩铁|星穹铁道)v?(\d+\.\d+)(上半|下半)?(?:卡池|跃迁)/);
     if (!m) return false;
@@ -3964,6 +3969,7 @@ ${r.summary || ''}`;
   }
 
   async srNameHistory(e) {
+    if (!config().sr_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中星铁名称卡池:', e.msg);
     const name = e.msg.replace(/^#*(?:xhh)?(小花火)?(星铁|崩铁|星穹铁道)/, '').replace(/(卡池|跃迁)$/, '').trim();
     if (!name) return false;
@@ -5352,6 +5358,7 @@ ${r.summary || ''}`;
   }
 
   async bh3VersionPool(e) {
+    if (!config().bh3_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中崩三版本卡池:', e.msg);
     const data = await this.loadBh3PoolHistory();
     if (!data?.pools?.length) return e.reply('崩三历史卡池数据暂不可用。');
@@ -5378,6 +5385,7 @@ ${r.summary || ''}`;
   }
 
   async bh3NameHistory(e) {
+    if (!config().bh3_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中崩三名称卡池:', e.msg);
     const name = e.msg.replace(/^#*(?:xhh)?(小花火)?(崩三|崩坏3|崩坏三|BH3)/, '').replace(/(卡池|补给)$/, '').trim();
     if (!name) return false;
@@ -5716,6 +5724,7 @@ ${r.summary || ''}`;
   }
 
   async bh3AllPool(e) {
+    if (!config().bh3_logs) return false;
     logger.mark('[xhh][gacha_pool] 命中崩三全卡池:', e.msg);
     const data = await this.loadBh3PoolHistory();
     if (!data?.pools?.length) return e.reply('崩三历史卡池数据暂不可用。');

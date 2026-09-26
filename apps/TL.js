@@ -52,7 +52,7 @@ export class TL extends plugin {
       priority: pluginPriority('tl', -99),
       rule: [
         {
-          reg: '^(#|\\*|%)*(小花火体力|全体力|四游戏体力|米游社体力|体力总览|(小花火|xhh)*(原神|星铁|绝区零|崩三|崩坏3|崩坏三|BH3)*体力)$',
+          reg: '^(#|\\*|%)*(?:小花火|xhh)?(?:原神|星铁|绝区零|崩三|崩坏3|崩坏三|BH3)体力$|^(#|\\*|%)*(?:小花火体力|全体力|四游戏体力|米游社体力|体力总览|体力)$',
           fnc: 'note_',
         },
       ],
@@ -92,6 +92,9 @@ export class TL extends plugin {
     const isGenshinOnly = /原神/.test(detectMsg);
     const singleGameKey = isGenshinOnly ? 'gs' : isStarRail ? 'sr' : isZZZ ? 'zzz' : isBH3 ? 'bh3' : '';
     const isQueryAll = !singleGameKey && ['体力', '小花火体力', '全体力', '四游戏体力', '米游社体力', '体力总览'].includes(rawMsg);
+    // 崩坏3扩展里的“四游戏体力聚合”开关也要控制主力 TL 入口。
+    // 历史配置没有该字段时按开启处理，避免升级后突然失效。
+    if (isQueryAll && config().bh3_all_note_enable === false) return false;
     const tipName = isQueryAll ? '四游戏' : singleGameKey ? this.getGameMeta(singleGameKey).name : '原神';
     await e.reply(`正在获取${tipName}体力数据，请稍后...`, true, { recallMsg: 60 });
     const getZZZData = async () => {

@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { yaml, mhy, api, pluginPriority } from '#xhh';
+import { yaml, mhy, api, config, pluginPriority } from '#xhh';
 import fs from 'fs';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
 import puppeteer from '../../../lib/puppeteer/puppeteer.js';
@@ -155,6 +155,7 @@ export class bh3_all_note extends plugin {
   }
 
   async allNote(e) {
+    if (config().bh3_all_note_enable !== true) return false;
     await e.reply('正在获取四游戏体力数据，请稍后...', true, { recallMsg: 60 });
 
     const results = [];

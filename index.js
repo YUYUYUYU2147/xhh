@@ -61,4 +61,33 @@ for (let i in files) {
   apps[name] = ret[i].value[Object.keys(ret[i].value)[0]];
 }
 
+// 补齐配置里群号对应的群名，供锅巴群白名单下拉展示
+setTimeout(async () => {
+  try {
+    const { refreshGroupNames, cacheGroupList } = await import('./system/group_name.js');
+    cacheGroupList();
+    setInterval(() => {
+      try {
+        cacheGroupList();
+      } catch {}
+    }, 5 * 60 * 1000).unref?.();
+    const collect = (file, pick) => {
+      try {
+        return pick(yaml.get('./plugins/xhh/config/' + file) || {});
+      } catch {
+        return [];
+      }
+    };
+    const ids = [
+      ...collect('bh3_remind.yaml', v => [...(v.groups || []), ...(v.all_note_groups || [])]),
+      ...collect('sign.yaml', v => [...(v.sign_group || []), ...(v.bbs_sign_group || [])]),
+      ...collect('activity_remind.yaml', v => Object.values(v.groups || {}).flat()),
+      ...collect('config.yaml', v => v.groups || []),
+    ].map(v => String(v).trim()).filter(Boolean);
+    if (ids.length) await refreshGroupNames([...new Set(ids)]);
+  } catch (err) {
+    logger.debug(`[xhh] 群名缓存刷新失败：${err.message}`);
+  }
+}, 30 * 1000);
+
 export { apps };
