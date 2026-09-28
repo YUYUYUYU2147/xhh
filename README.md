@@ -12,7 +12,7 @@
 
 <div align="center">
 
-<p><img src="resources/help/xhh.gif" width="680" alt="小花火插件出图效果"></p>
+<p><img src="resources/help/xhh.gif" width="320" alt="小花火插件出图效果"></p>
 
 </div>
 
@@ -78,20 +78,29 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 一条指令拉齐原神 / 星铁 / 绝区零 / 崩坏3 的实时便笺，多账号自动合并成图，超出数量自动转合并转发。
 `#全体力` `#原神体力` `#星铁体力` `#绝区零体力` `#崩三体力` `#体力`（附 UID）
 
-<p align="center"><img src="resources/readme/note.jpg" width="560" alt="四游戏体力总览（示意数据）"><br><sub>四游戏体力总览（示意数据）</sub></p>
+输出示意：原神 235/300、崩三 6820/9000、星铁 238/300、绝区零 214/240 一次拉齐，多账号自动合并成图。
 
+<p align="center"><a href="resources/readme/note.jpg"><img src="resources/readme/note.jpg" width="400" alt="四游戏体力聚合真实渲染（点击查看大图）"></a></p>
 
 ### 卡池 / 复刻 / 多久没 UP
 本地史料库 + 米游社官方公告双向同步，每天 05:30 自动更新，能问「某角色多久没复刻」「当前 UP 是谁」。
 `#原神卡池` `#崩三补给` `#绝区零卡池` `#官方当前卡池` `#星铁复刻统计` `#可莉多久没复刻`
 
-<p align="center"><img src="resources/readme/pool.jpg" width="520" alt="星铁当前卡池（真实数据：4.6 上半双 UP 真珠 / 绯英）"><br><sub>星铁当前卡池（真实数据：4.6 上半双 UP 真珠 / 绯英）</sub></p>
+<p align="center"><a href="resources/readme/pool.jpg"><img src="resources/readme/pool.jpg" width="400" alt="星铁当前卡池真实渲染（点击查看大图）"></a></p>
 
+<p align="center"><a href="resources/readme/official_pool.jpg"><img src="resources/readme/official_pool.jpg" width="320" alt="米游社官方当前卡池（点击查看大图）"></a></p>
 
 ### 崩坏3 全功能
 当期深渊（超弦空间 / 量子流形）、记忆战场、往世乐土、抽卡记录、充值流水、水晶手账、角色主页、日历、活动到期提醒。
 `#崩三深渊` `#崩三战场` `#崩三乐土` `#崩三抽卡记录` `#崩三水晶` `#崩三提醒`
-<p align="center"><img src="resources/readme/help.jpg" width="620" alt="崩三指令一览（真实帮助图数据）"><br><sub>崩三指令一览（真实帮助图数据）</sub></p>
+
+<p align="center"><a href="resources/readme/bh3_record.jpg"><img src="resources/readme/bh3_record.jpg" width="360" alt="崩坏3抽卡记录真实渲染（点击查看大图）"></a></p>
+
+<p align="center"><a href="resources/readme/settle_bh3.jpg"><img src="resources/readme/settle_bh3.jpg" width="420" alt="深渊/战场/乐土到期速报提醒（点击查看大图）"></a></p>
+
+<p align="center"><a href="resources/readme/abyss_strategy.jpg"><img src="resources/readme/abyss_strategy.jpg" width="330" alt="当期深渊速报附带群聊攻略（点击查看大图）"></a></p>
+
+<p align="center"><a href="resources/readme/settle_alert.jpg"><img src="resources/readme/settle_alert.jpg" width="460" alt="记忆战场与往世乐土结算速报提醒（点击查看大图）"></a></p>
 
 
 ### 米游社签到与推送
@@ -473,8 +482,6 @@ manual_gt_public_url: 'https://xhh-gt.你的域名'
 ---
 
 ## 原作者 README（保留）
-
-<img src="resources/help/xhh.gif" alt="小花火" width = "400">
 
 <h2>不懂的，就问Ai吧  ◍⁰ᯅ⁰◍ .ᐟ.ᐟ  </h2>
 
