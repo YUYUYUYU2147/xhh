@@ -114,7 +114,6 @@ async function fetchJson(url, timeout = 8000) {
 
 async function currentVersion(game) {
   const cfg = config();
-  const fallback = game === 'sr' ? '4.3' : game === 'zzz' ? '3.2.12+18601660' : '6.7';
   const cfgVer = game === 'sr' ? cfg.abyss_report_sr_version : game === 'zzz' ? cfg.abyss_report_zzz_version : cfg.abyss_report_gs_version;
   if (cfgVer) return String(cfgVer);
   try {
@@ -124,7 +123,7 @@ async function currentVersion(game) {
   } catch (err) {
     logger.warn(`[xhh][abyss_report] Nanoka manifest 获取失败: ${err.message}`);
   }
-  return fallback;
+  return '';
 }
 
 function formalTypeOrNull(input, game) {
@@ -610,8 +609,9 @@ function srSide(stages = [], weakness = [], monsterMap, monsterChildMap, bossIds
 
 async function loadSrNanoka(reqType, opts = {}) {
   const manifest = await fetchJson(MANIFEST_URL, 6000);
-  const nv = manifest?.hsr?.latest || '4.5.52';
-  const live = manifest?.hsr?.live || '4.5';
+  const nv = manifest?.hsr?.latest;
+  const live = manifest?.hsr?.live;
+  if (!nv || !live) throw new Error('Nanoka manifest 缺少星铁版本信息');
   let hsrMonsterMap = {};
   const hsrMonsterChildMap = {};
   const hsrMonsterValueByChild = new Map();
@@ -963,8 +963,9 @@ function zzzMonsterCard(mon = {}) {
 async function zzzAllPeriodIds(reqType, versionOverride) {
   try {
     const manifest = await fetchJson(MANIFEST_URL, 6000);
-    const nv = manifest?.zzz?.latest || '3.2.12+18601660';
-    const live = versionOverride || manifest?.zzz?.live || '3.1';
+    const nv = manifest?.zzz?.latest;
+    const live = versionOverride || manifest?.zzz?.live;
+    if (!nv || !live) throw new Error('Nanoka manifest 缺少绝区零版本信息');
     const mapPath = reqType === '式舆防卫战'
       ? `https://static.nanoka.cc/zzz/${nv}/zh/shiyu/version.json`
       : `https://static.nanoka.cc/zzz/${nv}/zh/boss/version.json`;
@@ -979,8 +980,9 @@ async function zzzAllPeriodIds(reqType, versionOverride) {
 
 async function loadZzzNanoka(reqType, opts = {}) {
   const manifest = await fetchJson(MANIFEST_URL, 6000);
-  const nv = manifest?.zzz?.latest || '3.2.12+18601660';
-  const live = manifest?.zzz?.live || '3.1';
+  const nv = manifest?.zzz?.latest;
+  const live = manifest?.zzz?.live;
+  if (!nv || !live) throw new Error('Nanoka manifest 缺少绝区零版本信息');
   const routeMap = {
     '式舆防卫战': { list: `https://static.nanoka.cc/zzz/${nv}/shiyu.json`, detail: `https://static.nanoka.cc/zzz/${nv}/zh/shiyu`, map: `https://static.nanoka.cc/zzz/${nv}/zh/shiyu/version.json` },
     '危局强袭战': { list: `https://static.nanoka.cc/zzz/${nv}/boss.json`, detail: `https://static.nanoka.cc/zzz/${nv}/zh/boss`, map: `https://static.nanoka.cc/zzz/${nv}/zh/boss/version.json` },
@@ -1169,7 +1171,8 @@ const DEFAULT_LEYLINE_ICON = 'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.or
 
 async function loadGsTower(opts = {}) {
   const manifest = await fetchJson(MANIFEST_URL, 6000);
-  const nv = manifest?.gi?.latest || '7.0.53';
+  const nv = manifest?.gi?.latest;
+  if (!nv) throw new Error('Nanoka manifest 缺少原神版本信息');
   const live = String(manifest?.gi?.live || '');
   const list = await fetchJson(`https://static.nanoka.cc/gi/${nv}/tower.json`, 8000);
   const rows = Object.entries(list || {})

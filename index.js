@@ -61,6 +61,14 @@ for (let i in files) {
   apps[name] = ret[i].value[Object.keys(ret[i].value)[0]];
 }
 
+// 启动手动验证码服务（必须在所有模块就绪后调用，config 才可读）
+try {
+  const { startManualGeetest } = await import('./system/manual_geetest.js');
+  startManualGeetest();
+} catch (err) {
+  logger.error(`[xhh] 手动验证码服务启动异常：${err?.message || err}`);
+}
+
 // 补齐配置里群号对应的群名，供锅巴群白名单下拉展示
 setTimeout(async () => {
   try {

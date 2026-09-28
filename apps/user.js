@@ -485,15 +485,14 @@ export class user extends plugin {
             if (!e.deviceFp) e.reply(`米游社访问异常,正在调用QQ：${e.user_id}常用设备重试米游社......`)
             e.deviceFp = true
         } else if ([1034, 10035].includes(Number(args?.res?.retcode))) {
-            if (!config().Verification_API_KEY) return reject()
             let create = await mysApi.getData('createVerification')
             if (!create || create.retcode !== 0) return reject();
             let verify = await this.ManualVerify(e, create.data)
             if (!verify) {
                 if (e.isGroup) {
-                    Bot.pickGroup(e.group_id).sendMsg('自动解码失败！🥀')
+                    Bot.pickGroup(e.group_id).sendMsg('验证码验证失败或已超时🥀')
                 } else {
-                    Bot.pickFriend(e.user_id).sendMsg('自动解码失败！🥀')
+                    Bot.pickFriend(e.user_id).sendMsg('验证码验证失败或已超时🥀')
                 }
                 e.mysReq = true
                 return reject();
@@ -551,7 +550,6 @@ export class user extends plugin {
     }
 
     async yz(e, game, headers) {
-        if (!config().Verification_API_KEY) return false
         //获取headers
         if (!headers) headers = mhy.getHeaders(e, e.user.getMysUser().ck)
         headers['x-rpc-client_type'] = 5
@@ -569,7 +567,7 @@ export class user extends plugin {
         let body = await this.ManualVerify(e, res.data)
 
         if (!body) {
-            e.reply('自动解码失败！')
+            e.reply('验证码验证失败或已超时')
             return false
         }
         body = JSON.stringify(body)
@@ -583,93 +581,26 @@ export class user extends plugin {
 
         res = await api(e, data);
         if (!res || res.retcode !== 0) {
-            e.reply('自动解码失败！🥀')
+            e.reply('验证码验证失败或已超时🥀')
             return false
         }
         return true
     }
 
 
+    // 手动过码：走 local 验证页面（system/manual_geetest.js），不再使用第三方自动识别
     async ManualVerify(e, data) {
-        if (!data.gt) return false
-
-        e.reply('查询该账号的米游社时遇到验证码，正在尝试解开🍀')
-
-        const API_KEY = config().Verification_API_KEY
-        const MAX_RETRIES = 8
-        const INITIAL_DELAY = 3000
-        const RETRY_DELAY = 1000
-        const BASE_URL = 'http://api.ttocr.com/api'
-
-        // 第一步：创建识别请求
-        const recognizeRes = await fetch(`${BASE_URL}/recognize`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                appkey: API_KEY,
-                gt: data.gt,
-                challenge: data.challenge,
-                itemid: 388,
-                referer: 'https://webstatic.mihoyo.com'
-            })
-        }).then(res => res.json())
-
-        if (!recognizeRes.resultid) return false
-
-        // 第二步：轮询结果
-        const requestOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                appkey: API_KEY,
-                resultid: recognizeRes.resultid
-            })
-        }
-
-        let result
-        let retries = 0
-
-        await sleep(INITIAL_DELAY)
-
-        while (retries < MAX_RETRIES) {
-            result = await fetch(`${BASE_URL}/results?appkey=${API_KEY}&resultid=${recognizeRes.resultid}`, requestOptions)
-                .then(res => res.json())
-
-            if (result?.status !== 2) break
-
-            await sleep(RETRY_DELAY)
-            retries++
-        }
-
-        // 处理成功结果
-        if (result?.data && result.status === 1) {
-            const msg = `自动解码成功☘️,用时：${result.time / 1000}秒\n将在2秒后重试！`
-            if (e.isGroup) {
-                Bot.pickGroup(e.group_id).sendMsg(msg)
-            } else {
-                Bot.pickFriend(e.user_id).sendMsg(msg)
-            }
-
-            return {
-                geetest_challenge: result.data.challenge,
-                geetest_validate: result.data.validate,
-                geetest_seccode: `${result.data.validate}|jordan`
-            }
-        }
-
-        return false
-    }
-
-    async yue(e) {
-        if (!config().Verification_API_KEY) return false
-        let url = 'http://api.ttocr.com/api/points?appkey=' + config().Verification_API_KEY
-        let data = await (await fetch(url)).json()
-        if (data.msg == '查询成功' && data.points) return e.reply(`剩余可用次数：约${Math.floor(data.points/10)}次`)
-        else return e.reply(data.msg)
+        if (!data?.gt || !data?.challenge) return false;
+        const { manualGeetest } = await import('../system/manual_geetest.js');
+        const validated = await manualGeetest(e, data, '米游社查询验证码');
+        if (!validated?.validate) return false;
+        if (e.isGroup) Bot.pickGroup(e.group_id).sendMsg('验证完成，正在重试查询~');
+        else Bot.pickFriend(e.user_id).sendMsg('验证完成，正在重试查询~');
+        return {
+            geetest_challenge: validated.challenge || data.challenge,
+            geetest_validate: validated.validate,
+            geetest_seccode: validated.seccode || `${validated.validate}|jordan`,
+        };
     }
 
 }

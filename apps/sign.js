@@ -102,6 +102,11 @@ export class Sign extends plugin {
                     reg: '^#*(小花火|xhh)*((米游社|社区|论坛)(全部)?(米游社|社区|论坛)?|全部(米游社|社区|论坛))签到$',
                     fnc: 'bbsSign',
                 },
+                {
+                    reg: '^#*(小花火|xhh)*(手动验证|验证码)(服务)?(自测|测试|test)$',
+                    fnc: 'gtTest',
+                    permission: 'master',
+                },
             ],
         });
         this.task = {
@@ -121,7 +126,9 @@ export class Sign extends plugin {
         if (e.isGroup) {
             const signData = yaml.get('./plugins/xhh/config/sign.yaml');
             const wl = signData.sign_group || [];
-            if (wl.length > 0 && !wl.includes(String(e.group_id)) && !wl.includes(Number(e.group_id))) return false;
+            if (wl.length > 0 && !wl.includes(String(e.group_id)) && !wl.includes(Number(e.group_id))) {
+                return e.reply(`本群不在游戏签到白名单里，已跳过（白名单：${wl.join('、')}）\n可在锅巴「签到设置 → 游戏签到白名单群」里增删，或清空表示不限制`, true, { recallMsg: 120 });
+            }
         }
         signing = true;
         let recallTip;
@@ -155,6 +162,12 @@ export class Sign extends plugin {
         return false;
     }
 
+    // 手动验证服务自测
+    async gtTest(e) {
+        const { manualGeetestTest } = await import('../system/manual_geetest.js');
+        return manualGeetestTest(e);
+    }
+
     async bbsSign(e) {
         if (!config().sign) {
             await e.reply('签到功能未开启，请在配置里把 sign 设为 true 后再试', true, { recallMsg: 60 });
@@ -167,7 +180,10 @@ export class Sign extends plugin {
         if (e.isGroup) {
             const signData = yaml.get('./plugins/xhh/config/sign.yaml') || {};
             const wl = signData.bbs_sign_group || [];
-            if (wl.length > 0 && !wl.includes(String(e.group_id)) && !wl.includes(Number(e.group_id))) return false;
+            if (wl.length > 0 && !wl.includes(String(e.group_id)) && !wl.includes(Number(e.group_id))) {
+                // 之前这里直接静默返回，群里看起来就是「指令没反应」，补一句提示便于排查
+                return e.reply(`本群不在社区签到白名单里，已跳过（白名单：${wl.join('、')}）\n可在锅巴「签到设置 → 社区签到白名单群」里增删，或清空表示不限制`, true, { recallMsg: 120 });
+            }
         }
         signing = true;
         let recallTip;

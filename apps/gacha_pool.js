@@ -37,9 +37,18 @@ const BH3_MARK_ICON = 'bh3_note/bh3_pool_banner.png';
 const BH3_CARD_FALLBACK_ICON = 'bh3_note/bh3_icon.png';
 const ZZZ_MARK_ICON = 'zzz_md/imgs/ellen.png';
 const GS_MARK_ICON = 'gs_mark/paimon.png';
-const SR_MARK_ICON = '/root/TRSS_AllBot/TRSS-Yunzai/plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp';
+// 星铁角标：优先用 miao-plugin 里的三月七立绘（相对定位，找不到就退回插件自带图）
+// 星铁角标：优先用 miao-plugin 的三月七立绘，找不到就用插件自带的星铁图。
+// 不要写死别人机器上的绝对路径，否则换机就裂图。
+const SR_MARK_ICON = [
+  './plugins/miao-plugin/resources/meta-sr/character/三月七/imgs/splash.webp',
+  './plugins/xhh/resources/srlogs/imgs/sr/1.png',
+  './plugins/xhh/resources/srlogs/imgs/h.png',
+].find(p => { try { return fs.existsSync(p) } catch (_) { return false } })
+  || './plugins/xhh/resources/srlogs/imgs/h.png';
 const MYS_MARK_ICON = 'gacha_pool/mys.png';
-const CURRENT_VERSION = { gs: '7.1', sr: '4.5', zzz: '3.1', bh3: '9.0' };
+// 当前版本不写死：由 Bwiki/本地卡池/官方公告的实际数据动态推导。
+const CURRENT_VERSION = {};
 const ZZZ_VERSION_UP_NAMES = {
   '3.0上半': ['维琳娜', '叶瞬光'],
   '3.0下半': ['诺姆', '千夏'],
@@ -765,11 +774,58 @@ export class xhh_gacha_pool extends plugin {
   }
 
   currentVersionByGame(game = '') {
-    if (game === '原神') return CURRENT_VERSION.gs;
-    if (game === '星穹铁道') return CURRENT_VERSION.sr;
-    if (game === '绝区零') return CURRENT_VERSION.zzz;
-    if (game === '崩坏3') return CURRENT_VERSION.bh3;
-    return '';
+    const key = { 原神: 'gs', 星穹铁道: 'sr', 绝区零: 'zzz', 崩坏3: 'bh3' }[game] || game;
+    return CURRENT_VERSION[key] || '';
+  }
+
+  latestVersion(values = []) {
+    const versions = (Array.isArray(values) ? values : [])
+      .map(value => String(value || '').match(/(\d+\.\d+)/)?.[1])
+      .filter(Boolean)
+      .map(version => ({ version, number: Number(version) }))
+      .sort((a, b) => b.number - a.number);
+    return versions[0]?.version || '';
+  }
+
+  setCurrentVersion(game, version) {
+    const key = { 原神: 'gs', 星穹铁道: 'sr', 绝区零: 'zzz', 崩坏3: 'bh3' }[game] || game;
+    const next = String(version || '').match(/(\d+\.\d+)/)?.[1] || '';
+    if (!next) return CURRENT_VERSION[key] || '';
+    if (!CURRENT_VERSION[key] || Number(next) > Number(CURRENT_VERSION[key])) {
+      CURRENT_VERSION[key] = next;
+    }
+    return CURRENT_VERSION[key];
+  }
+
+  currentVersionLabel(game = '') {
+    const version = this.currentVersionByGame(game);
+    return version ? `v${version}` : '版本待同步';
+  }
+
+  currentVersionForRecords(game, records = []) {
+    const version = this.latestVersion(records.map(record => record?.version));
+    return this.setCurrentVersion(game, version);
+  }
+
+  // 保留统一入口，旧调用方不需要知道版本号的来源。
+  currentVersionNumber(game = '') {
+    return Number(this.currentVersionByGame(game)) || 0;
+  }
+
+  advanceSrCurrentVersion(cards = []) {
+    const versions = (Array.isArray(cards) ? cards : [])
+      .filter(card => !card?.collab)
+      .map(card => String(card?.version || '').match(/^(\d+\.\d+)/)?.[1])
+      .filter(Boolean);
+    if (!versions.length) return this.currentVersionByGame('sr');
+    const latest = versions
+      .map(version => ({ version, number: Number(version) }))
+      .sort((a, b) => b.number - a.number)[0];
+    if (latest.number > this.currentVersionNumber('sr')) {
+      this.setCurrentVersion('sr', latest.version);
+      logger.mark(`[xhh][gacha_pool] 根据当前星铁卡池自动推进版本：v${this.currentVersionByGame('sr')}`);
+    }
+    return this.currentVersionByGame('sr');
   }
 
   splitPoolNames(text = '') {
@@ -1088,7 +1144,7 @@ export class xhh_gacha_pool extends plugin {
     const allow = [];
     for (const ver of versions) {
       if (ZZZ_VERSION_UP_NAMES[ver]) allow.push(...ZZZ_VERSION_UP_NAMES[ver]);
-      else if (ver.startsWith(CURRENT_VERSION.zzz)) allow.push(...ZZZ_VERSION_UP_NAMES[CURRENT_VERSION.zzz] || []);
+      else if (ver.startsWith(this.currentVersionByGame('zzz'))) allow.push(...ZZZ_VERSION_UP_NAMES[this.currentVersionByGame('zzz')] || []);
     }
     if (allow.length) {
       const allowClean = new Set(allow.map(v => this.cleanZzzName(v)));
@@ -1134,6 +1190,9 @@ export class xhh_gacha_pool extends plugin {
     if (!game) {
       const results = await officialPool.fetchAll();
       const resultOf = key => results.find(r => r.game === key) || { records: [] };
+      for (const game of ['gs', 'sr', 'zzz', 'bh3']) {
+        this.currentVersionForRecords(game, resultOf(game).records || []);
+      }
       const cards = [];
 
       // 汇总页也优先使用各游戏“当前期”的本地结构化数据，避免米游社公告列表混入旧版本公告。
@@ -1150,7 +1209,7 @@ export class xhh_gacha_pool extends plugin {
       } else {
         // 本地库没数据时走公告，米游社列表常不带封面，用搜索接口补回来
         const gsOfficialCards = (resultOf('gs').records || [])
-          .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.gs))
+          .filter(v => String(v.version || '').startsWith(this.currentVersionByGame('gs')))
           .slice(0, 5).map(v => this.officialCard(v, '原神'));
         await this.attachGsOfficialCovers(gsOfficialCards);
         cards.push(...gsOfficialCards);
@@ -1159,7 +1218,7 @@ export class xhh_gacha_pool extends plugin {
       const srCards = await this.loadSrLocalCards('current', resultOf('sr').records || []);
       if (srCards.length) cards.push(...srCards);
       else cards.push(...(resultOf('sr').records || [])
-        .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.sr))
+        .filter(v => String(v.version || '').startsWith(this.currentVersionByGame('sr')))
         .slice(0, 5).map(v => this.officialCard(v, '星穹铁道')));
 
       const zzzData = await this.fetchZzzPools();
@@ -1173,7 +1232,7 @@ export class xhh_gacha_pool extends plugin {
       }
       if (!cards.some(c => c.type === '代理人频段' || c.type === '音擎频段')) {
         cards.push(...(resultOf('zzz').records || [])
-          .filter(v => String(v.version || '').startsWith(CURRENT_VERSION.zzz))
+          .filter(v => String(v.version || '').startsWith(this.currentVersionByGame('zzz')))
           .slice(0, 5).map(v => this.officialCard(v, '绝区零')));
       }
 
@@ -1199,6 +1258,7 @@ export class xhh_gacha_pool extends plugin {
       });
     }
     const meta = officialPool.games[game];
+    this.currentVersionForRecords(game, (await officialPool.fetch(game)).records || []);
     logger.mark(`[xhh][gacha_pool] 命中${meta.name}官方卡池:`, e.msg);
     // 星铁 4.4 起一条公告里同时包含多角色、多光锥，通用公告解析容易混排或漏项。
     // 指定“星铁米游社/官方卡池”时优先用按官方公告整理后的本地结构化表。
@@ -1209,7 +1269,7 @@ export class xhh_gacha_pool extends plugin {
         return this.renderPoolImage(e, {
           game: meta.name,
           title: `${meta.name}米游社官方卡池`,
-          subtitle: this.formatCurrentPoolSubtitle(cards[0]?.version, cards[0]?.time, `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`),
+          subtitle: this.formatCurrentPoolSubtitle(cards[0]?.version, cards[0]?.time, `数据来源：米游社公告整理 · v${this.currentVersionByGame('sr')}`),
           mode: 'official official-game',
           markIcon: this.fixedCornerFallback(meta.name),
           markWide: true,
@@ -1594,7 +1654,16 @@ export class xhh_gacha_pool extends plugin {
           // 统一归到本地的「联动X.0」标签下，已存在同 UP 的联动条目就合并进去。
           if (isCollab && !/^联动/.test(String(b.ver || ''))) {
             const existCollab = local.find(v => /^联动/.test(String(v.ver || '')) && upsOf(v).some(n => bUps.includes(n)));
-            b.ver = existCollab?.ver || '联动2.0';
+            if (existCollab?.ver) {
+              b.ver = existCollab.ver;
+            } else {
+              const collabVersions = local
+                .map(v => String(v.ver || '').match(/^联动(\d+(?:\.\d+)?)$/)?.[1])
+                .filter(Boolean)
+                .map(Number);
+              const next = Math.max(0, ...collabVersions) + 1;
+              b.ver = `联动${next.toFixed(1)}`;
+            }
           }
           let ex = byKey.get(periodKey(b));
           if (!ex && isCollab) {
@@ -1721,7 +1790,7 @@ export class xhh_gacha_pool extends plugin {
         }
         data.date = nextDate;
         const latestNum = Number(String(latest.ver || '').replace(/[^0-9.]/g, ''));
-        if (latestNum && latestNum > Number(CURRENT_VERSION.gs || 0)) CURRENT_VERSION.gs = String(latestNum);
+        if (latestNum) this.setCurrentVersion('gs', latestNum);
         fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
         logger.mark(`[xhh][gacha_pool] 原神 Bwiki 同步明细：新增 ${added} / 修正 ${updated}`);
         // 封面统一走米游社：数据以 Bwiki 为准，图片仍用官方公告封面补录
@@ -1863,7 +1932,7 @@ export class xhh_gacha_pool extends plugin {
     const endPart = latestKey.replace(/^【.*?】/, '').split('~')[1]?.trim() || '';
     if (!timeRange) timeRange = `版本更新后~${endPart || this.fmtTs(Date.now() + 21 * 86400000, '15:00')}`;
     const fixedKey = `【${version}${phase}】${timeRange}`;
-    const note = `原神：v${version}${phase} 已预录（${version}版本更新后生效，当前仍为 v${CURRENT_VERSION.gs}）`;
+    const note = `原神：v${version}${phase} 已预录（${version}版本更新后生效，当前仍为 v${this.currentVersionByGame('gs')}）`;
     // 开始时间未过期（占位/未来时间）且 key 已一致时无需重写
     if (fixedKey === latestKey || (start && start > new Date())) return note;
     try {
@@ -1872,7 +1941,7 @@ export class xhh_gacha_pool extends plugin {
         if (k !== latestKey) nextDate[k] = v;
       }
       fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify({ date: nextDate, imgs: data.imgs || {}, imgs_src: data.imgs_src || {} }), 'utf-8');
-      return `原神：已修正 v${version}${phase} 预录时间（${version}版本更新后生效，当前仍为 v${CURRENT_VERSION.gs}）`;
+      return `原神：已修正 v${version}${phase} 预录时间（${version}版本更新后生效，当前仍为 v${this.currentVersionByGame('gs')}）`;
     } catch (err) {
       logger.error('[xhh][gacha_pool] gslogs.yaml 预录时间修正失败:', err);
       return note;
@@ -2037,7 +2106,7 @@ export class xhh_gacha_pool extends plugin {
     return [...table.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map(m => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim());
   }
   _bwikiCell(table, label) {
-    const m = table.match(new RegExp('<th[^>]*>\\s*' + label + '\\s*<\\/th>\\s*<td>([\\s\\S]*?)<\\/td>', 'i'));
+    const m = table.match(new RegExp('<th[^>]*>\\s*' + label + '\\s*<\\/th>\\s*<td[^>]*>([\\s\\S]*?)<\\/td>', 'i'));
     return m ? m[1] : '';
   }
   _bwikiTime(table) {
@@ -2067,7 +2136,7 @@ export class xhh_gacha_pool extends plugin {
       }
       e.js_five = [...new Set(e.js_five)]; e.js_four = [...new Set(e.js_four)];
       e.gz_five = [...new Set(e.gz_five)]; e.gz_four = [...new Set(e.gz_four)];
-      map.set(ver, e);
+      map.set(key, e);
     }
     return [...map.values()];
   }
@@ -2100,13 +2169,16 @@ export class xhh_gacha_pool extends plugin {
 
   async fetchSrPoolHistoryFromBwiki() {
     // 数据源从「跃迁」改为「历史跃迁」后必须换 key，否则会继续读旧缓存（旧数据里联动池挂在普通版本号下）
-    const cacheKey = 'xhh:sr:bwiki:history:v2';
+    const cacheKey = 'xhh:sr:bwiki:history:v4';
     try { const c = await redis.get(cacheKey); if (c) return JSON.parse(c); } catch (_) {}
     try {
       const res = await fetch(SR_BWIKI_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const pools = this.parseSrBwikiHtml(await res.text());
-      if (Array.isArray(pools) && pools.length) {
+      const hasPoolNames = Array.isArray(pools) && pools.some(pool =>
+        pool?.js_five?.length || pool?.gz_five?.length || pool?.js_four?.length || pool?.gz_four?.length
+      );
+      if (hasPoolNames) {
         try { await redis.set(cacheKey, JSON.stringify(pools), { EX: 2 * 60 * 60 }); } catch (_) {}
         return pools;
       }
@@ -2145,7 +2217,7 @@ export class xhh_gacha_pool extends plugin {
     // 当前版本号跟随版本更新时间表：到了更新时间就自动推进（如 9.1 于 09-24 06:00 上线后自动变 9.1）
     for (const v of Object.keys(readBh3VersionStartMap()).map(Number).filter(n => !Number.isNaN(n))) {
       const ts = bh3VersionStart(v);
-      if (ts && ts <= Date.now() && v > Number(CURRENT_VERSION.bh3 || 0)) CURRENT_VERSION.bh3 = v.toFixed(1);
+      if (ts && ts <= Date.now()) this.setCurrentVersion('bh3', v);
     }
     // 先自动抓米游社「版本更新公告」补齐各版本实际更新时间，再判定版本号（无需手工维护版本号）。
     // 加硬超时：米游社接口慢时最多等 12 秒就放弃，绝不能把 #刷新卡池 拖到超时无回复。
@@ -2956,17 +3028,10 @@ export class xhh_gacha_pool extends plugin {
         logger.error(`[xhh][gacha_pool] 本地卡池库自动同步失败(${game}):`, err);
       }
     }
-    // 通用：从「X.X（上半/下半）」公告自动推进各游戏 CURRENT_VERSION（不回落）
+    // 通用：从官方公告自动推导各游戏当前版本（不回落）
     for (const { game, records } of results) {
-      const cur = CURRENT_VERSION[game];
-      if (!cur || !Array.isArray(records) || !records.length) continue;
-      const vs = records
-        .map(r => String(r.version || '').match(/^(\d+\.\d+)/))
-        .filter(Boolean)
-        .map(m => m[1]);
-      if (!vs.length) continue;
-      const maxV = vs.map(Number).sort((a, b) => b - a)[0].toFixed(1);
-      if (Number(maxV) > Number(cur)) CURRENT_VERSION[game] = maxV;
+      if (!Array.isArray(records) || !records.length) continue;
+      this.currentVersionForRecords(game, records);
     }
     return lines;
   }
@@ -3112,6 +3177,7 @@ ${r.summary || ''}`;
       });
       if (pools.length) {
         const sample = pools[0];
+        this.setCurrentVersion('zzz', sample.version);
         const { end } = this.parseTime(sample);
         const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
         const cards = await this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
@@ -3131,7 +3197,7 @@ ${r.summary || ''}`;
     const { records } = zzzOfficial;
     if (records.length) {
       // 只使用公告标题能明确解析到当前版本的记录；避免旧公告解析不到版本时被 officialCard 兜底成 3.0，导致右上角抽到旧角色（如比利）。
-      const useRecords = records.filter(r => String(r.version || '').startsWith(CURRENT_VERSION.zzz));
+      const useRecords = records.filter(r => String(r.version || '').startsWith(this.currentVersionByGame('zzz')));
       if (!useRecords.length) {
         logger.mark('[xhh][gacha_pool] 绝区零官方公告未解析到当前版本记录，改用本地卡池数据兜底');
       } else {
@@ -3165,7 +3231,7 @@ ${r.summary || ''}`;
           });
         }
       }
-      const currentCards = rawCards.filter(c => String(c.version || '').startsWith(CURRENT_VERSION.zzz));
+      const currentCards = rawCards.filter(c => String(c.version || '').startsWith(this.currentVersionByGame('zzz')));
       const cards = (currentCards.length ? currentCards : rawCards).slice(0, 4).map((card, i) => {
         card.index = i + 1;
         card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
@@ -3179,7 +3245,7 @@ ${r.summary || ''}`;
       return this.renderPoolImage(e, {
         game: '绝区零',
         title: '绝区零当前卡池',
-        subtitle: `数据来源：米游社公告 · v${CURRENT_VERSION.zzz}`,
+        subtitle: `数据来源：米游社公告 · v${this.currentVersionByGame('zzz')}`,
         mode: 'zzz',
         markIcon,
         markWide,
@@ -3204,7 +3270,7 @@ ${r.summary || ''}`;
       return this.renderPoolImage(e, {
         game: '绝区零',
         title: '最新收录卡池',
-        subtitle: `当前版本 ${CURRENT_VERSION.zzz}${latestStage}；展示最新收录内容`,
+        subtitle: `当前版本 ${this.currentVersionByGame('zzz')}${latestStage}；展示最新收录内容`,
         mode: 'zzz',
         markIcon,
         markWide: !!markIcon,
@@ -3236,8 +3302,8 @@ ${r.summary || ''}`;
     if (!m) return false;
     const [, version, phase] = m;
     const pools = data.filter(p => p.version?.startsWith(version) && (!phase || p.version?.includes(phase)));
-    if (!pools.length && version === CURRENT_VERSION.zzz) {
-      return e.reply(`绝区零当前版本已标记为 ${CURRENT_VERSION.zzz}，但卡池数据源还没有收录 ${CURRENT_VERSION.zzz}${phase || ''} 的具体UP信息。`);
+    if (!pools.length && version === this.currentVersionByGame('zzz')) {
+      return e.reply(`绝区零当前版本已标记为 ${this.currentVersionByGame('zzz')}，但卡池数据源还没有收录 ${this.currentVersionByGame('zzz')}${phase || ''} 的具体UP信息。`);
     }
     if (!pools.length) return e.reply(`未查询到绝区零 ${version}${phase || ''} 卡池数据。`);
     const cards = await this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }));
@@ -3866,7 +3932,7 @@ ${r.summary || ''}`;
       return this.renderPoolImage(e, {
         game: '星穹铁道',
         title: '星铁当前卡池',
-        subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, `数据来源：米游社公告整理 · v${CURRENT_VERSION.sr}`),
+        subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, `数据来源：米游社公告整理 · v${this.currentVersionByGame('sr')}`),
         mode: 'sr',
         markIcon: this.fixedCornerFallback('星穹铁道'),
         markWide: true,
@@ -4224,12 +4290,43 @@ ${r.summary || ''}`;
     const query = this.normalizeSrName(type);
     const isCurrent = query === 'current';
     const cards = [];
-    const currentVersion = CURRENT_VERSION.sr;
+    const currentVersion = this.currentVersionByGame('sr');
     let prevEnd = '';
     let srImgDirty = false;
-    for (const item of data) {
+    // 「X.X版本更新后」这类没有具体开始时间的条目，要靠上一期的结束时间 +1s 反推。
+    // 本地库不是严格按时间排序的（联动池/补录条目会插在中间），所以不能顺着数组顺序取 prevEnd：
+    // 否则 4.6上半 会拿 4.6下半（更晚）的结束时间当基准，算出「还没开池」，当前卡池就只剩联动池。
+    // 这里先预解析所有条目的结束时间（与 prevEnd 无关），再按「时间上真正相邻的那一期」来反推。
+    const endStamps = data.map(item => {
+      const raw = String(item.time || '-');
+      const endText = raw.split('~')[1]?.trim() || '';
+      if (!endText || /长期|未知/.test(endText)) return 0;
+      const t = new Date(this.ensureFullTime(endText, false)).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    });
+    const findPrevEnd = (idx) => {
+      const own = endStamps[idx] || 0;
+      const nowTs = Date.now();
+      let best = 0;
+      for (let j = 0; j < endStamps.length; j++) {
+        if (j === idx) continue;
+        const t = endStamps[j];
+        if (!t) continue;
+        // 优先取「结束时间早于本条结束时间」里最晚的一期；本条没有结束时间则取已结束的最晚一期
+        if (own ? (t < own && t > best) : (t <= nowTs && t > best)) best = t;
+      }
+      if (!best) return '';
+      // 注意用本地时区格式化：toISOString 会转成 UTC，直接用会让开始时间凭空差一个时区
+      const d = new Date(best);
+      return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+    };
+    for (let idx = 0; idx < data.length; idx++) {
+      const item = data[idx];
       const ver = item.ver || '';
-      const timeRes = this.normalizeSrHistoryTime(item.time || '-', prevEnd);
+      const rawTime = String(item.time || '-');
+      const needPrev = /版本更新后/.test(rawTime.split('~')[0] || '');
+      const curPrev = needPrev ? (findPrevEnd(idx) || prevEnd) : prevEnd;
+      const timeRes = this.normalizeSrHistoryTime(rawTime, curPrev);
       prevEnd = timeRes.end || prevEnd;
       const now = Date.now();
       const startAt = new Date(String(timeRes.time || '').split('~')[0]?.trim()).getTime();
@@ -4308,6 +4405,7 @@ ${r.summary || ''}`;
       // 联动池是长期开放（相当于常驻），排到末尾，避免把常规版本（如 4.5）的当期卡池挤到后面。
       // 比较符方向：a 有 collab 返回正数 → a 排后面；稳定排序，非联动卡保持原有（版本）顺序
       cards.sort((a, b) => Number(!!a.collab) - Number(!!b.collab));
+      this.advanceSrCurrentVersion(cards);
     }
     return cards;
   }
@@ -4435,7 +4533,7 @@ ${r.summary || ''}`;
       return this.renderPoolImage(e, {
         game: '原神',
         title: '原神当前卡池',
-        subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, `本地卡池库 · v${CURRENT_VERSION.gs}`),
+        subtitle: this.formatCurrentPoolSubtitle(localCards[0]?.version, localCards[0]?.time, `本地卡池库 · v${this.currentVersionByGame('gs')}`),
         mode: 'gs',
         markIcon,
         markWide: !!markIcon,
@@ -4803,7 +4901,7 @@ ${r.summary || ''}`;
       const matched = parsed.filter(v => v.start && v.end && now >= v.start && now <= v.end);
       // 兜底时跳过「未上线版本的预录条目」（版本号大于当前版本且无有效开始时间），避免预告期被当成当前卡池
       const pool = matched.length ? matched
-        : parsed.filter(v => !(Number(v.ver) > Number(CURRENT_VERSION.gs || 0) && !v.start)).slice(0, 1);
+        : parsed.filter(v => !(Number(v.ver) > Number(this.currentVersionByGame('gs') || 0) && !v.start)).slice(0, 1);
       const best = new Map();
       for (const item of pool) {
         const prev = best.get(item.ver);
@@ -4814,6 +4912,7 @@ ${r.summary || ''}`;
       logger.mark('[xhh][gacha_pool] 当前卡池 imgs 匹配:',
         [...best.values()].map(v => `【${v.ver}】=> ${(data.imgs?.[`【${v.ver}】`] || []).length} 张`).join(', '),
         '| 库内 imgs 键:', Object.keys(data.imgs || {}).join(', ') || '(空)');
+      for (const item of best.values()) this.setCurrentVersion('gs', item.ver);
       for (const { dateKey, names, ver } of best.values()) pushGsCard(dateKey, names, ver);
     } else {
       for (const [dateKey, names] of entries) {
@@ -4947,6 +5046,7 @@ ${r.summary || ''}`;
     logger.mark('[xhh][gacha_pool] 命中崩三补给菜单:', e.msg);
     const local = await this.loadBh3CurrentPools();
     if (local.length) {
+      this.setCurrentVersion('bh3', local[0]?.version);
       local.forEach((c, i) => { c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; });
       await this.attachBh3OfficialCovers(local);
       const markIcon = await this.getBh3HeaderSplashFromPools(local, BH3_MARK_ICON);
@@ -4954,7 +5054,7 @@ ${r.summary || ''}`;
       return this.renderPoolImage(e, {
         game: '崩坏3',
         title: '崩坏3当前卡池',
-        subtitle: this.formatCurrentPoolSubtitle(local[0]?.version, local[0]?.time, `v${CURRENT_VERSION.bh3} · 本地补给记录`),
+        subtitle: this.formatCurrentPoolSubtitle(local[0]?.version, local[0]?.time, `v${this.currentVersionByGame('bh3')} · 本地补给记录`),
         mode: 'bh3',
         markIcon,
         markWide,
@@ -4969,7 +5069,7 @@ ${r.summary || ''}`;
     return this.renderPoolImage(e, {
       game: '崩坏3',
       title: '崩坏3当前卡池',
-      subtitle: `v${CURRENT_VERSION.bh3} · 米游社公告`,
+      subtitle: `v${this.currentVersionByGame('bh3')} · 米游社公告`,
       mode: 'bh3',
       markIcon,
       markWide: true,
@@ -5757,6 +5857,6 @@ ${r.summary || ''}`;
 
   async bh3PoolUnsupported(e) {
     logger.mark('[xhh][gacha_pool] 命中崩三卡池兜底:', e.msg);
-    return e.reply(`崩坏3当前版本已标记为 ${CURRENT_VERSION.bh3}。\n支持查询：\n#崩三卡池 / #崩三补给 - 查看当前可用补给菜单\n#崩三v8.9卡池 / #崩三v8.9上半卡池 - 查看指定版本补给\n#德丽莎卡池 / #琪亚娜补给 - 查看角色历史补给\n#崩三卡池历史 / #崩三补给全 - 查看全版本记录`);
+    return e.reply(`崩坏3当前版本已标记为 ${this.currentVersionByGame('bh3')}。\n支持查询：\n#崩三卡池 / #崩三补给 - 查看当前可用补给菜单\n#崩三v8.9卡池 / #崩三v8.9上半卡池 - 查看指定版本补给\n#德丽莎卡池 / #琪亚娜补给 - 查看角色历史补给\n#崩三卡池历史 / #崩三补给全 - 查看全版本记录`);
   }
 }

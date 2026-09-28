@@ -1,31 +1,52 @@
-- ver: 联动2.0
-  time: 2026/07/24 12:00 ~ 长期
-  js_five:
-    - 远坂凛
-    - 吉尔伽美什
-  js_four: []
-  gz_five:
-    - 智识/星火悄然闪耀
-    - 毁灭/所见即我
-  gz_four: []
-  imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/07/02/288909600/a4ddb83026852aa545db03aa502a7ec5_9028038538005146684.png
 - ver: 联动1.0
-  time: 2025-07-11 ~ 未知
+  time: 2025/07/11 12:00 ~ 长期
   js_five:
     - Saber
     - Archer
   js_four: []
   gz_five:
-    - 毁灭/没有回报的加冕
-    - 巡猎/理想燃烧的地狱
+    - 没有回报的加冕
+    - 理想燃烧的地狱
   gz_four: []
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/07/22/288909600/6a99f49d6e33f127359d4a6ca6f548b2_2719634391262184681.png
+    - https://upload-bbs.miyoushe.com/upload/2026/07/02/288909600/a4ddb83026852aa545db03aa502a7ec5_9028038538005146684.png
+- ver: 联动2.0
+  time: 2026/07/24 12:00 ~ 长期
+  js_five:
+    - 吉尔伽美什
+    - 远坂凛
+  js_four: []
+  gz_five:
+    - 所见即我
+    - 星火悄然闪耀
+  gz_four: []
+  imgs:
+    - https://upload-bbs.miyoushe.com/upload/2026/07/02/288909600/a4ddb83026852aa545db03aa502a7ec5_9028038538005146684.png
+- ver: 4.6上半
+  time: 4.6版本更新后 ~ 2026/11/10 15:00
+  js_five:
+    - 真珠
+  js_four:
+    - 青雀
+    - 雪衣
+    - 米沙
+  gz_five:
+    - 献给明日的色彩
+  gz_four:
+    - 一场术后对话
+    - 与行星相会
+    - 无边曼舞
+  imgs:
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.6下半
   time: 2026/10/21 12:00 ~ 2026/11/10 15:00
-  js_five: []
-  js_four: []
+  js_five:
+    - 千冶•刃
+  js_four:
+    - 青雀
+    - 雪衣
+    - 米沙
   gz_five:
     - 灼尽炼狱的新骸
   gz_four:
@@ -33,12 +54,16 @@
     - 与行星相会
     - 无边曼舞
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.6上半
   time: 4.6版本更新后 ~ 2026/10/21 11:59
-  js_five: []
-  js_four: []
+  js_five:
+    - 绯英
+  js_four:
+    - 青雀
+    - 雪衣
+    - 米沙
   gz_five:
     - 邂逅于下一个花季
   gz_four:
@@ -46,8 +71,8 @@
     - 与行星相会
     - 无边曼舞
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.5下半
   time: 2026/09/12 12:00 ~ 2026/09/28 03:59
   js_five:
@@ -58,16 +83,17 @@
     - 虎克
     - 桂乃芬
   gz_five:
-    - 欢愉/向浪花掷下盛夏
-    - 巡猎/一场谎言的终幕
+    - 向浪花掷下盛夏
+    - 一场谎言的终幕
   gz_four:
-    - 巡猎/唯有沉默
-    - 丰饶/此时恰好
-    - 记忆/故事的下一页
+    - 唯有沉默
+    - 此时恰好
+    - 故事的下一页
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
 - ver: 4.5上半
-  time: 2026/08/26 11:00 ~ 2026/09/12 11:59
+  time: 4.5版本更新后 ~ 2026/09/12 11:59
   js_five:
     - 知更鸟•晴歌
     - 风堇
@@ -76,17 +102,17 @@
     - 青雀
     - 加拉赫
   gz_five:
-    - 记忆/你将起身歌唱
-    - 记忆/愿虹光永驻天空
+    - 你将起身歌唱
+    - 愿虹光永驻天空
   gz_four:
-    - 丰饶/梦的蒙太奇
-    - 记忆/天才们的问候
-    - 欢愉/放个短假
+    - 梦的蒙太奇
+    - 天才们的问候
+    - 放个短假
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/567f7f6c6eed3e25cce5339e46676ecc_853263285302904500.png
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/7ee9211864b02c13b8b2dd1ecaecaa61_2016140156803743506.jpg
 - ver: 4.4上半
-  time: 2026/07/15 11:00 ~ 2026/08/25 15:00
+  time: 4.4版本更新后 ~ 2026/08/25 15:00
   js_five:
     - 姬子•启行
   js_four:
@@ -94,14 +120,14 @@
     - 寒鸦
     - 希露瓦
   gz_five:
-    - 智识/当一颗星照亮夜空
+    - 当一颗星照亮夜空
   gz_four:
-    - 智识/谐乐静默之后
-    - 毁灭/在蓝天下
-    - 智识/「我」的诞生
+    - 谐乐静默之后
+    - 在蓝天下
+    - 我的诞生
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.4下半
   time: 2026/08/05 12:00 ~ 2026/08/25 15:00
   js_five:
@@ -113,18 +139,18 @@
     - 寒鸦
     - 希露瓦
   gz_five:
-    - 同谐/金血铭刻的时代
-    - 智识/生命当付之一炬
-    - 存护/命运从未公平
+    - 金血铭刻的时代
+    - 生命当付之一炬
+    - 命运从未公平
   gz_four:
-    - 智识/谐乐静默之后
-    - 毁灭/在蓝天下
-    - 智识/「我」的诞生
+    - 谐乐静默之后
+    - 在蓝天下
+    - 我的诞生
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.4上半
-  time: 2026/07/15 11:00 ~ 2026/08/05 11:59
+  time: 4.4版本更新后 ~ 2026/08/05 11:59
   js_five:
     - 火花
     - 丹恒•腾荒
@@ -134,36 +160,37 @@
     - 寒鸦
     - 希露瓦
   gz_five:
-    - 欢愉/花花世界迷人眼
-    - 存护/纵然山河万程
-    - 记忆/致长夜的星光
+    - 花花世界迷人眼
+    - 纵然山河万程
+    - 致长夜的星光
   gz_four:
-    - 智识/谐乐静默之后
-    - 毁灭/在蓝天下
-    - 智识/「我」的诞生
+    - 谐乐静默之后
+    - 在蓝天下
+    - 我的诞生
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/07/13/288909600/701e0fbf8b61bab0ccb96f00b9d65f59_4084677635034010707.png
-    - https://upload-bbs.miyoushe.com/upload/2026/07/13/288909600/c70cf11e86e692b43423d4beb04e7cbe_7898255907723179027.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.3下半
   time: 2026/06/24 12:00 ~ 2026/07/14 15:00
   js_five:
-    - 昔涟
     - 白厄
+    - 昔涟
   js_four:
-    - 三月七
+    - 三月七•存护
     - 阿兰
     - 驭空
   gz_five:
-    - 记忆/爱如此刻永恒
-    - 毁灭/黎明恰如此燃烧
+    - 黎明恰如此燃烧
+    - 爱如此刻永恒
   gz_four:
-    - 毁灭/秘密誓心
-    - 巡猎/点个关注吧！
-    - 同谐/舞！舞！舞！
+    - 秘密誓心
+    - 点个关注吧！
+    - 舞！舞！舞！
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.3上半
-  time: 2026/06/01 4.3版本更新后 ~ 2026/06/24 11:59
+  time: 4.3版本更新后 ~ 2026/06/24 11:59
   js_five:
     - 千冶•刃
     - 爻光
@@ -172,61 +199,81 @@
     - 卢卡
     - 停云
   gz_five:
-    - 虚无/灼尽炼狱的新骸
-    - 欢愉/当她决定看见
+    - 灼尽炼狱的新骸
+    - 当她决定看见
   gz_four:
-    - 虚无/晚安与睡颜
-    - 存护/余生的第一天
-    - 毁灭/鼹鼠党欢迎你
+    - 晚安与睡颜
+    - 余生的第一天
+    - 鼹鼠党欢迎你
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.2下半
   time: 2026/05/13 12:00 ~ 2026/06/01 03:59
   js_five:
     - 绯英
+    - 缇宝
+    - 星期日
+    - 飞霄
   js_four:
     - 桂乃芬
     - 玲可
     - 素裳
+    - 加拉赫
+    - 雪衣
+    - 虎克
   gz_five:
-    - 欢愉/邂逅于下一个花季
+    - 邂逅于下一个花季
+    - 如果时间是一朵花
+    - 回到大地的飞行
+    - 我将，巡征追猎
   gz_four:
-    - 巡猎/论剑
-    - 同谐/记忆中的模样
-    - 丰饶/同一种心情
+    - 论剑
+    - 记忆中的模样
+    - 同一种心情
+    - 芳华待灼
+    - 铭记于心的约定
+    - 猎物的视线
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
-- ver: 4.2下半
-  time: 2026/05/13 12:00 ~ 2026/06/01 03:59
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
+- ver: 4.2上半
+  time: 4.2版本更新后 ~ 2026/05/13 11:59
   js_five:
-    - 缇宝
-    - 星期日
-    - 飞霄
+    - 银狼LV.999
+    - 大丽花
+    - 遐蝶
+    - 流萤
   js_four:
     - 加拉赫
     - 雪衣
     - 虎克
   gz_five:
-    - 同谐/如果时间是一朵花
-    - 同谐/回到大地的飞行
-    - 巡猎/我将，巡征追猎
-  gz_four:
-    - 同谐/芳华待灼
-    - 毁灭/铭记于心的约定
-    - 虚无/猎物的视线
-  imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
-- ver: 4.2上半
-  time: 4.2版本更新后 ~ 2026/05/13 11:59
-  js_five: []
-  js_four: []
-  gz_five:
+    - 欢迎来到银河城
     - 勿忘她的火焰
     - 让告别，更美一些
     - 梦应归于何处
-  gz_four: []
+  gz_four:
+    - 芳华待灼
+    - 铭记于心的约定
+    - 猎物的视线
+  imgs:
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
+- ver: 4.1上半
+  time: 4.1版本更新后 ~ 2026/04/21 15:00
+  js_five:
+    - 不死途
+  js_four:
+    - 艾丝妲
+    - 貊泽
+    - 米沙
+  gz_five:
+    - 一场谎言的终幕
+  gz_four:
+    - 别让世界静下来
+    - 黑夜如影随行
+    - 梦的蒙太奇
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
     - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
@@ -239,18 +286,22 @@
     - 貊泽
     - 米沙
   gz_five:
-    - 巡猎/驶向第二次生命
+    - 驶向第二次生命
   gz_four:
-    - 智识/别让世界静下来
-    - 巡猎/黑夜如影随行
-    - 丰饶/梦的蒙太奇
+    - 别让世界静下来
+    - 黑夜如影随行
+    - 梦的蒙太奇
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.1上半
   time: 4.1版本更新后 ~ 2026/04/08 11:59
-  js_five: []
-  js_four: []
+  js_five:
+    - 风堇
+  js_four:
+    - 艾丝妲
+    - 貊泽
+    - 米沙
   gz_five:
     - 愿虹光永驻天空
   gz_four:
@@ -258,28 +309,29 @@
     - 黑夜如影随行
     - 梦的蒙太奇
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
+    - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/567f7f6c6eed3e25cce5339e46676ecc_853263285302904500.png
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/7ee9211864b02c13b8b2dd1ecaecaa61_2016140156803743506.jpg
-- ver: 4.0下半
-  time: 2026/03/03 12:00 ~ 2026/03/24 15:00
+- ver: 4.0上半
+  time: 4.0版本更新后 ~ 2026/03/24 15:00
   js_five:
-    - 火花
+    - 爻光
   js_four:
     - 佩拉
     - 寒鸦
     - 青雀
   gz_five:
-    - 欢愉/花花世界迷人眼
+    - 当她决定看见
   gz_four:
-    - 同谐/与行星相会
-    - 虚无/决心如汗珠般闪耀
-    - 记忆/故事的下一页
+    - 与行星相会
+    - 决心如汗珠般闪耀
+    - 故事的下一页
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.0下半
   time: 2026/03/03 12:00 ~ 2026/03/24 15:00
   js_five:
+    - 火花
     - 刻律德菈
     - 乱破
     - 花火
@@ -288,20 +340,20 @@
     - 寒鸦
     - 青雀
   gz_five:
-    - 同谐/金血铭刻的时代
-    - 智识/忍法帖•缭乱破魔
-    - 同谐/游戏尘寰
+    - 花花世界迷人眼
+    - 金血铭刻的时代
+    - 忍法帖•缭乱破魔
+    - 游戏尘寰
   gz_four:
-    - 同谐/与行星相会
-    - 虚无/决心如汗珠般闪耀
-    - 记忆/故事的下一页
+    - 与行星相会
+    - 决心如汗珠般闪耀
+    - 故事的下一页
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 4.0上半
-  time: 2026-02-13 ~ 2026-03-24
+  time: 4.0版本更新后 ~ 2026/03/03 11:59
   js_five:
-    - 爻光
     - 长夜月
     - 海瑟音
     - 黑天鹅
@@ -310,144 +362,117 @@
     - 寒鸦
     - 青雀
   gz_five:
-    - 欢愉/当她决定看见
-    - 记忆/致长夜的星光
-    - 虚无/海洋为何而歌
-    - 虚无/重塑时光之忆
+    - 致长夜的星光
+    - 海洋为何而歌
+    - 重塑时光之忆
   gz_four:
-    - 同谐/与行星相会
-    - 虚无/决心如汗珠般闪耀
-    - 记忆/故事的下一页
+    - 与行星相会
+    - 决心如汗珠般闪耀
+    - 故事的下一页
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/07/13/288909600/701e0fbf8b61bab0ccb96f00b9d65f59_4084677635034010707.png
-    - https://upload-bbs.miyoushe.com/upload/2026/07/13/288909600/c70cf11e86e692b43423d4beb04e7cbe_7898255907723179027.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.8额外
   time: 2026/01/28 12:00 ~ 2026/02/12 15:00
-  js_five: []
-  js_four: []
+  js_five:
+    - 阿格莱雅
+    - 星期日
+  js_four:
+    - 驭空
+    - 停云
+    - 丹恒
   gz_five:
+    - 将光阴织成黄金
     - 回到大地的飞行
   gz_four:
     - 天才们的问候
     - 宇宙市场趋势
     - 舞！舞！舞！
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
-    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/39a6ff505ec46baf5b3c032b893cd702_1985660798086594427.jpg
-- ver: 3.8下半
-  time: 2026-01-28 ~ 2026-02-12
-  js_five:
-    - 阿格莱雅
-    - 星期日
-  js_four:
-    - 停云
-    - 驭空
-    - 丹恒
-  gz_five:
-    - 记忆/将光阴织成黄金
-    - 同谐/回到大地的飞行
-  gz_four:
-    - 记忆/天才们的问候
-    - 存护/宇宙市场趋势
-    - 同谐/舞！舞！舞！
-  imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.8下半
   time: 2026/01/07 12:00 ~ 2026/01/28 11:59
   js_five:
     - 忘归人
     - 灵砂
   js_four:
-    - 娜塔莎
     - 桑博
+    - 娜塔莎
     - 阿兰
   gz_five:
-    - 虚无/长路终有归途
-    - 丰饶/唯有香如故
+    - 长路终有归途
+    - 唯有香如故
   gz_four:
-    - 智识/天才们的休憩
-    - 丰饶/一场术后对话
-    - 毁灭/鼹鼠党欢迎你
+    - 天才们的休憩
+    - 鼹鼠党欢迎你
+    - 一场术后对话
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
-- ver: 3.8上半
-  time: 2026-01-07 ~ 2026-01-28
-  js_five:
-    - 忘归人
-    - 灵砂
-  js_four:
-    - 娜塔莎
-    - 桑博
-    - 阿兰
-  gz_five:
-    - 虚无/长路终有归途
-    - 丰饶/唯有香如故
-  gz_four:
-    - 智识/天才们的休憩
-    - 丰饶/一场术后对话
-    - 毁灭/鼹鼠党欢迎你
-  imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.8上半
   time: 3.8版本更新后 ~ 2026/01/07 11:59
   js_five:
     - 大丽花
     - 流萤
   js_four:
-    - 加拉赫
+    - 三月七•存护
     - 卢卡
-    - 三月七
+    - 加拉赫
   gz_five:
-    - 虚无/勿忘她的火焰
-    - 毁灭/梦应归于何处
+    - 勿忘她的火焰
+    - 梦应归于何处
   gz_four:
-    - 存护/两个人的演唱会
-    - 同谐/记忆中的模样
-    - 虚无/晚安与睡颜
+    - 晚安与睡颜
+    - 记忆中的模样
+    - 两个人的演唱会
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
-- ver: 3.7下半
-  time: 2025/11/26 12:00 ~ 2025/12/16 15:00
-  js_five:
-    - 昔涟
-    - 白厄
-    - 赛飞儿
-    - 万敌
-  js_four:
-    - 貊泽
-    - 玲可
-    - 佩拉
-  gz_five:
-    - 记忆/爱如此刻永恒
-    - 毁灭/黎明恰如此燃烧
-    - 虚无/谎言在风中飘扬
-    - 毁灭/血火啊，燃烧前路
-  gz_four:
-    - 记忆/故事的下一页
-    - 存护/两个人的演唱会
-    - 虚无/无边曼舞
-  imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.7上半
   time: 3.7版本更新后 ~ 2025/12/16 15:00
   js_five:
     - 昔涟
-    - 风堇
-    - 遐蝶
-    - 缇宝
   js_four:
     - 貊泽
     - 玲可
     - 佩拉
   gz_five:
-    - 记忆/爱如此刻永恒
-    - 记忆/愿虹光永驻天空
-    - 记忆/让告别，更美一些
-    - 同谐/如果时间是一朵花
+    - 爱如此刻永恒
   gz_four:
-    - 记忆/故事的下一页
-    - 存护/两个人的演唱会
-    - 虚无/无边曼舞
+    - 故事的下一页
+    - 两个人的演唱会
+    - 无边曼舞
+  imgs:
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
+- ver: 3.7下半
+  time: 2025/11/26 12:00 ~ 2025/12/16 15:00
+  js_five:
+    - 白厄
+    - 赛飞儿
+    - 万敌
+  js_four: []
+  gz_five:
+    - 黎明恰如此燃烧
+    - 谎言在风中飘扬
+    - 血火啊，燃烧前路
+  gz_four: []
+  imgs:
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
+- ver: 3.7上半
+  time: 3.7版本更新后 ~ 2025/11/26 11:59
+  js_five:
+    - 风堇
+    - 遐蝶
+    - 缇宝
+  js_four: []
+  gz_five:
+    - 愿虹光永驻天空
+    - 让告别，更美一些
+    - 如果时间是一朵花
+  gz_four: []
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/567f7f6c6eed3e25cce5339e46676ecc_853263285302904500.png
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/7ee9211864b02c13b8b2dd1ecaecaa61_2016140156803743506.jpg
@@ -461,53 +486,53 @@
     - 寒鸦
     - 希露瓦
   gz_five:
-    - 存护/纵然山河万程
-    - 智识/生命当付之一炬
+    - 纵然山河万程
+    - 生命当付之一炬
   gz_four:
-    - 存护/朗道的选择
-    - 巡猎/唯有沉默
-    - 丰饶/此时恰好
+    - 朗道的选择
+    - 唯有沉默
+    - 此时恰好
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.6上半
   time: 3.6版本更新后 ~ 2025/10/15 11:59
   js_five:
     - 长夜月
     - 大黑塔
   js_four:
+    - 米沙
     - 桂乃芬
     - 雪衣
-    - 米沙
   gz_five:
-    - 记忆/致长夜的星光
-    - 智识/向着不可追问处
+    - 致长夜的星光
+    - 向着不可追问处
   gz_four:
-    - 丰饶/梦的蒙太奇
-    - 智识/谐乐静默之后
-    - 同谐/舞！舞！舞！
+    - 梦的蒙太奇
+    - 谐乐静默之后
+    - 舞！舞！舞！
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/07/13/288909600/701e0fbf8b61bab0ccb96f00b9d65f59_4084677635034010707.png
-    - https://upload-bbs.miyoushe.com/upload/2026/07/13/288909600/c70cf11e86e692b43423d4beb04e7cbe_7898255907723179027.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.5下半
   time: 2025/09/02 12:00 ~ 2025/09/23 15:00
   js_five:
     - 刻律德菈
     - 银狼
   js_four:
-    - 丹恒
     - 桑博
     - 青雀
+    - 丹恒
   gz_five:
-    - 同谐/金血铭刻的时代
-    - 虚无/雨一直下
+    - 金血铭刻的时代
+    - 雨一直下
   gz_four:
-    - 智识/「我」的诞生
-    - 巡猎/论剑
-    - 虚无/晚安与睡颜
+    - 我的诞生
+    - 论剑
+    - 晚安与睡颜
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.5上半
   time: 3.5版本更新后 ~ 2025/09/02 11:59
   js_five:
@@ -518,14 +543,15 @@
     - 阿兰
     - 虎克
   gz_five:
-    - 虚无/海洋为何而歌
-    - 虚无/只需等待
+    - 海洋为何而歌
+    - 只需等待
   gz_four:
-    - 虚无/猎物的视线
-    - 同谐/芳华待灼
-    - 毁灭/铭记于心的约定
+    - 猎物的视线
+    - 芳华待灼
+    - 铭记于心的约定
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.4下半
   time: 2025/07/23 12:00 ~ 2025/08/12 15:00
   js_five:
@@ -533,19 +559,20 @@
     - 镜流
     - 刃
   js_four:
+    - 寒鸦
     - 玲可
     - 卢卡
-    - 寒鸦
   gz_five:
-    - 毁灭/梦应归于何处
-    - 毁灭/此身为剑
-    - 毁灭/到不了的彼岸
+    - 梦应归于何处
+    - 此身为剑
+    - 到不了的彼岸
   gz_four:
-    - 毁灭/秘密誓心
-    - 巡猎/点个关注吧！
-    - 虚无/决心如汗珠般闪耀
+    - 秘密誓心
+    - 点个关注吧！
+    - 决心如汗珠般闪耀
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.4上半
   time: 3.4版本更新后 ~ 2025/07/23 11:59
   js_five:
@@ -555,19 +582,20 @@
     - 花火
   js_four:
     - 停云
-    - 三月七
+    - 三月七•存护
     - 驭空
   gz_five:
-    - 毁灭/黎明恰如此燃烧
-    - 同谐/如果时间是一朵花
-    - 同谐/回到大地的飞行
-    - 同谐/游戏尘寰
+    - 黎明恰如此燃烧
+    - 如果时间是一朵花
+    - 回到大地的飞行
+    - 游戏尘寰
   gz_four:
-    - 记忆/故事的下一页
-    - 同谐/与行星相会
-    - 毁灭/在蓝天下
+    - 故事的下一页
+    - 与行星相会
+    - 在蓝天下
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.3下半
   time: 2025/06/11 12:00 ~ 2025/07/01 15:00
   js_five:
@@ -578,14 +606,15 @@
     - 雪衣
     - 素裳
   gz_five:
-    - 虚无/谎言在风中飘扬
-    - 记忆/将光阴织成黄金
+    - 谎言在风中飘扬
+    - 将光阴织成黄金
   gz_four:
-    - 记忆/天才们的问候
-    - 虚无/猎物的视线
-    - 丰饶/同一种心情
+    - 天才们的问候
+    - 猎物的视线
+    - 同一种心情
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.3上半
   time: 3.3版本更新后 ~ 2025/06/11 11:59
   js_five:
@@ -596,12 +625,12 @@
     - 希露瓦
     - 娜塔莎
   gz_five:
-    - 记忆/愿虹光永驻天空
-    - 智识/向着不可追问处
+    - 愿虹光永驻天空
+    - 向着不可追问处
   gz_four:
-    - 智识/别让世界静下来
-    - 巡猎/黑夜如影随行
-    - 存护/余生的第一天
+    - 别让世界静下来
+    - 黑夜如影随行
+    - 余生的第一天
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/567f7f6c6eed3e25cce5339e46676ecc_853263285302904500.png
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/7ee9211864b02c13b8b2dd1ecaecaa61_2016140156803743506.jpg
@@ -615,15 +644,15 @@
     - 希露瓦
     - 貊泽
   gz_five:
-    - 智识/生命当付之一炬
-    - 巡猎/纯粹思维的洗礼
+    - 生命当付之一炬
+    - 纯粹思维的洗礼
   gz_four:
-    - 存护/宇宙市场趋势
-    - 智识/谐乐静默之后
-    - 毁灭/鼹鼠党欢迎你
+    - 宇宙市场趋势
+    - 谐乐静默之后
+    - 鼹鼠党欢迎你
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.2上半
   time: 3.2版本更新后 ~ 2025/04/30 11:59
   js_five:
@@ -636,16 +665,17 @@
     - 加拉赫
     - 玲可
   gz_five:
-    - 记忆/让告别，更美一些
-    - 虚无/长路终有归途
-    - 虚无/那无数个春天
-    - 虚无/行于流逝的岸
+    - 让告别，更美一些
+    - 长路终有归途
+    - 那无数个春天
+    - 行于流逝的岸
   gz_four:
-    - 虚无/晚安与睡颜
-    - 丰饶/一场术后对话
-    - 虚无/无边曼舞
+    - 晚安与睡颜
+    - 一场术后对话
+    - 无边曼舞
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.1下半
   time: 2025/03/19 12:00 ~ 2025/04/08 15:00
   js_five:
@@ -656,14 +686,15 @@
     - 雪衣
     - 娜塔莎
   gz_five:
-    - 毁灭/血火啊，燃烧前路
-    - 丰饶/惊魂夜
+    - 血火啊，燃烧前路
+    - 惊魂夜
   gz_four:
-    - 丰饶/此时恰好
-    - 毁灭/秘密誓心
-    - 同谐/记忆中的模样
+    - 此时恰好
+    - 秘密誓心
+    - 记忆中的模样
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.1上半
   time: 3.1版本更新后 ~ 2025/03/19 11:59
   js_five:
@@ -674,14 +705,15 @@
     - 虎克
     - 桂乃芬
   gz_five:
-    - 同谐/如果时间是一朵花
-    - 毁灭/落日时起舞
+    - 如果时间是一朵花
+    - 落日时起舞
   gz_four:
-    - 同谐/与行星相会
-    - 丰饶/一场术后对话
-    - 存护/宇宙市场趋势
+    - 与行星相会
+    - 一场术后对话
+    - 宇宙市场趋势
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.0下半
   time: 2025/02/05 12:00 ~ 2025/02/25 15:00
   js_five:
@@ -694,17 +726,17 @@
     - 寒鸦
     - 素裳
   gz_five:
-    - 记忆/将光阴织成黄金
-    - 巡猎/驶向第二次生命
-    - 同谐/夜色流光溢彩
-    - 虚无/雨一直下
+    - 将光阴织成黄金
+    - 驶向第二次生命
+    - 夜色流光溢彩
+    - 雨一直下
   gz_four:
-    - 记忆/天才们的问候
-    - 巡猎/点个关注吧！
-    - 同谐/舞！舞！舞！
+    - 天才们的问候
+    - 点个关注吧！
+    - 舞！舞！舞！
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/567f7f6c6eed3e25cce5339e46676ecc_853263285302904500.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 3.0上半
   time: 3.0版本更新后 ~ 2025/02/05 11:59
   js_five:
@@ -717,16 +749,17 @@
     - 艾丝妲
     - 貊泽
   gz_five:
-    - 智识/向着不可追问处
-    - 丰饶/唯有香如故
-    - 巡猎/我将，巡征追猎
-    - 智识/偏偏希望无价
+    - 向着不可追问处
+    - 唯有香如故
+    - 我将，巡征追猎
+    - 偏偏希望无价
   gz_four:
-    - 巡猎/唯有沉默
-    - 存护/朗道的选择
-    - 智识/天才们的休憩
+    - 唯有沉默
+    - 朗道的选择
+    - 天才们的休憩
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.7下半
   time: 2024/12/25 12:00 ~ 2025/01/14 15:00
   js_five:
@@ -737,14 +770,15 @@
     - 驭空
     - 米沙
   gz_five:
-    - 虚无/长路终有归途
-    - 毁灭/梦应归于何处
+    - 长路终有归途
+    - 梦应归于何处
   gz_four:
-    - 毁灭/铭记于心的约定
-    - 虚无/决心如汗珠般闪耀
-    - 存护/两个人的演唱会
+    - 铭记于心的约定
+    - 决心如汗珠般闪耀
+    - 两个人的演唱会
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.7上半
   time: 2.7版本更新后 ~ 2024/12/25 11:59
   js_five:
@@ -755,33 +789,34 @@
     - 阿兰
     - 停云
   gz_five:
-    - 同谐/回到大地的飞行
-    - 智识/拂晓之前
+    - 回到大地的飞行
+    - 拂晓之前
   gz_four:
-    - 同谐/芳华待灼
-    - 智识/「我」的诞生
-    - 巡猎/论剑
+    - 芳华待灼
+    - 我的诞生
+    - 论剑
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.6下半
   time: 2024/11/13 12:00 ~ 2024/12/03 15:00
   js_five:
     - 黄泉
     - 砂金
   js_four:
-    - 三月七
-    - 佩拉
+    - 三月七•存护
     - 桑博
+    - 佩拉
   gz_five:
-    - 虚无/行于流逝的岸
-    - 存护/命运从未公平
+    - 行于流逝的岸
+    - 命运从未公平
   gz_four:
-    - 存护/余生的第一天
-    - 虚无/无边曼舞
-    - 智识/别让世界静下来
+    - 余生的第一天
+    - 无边曼舞
+    - 别让世界静下来
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.6上半
   time: 2.6版本更新后 ~ 2024/11/13 11:59
   js_five:
@@ -792,32 +827,34 @@
     - 雪衣
     - 驭空
   gz_five:
-    - 智识/忍法帖•缭乱破魔
-    - 毁灭/比阳光更明亮的
+    - 忍法帖•缭乱破魔
+    - 比阳光更明亮的
   gz_four:
-    - 丰饶/梦的蒙太奇
-    - 智识/谐乐静默之后
-    - 毁灭/在蓝天下
+    - 梦的蒙太奇
+    - 谐乐静默之后
+    - 在蓝天下
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.5下半
   time: 2024/10/02 12:00 ~ 2024/10/22 15:00
   js_five:
     - 灵砂
-    - 托帕&账账
+    - 托帕&amp;账账
   js_four:
     - 米沙
     - 娜塔莎
     - 桂乃芬
   gz_five:
-    - 丰饶/唯有香如故
-    - 巡猎/烦恼着，幸福着
+    - 唯有香如故
+    - 烦恼着，幸福着
   gz_four:
-    - 巡猎/黑夜如影随行
-    - 丰饶/同一种心情
-    - 同谐/与行星相会
+    - 黑夜如影随行
+    - 同一种心情
+    - 与行星相会
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.5上半
   time: 2.5版本更新后 ~ 2024/10/02 11:59
   js_five:
@@ -830,17 +867,17 @@
     - 艾丝妲
     - 卢卡
   gz_five:
-    - 巡猎/我将，巡征追猎
-    - 虚无/只需等待
-    - 虚无/重塑时光之忆
-    - 同谐/夜色流光溢彩
+    - 我将，巡征追猎
+    - 只需等待
+    - 重塑时光之忆
+    - 夜色流光溢彩
   gz_four:
-    - 巡猎/论剑
-    - 虚无/决心如汗珠般闪耀
-    - 智识/「我」的诞生
+    - 论剑
+    - 决心如汗珠般闪耀
+    - 我的诞生
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/567f7f6c6eed3e25cce5339e46676ecc_853263285302904500.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.4下半
   time: 2024/08/21 12:00 ~ 2024/09/09 15:00
   js_five:
@@ -851,14 +888,15 @@
     - 桂乃芬
     - 阿兰
   gz_five:
-    - 虚无/那无数个春天
-    - 同谐/游戏尘寰
+    - 那无数个春天
+    - 游戏尘寰
   gz_four:
-    - 同谐/芳华待灼
-    - 虚无/猎物的视线
-    - 毁灭/秘密誓心
+    - 芳华待灼
+    - 猎物的视线
+    - 秘密誓心
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.4上半
   time: 2.4版本更新后 ~ 2024/08/21 11:59
   js_five:
@@ -869,14 +907,15 @@
     - 驭空
     - 玲可
   gz_five:
-    - 毁灭/落日时起舞
-    - 丰饶/惊魂夜
+    - 落日时起舞
+    - 惊魂夜
   gz_four:
-    - 毁灭/鼹鼠党欢迎你
-    - 丰饶/此时恰好
-    - 智识/「我」的诞生
+    - 鼹鼠党欢迎你
+    - 此时恰好
+    - 我的诞生
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.3下半
   time: 2024/07/10 12:00 ~ 2024/07/30 15:00
   js_five:
@@ -887,14 +926,15 @@
     - 娜塔莎
     - 艾丝妲
   gz_five:
-    - 智识/偏偏希望无价
-    - 智识/片刻，留在眼底
+    - 偏偏希望无价
+    - 片刻，留在眼底
   gz_four:
-    - 丰饶/同一种心情
-    - 存护/宇宙市场趋势
-    - 智识/谐乐静默之后
+    - 同一种心情
+    - 宇宙市场趋势
+    - 谐乐静默之后
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.3上半
   time: 2.3版本更新后 ~ 2024/07/10 11:59
   js_five:
@@ -905,14 +945,15 @@
     - 米沙
     - 雪衣
   gz_five:
-    - 毁灭/梦应归于何处
-    - 同谐/镜中故我
+    - 梦应归于何处
+    - 镜中故我
   gz_four:
-    - 同谐/记忆中的模样
-    - 存护/余生的第一天
-    - 虚无/猎物的视线
+    - 记忆中的模样
+    - 余生的第一天
+    - 猎物的视线
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.2下半
   time: 2024/05/29 12:00 ~ 2024/06/18 15:00
   js_five:
@@ -923,33 +964,34 @@
     - 卢卡
     - 虎克
   gz_five:
-    - 巡猎/驶向第二次生命
-    - 存护/她已闭上双眼
+    - 驶向第二次生命
+    - 她已闭上双眼
   gz_four:
-    - 智识/天才们的休憩
-    - 毁灭/秘密誓心
-    - 存护/朗道的选择
+    - 天才们的休憩
+    - 秘密誓心
+    - 朗道的选择
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.2上半
   time: 2.2版本更新后 ~ 2024/05/29 11:59
   js_five:
     - 知更鸟
-    - 托帕&账账
+    - 托帕&amp;账账
   js_four:
-    - 三月七
+    - 三月七•存护
     - 寒鸦
     - 雪衣
   gz_five:
-    - 同谐/夜色流光溢彩
-    - 巡猎/烦恼着，幸福着
+    - 夜色流光溢彩
+    - 烦恼着，幸福着
   gz_four:
-    - 虚无/无边曼舞
-    - 巡猎/论剑
-    - 丰饶/此时恰好
+    - 论剑
+    - 无边曼舞
+    - 此时恰好
   imgs:
     - https://upload-bbs.miyoushe.com/upload/2026/08/24/288909600/567f7f6c6eed3e25cce5339e46676ecc_853263285302904500.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.1下半
   time: 2024/04/17 12:00 ~ 2024/05/07 15:00
   js_five:
@@ -960,15 +1002,15 @@
     - 卢卡
     - 希露瓦
   gz_five:
-    - 存护/命运从未公平
-    - 毁灭/此身为剑
+    - 命运从未公平
+    - 此身为剑
   gz_four:
-    - 存护/两个人的演唱会
-    - 丰饶/同一种心情
-    - 智识/别让世界静下来
+    - 两个人的演唱会
+    - 同一种心情
+    - 别让世界静下来
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/0433525aca441e4e1e25f3e3298a70c4_8887406544256534640.png
-    - https://upload-bbs.miyoushe.com/upload/2026/08/03/288909600/84ef59d694c367946fe982c0ad51e323_2534924258171230617.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/09/288909600/177a4564bace468e296b094f48961b3c_540400051592203842.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.1上半
   time: 2.1版本更新后 ~ 2024/04/17 11:59
   js_five:
@@ -979,14 +1021,15 @@
     - 佩拉
     - 丹恒
   gz_five:
-    - 虚无/行于流逝的岸
-    - 丰饶/棺的回响
+    - 行于流逝的岸
+    - 棺的回响
   gz_four:
-    - 虚无/晚安与睡颜
-    - 丰饶/一场术后对话
-    - 巡猎/点个关注吧！
+    - 晚安与睡颜
+    - 一场术后对话
+    - 点个关注吧！
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.0下半
   time: 2024/02/29 12:00 ~ 2024/03/26 15:00
   js_five:
@@ -997,14 +1040,15 @@
     - 青雀
     - 寒鸦
   gz_five:
-    - 同谐/游戏尘寰
-    - 智识/拂晓之前
+    - 游戏尘寰
+    - 拂晓之前
   gz_four:
-    - 同谐/与行星相会
-    - 毁灭/在蓝天下
-    - 智识/天才们的休憩
+    - 与行星相会
+    - 在蓝天下
+    - 天才们的休憩
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 2.0上半
   time: 2.0版本更新后 ~ 2024/02/29 11:59
   js_five:
@@ -1015,14 +1059,15 @@
     - 停云
     - 桂乃芬
   gz_five:
-    - 虚无/重塑时光之忆
-    - 毁灭/比阳光更明亮的
+    - 重塑时光之忆
+    - 比阳光更明亮的
   gz_four:
-    - 毁灭/铭记于心的约定
-    - 虚无/决心如汗珠般闪耀
-    - 同谐/舞！舞！舞！
+    - 铭记于心的约定
+    - 决心如汗珠般闪耀
+    - 舞！舞！舞！
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.6下半
   time: 2024/01/17 12:00 ~ 2024/02/05 15:00
   js_five:
@@ -1033,32 +1078,34 @@
     - 娜塔莎
     - 虎克
   gz_five:
-    - 巡猎/纯粹思维的洗礼
-    - 虚无/只需等待
+    - 纯粹思维的洗礼
+    - 只需等待
   gz_four:
-    - 丰饶/此时恰好
-    - 巡猎/唯有沉默
-    - 存护/朗道的选择
+    - 此时恰好
+    - 唯有沉默
+    - 朗道的选择
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.6上半
   time: 1.6版本更新后 ~ 2024/01/17 11:59
   js_five:
     - 阮•梅
     - 刃
   js_four:
-    - 雪衣
-    - 三月七
+    - 三月七•存护
     - 停云
+    - 雪衣
   gz_five:
-    - 同谐/镜中故我
-    - 毁灭/到不了的彼岸
+    - 镜中故我
+    - 到不了的彼岸
   gz_four:
-    - 同谐/与行星相会
-    - 存护/余生的第一天
-    - 毁灭/秘密誓心
+    - 与行星相会
+    - 余生的第一天
+    - 秘密誓心
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.5下半
   time: 2023/12/06 12:00 ~ 2023/12/26 15:00
   js_five:
@@ -1069,14 +1116,15 @@
     - 玲可
     - 艾丝妲
   gz_five:
-    - 智识/片刻，留在眼底
-    - 虚无/雨一直下
+    - 片刻，留在眼底
+    - 雨一直下
   gz_four:
-    - 毁灭/在蓝天下
-    - 丰饶/一场术后对话
-    - 智识/「我」的诞生
+    - 在蓝天下
+    - 一场术后对话
+    - 我的诞生
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.5上半
   time: 1.5版本更新后 ~ 2023/12/06 11:59
   js_five:
@@ -1086,31 +1134,33 @@
     - 阿兰
     - 希露瓦
   gz_five:
-    - 丰饶/惊魂夜
+    - 惊魂夜
   gz_four:
-    - 丰饶/同一种心情
-    - 巡猎/点个关注吧！
-    - 存护/宇宙市场趋势
+    - 同一种心情
+    - 点个关注吧！
+    - 宇宙市场趋势
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.4下半
   time: 2023/10/27 12:00 ~ 2023/11/14 15:00
   js_five:
-    - 托帕&账账
+    - 托帕&amp;账账
     - 希儿
   js_four:
     - 桂乃芬
     - 卢卡
     - 素裳
   gz_five:
-    - 巡猎/烦恼着，幸福着
-    - 巡猎/于夜色中
+    - 烦恼着，幸福着
+    - 于夜色中
   gz_four:
-    - 毁灭/鼹鼠党欢迎你
-    - 虚无/决心如汗珠般闪耀
-    - 巡猎/唯有沉默
+    - 鼹鼠党欢迎你
+    - 决心如汗珠般闪耀
+    - 唯有沉默
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.4上半
   time: 1.4版本更新后 ~ 2023/10/27 11:59
   js_five:
@@ -1120,13 +1170,14 @@
     - 青雀
     - 桑博
   gz_five:
-    - 毁灭/此身为剑
+    - 此身为剑
   gz_four:
-    - 同谐/记忆中的模样
-    - 智识/别让世界静下来
-    - 虚无/猎物的视线
+    - 别让世界静下来
+    - 记忆中的模样
+    - 猎物的视线
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.3下半
   time: 2023/09/20 12:00 ~ 2023/10/10 15:00
   js_five:
@@ -1136,13 +1187,14 @@
     - 虎克
     - 佩拉
   gz_five:
-    - 存护/她已闭上双眼
+    - 她已闭上双眼
   gz_four:
-    - 丰饶/此时恰好
-    - 存护/宇宙市场趋势
-    - 毁灭/在蓝天下
+    - 宇宙市场趋势
+    - 此时恰好
+    - 在蓝天下
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.3上半
   time: 1.3版本更新后 ~ 2023/09/20 11:59
   js_five:
@@ -1150,15 +1202,16 @@
   js_four:
     - 驭空
     - 艾丝妲
-    - 三月七
+    - 三月七•存护
   gz_five:
-    - 毁灭/比阳光更明亮的
+    - 比阳光更明亮的
   gz_four:
-    - 同谐/舞！舞！舞！
-    - 同谐/与行星相会
-    - 存护/朗道的选择
+    - 与行星相会
+    - 舞！舞！舞！
+    - 朗道的选择
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.2下半
   time: 2023/08/09 12:00 ~ 2023/08/29 15:00
   js_five:
@@ -1168,45 +1221,48 @@
     - 桑博
     - 希露瓦
   gz_five:
-    - 虚无/只需等待
+    - 只需等待
   gz_four:
-    - 虚无/决心如汗珠般闪耀
-    - 虚无/猎物的视线
-    - 智识/「我」的诞生
+    - 决心如汗珠般闪耀
+    - 猎物的视线
+    - 我的诞生
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.2上半
   time: 1.2版本更新后 ~ 2023/08/09 11:59
   js_five:
     - 刃
   js_four:
     - 阿兰
-    - 娜塔莎
     - 素裳
+    - 娜塔莎
   gz_five:
-    - 毁灭/到不了的彼岸
+    - 到不了的彼岸
   gz_four:
-    - 毁灭/秘密誓心
-    - 丰饶/同一种心情
-    - 巡猎/论剑
+    - 秘密誓心
+    - 论剑
+    - 同一种心情
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.1下半
   time: 2023/06/28 12:00 ~ 2023/07/18 15:00
   js_five:
     - 罗刹
   js_four:
-    - 驭空
     - 佩拉
     - 青雀
+    - 驭空
   gz_five:
-    - 丰饶/棺的回响
+    - 棺的回响
   gz_four:
-    - 虚无/晚安与睡颜
-    - 智识/天才们的休憩
-    - 同谐/舞！舞！舞！
+    - 晚安与睡颜
+    - 舞！舞！舞！
+    - 天才们的休憩
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.1上半
   time: 1.1版本更新后 ~ 2023/06/28 11:59
   js_five:
@@ -1216,29 +1272,31 @@
     - 艾丝妲
     - 希露瓦
   gz_five:
-    - 虚无/雨一直下
+    - 雨一直下
   gz_four:
-    - 巡猎/点个关注吧！
-    - 同谐/记忆中的模样
-    - 智识/别让世界静下来
+    - 点个关注吧！
+    - 记忆中的模样
+    - 别让世界静下来
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.0下半
   time: 2023/05/17 18:00 ~ 2023/06/06 15:00
   js_five:
     - 景元
   js_four:
-    - 停云
     - 素裳
-    - 三月七
+    - 三月七•存护
+    - 停云
   gz_five:
-    - 智识/拂晓之前
+    - 拂晓之前
   gz_four:
-    - 同谐/与行星相会
-    - 巡猎/唯有沉默
-    - 存护/余生的第一天
+    - 唯有沉默
+    - 余生的第一天
+    - 与行星相会
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg
 - ver: 1.0上半
   time: 正式开服后 ~ 2023/05/17 17:59
   js_five:
@@ -1248,10 +1306,11 @@
     - 虎克
     - 佩拉
   gz_five:
-    - 巡猎/于夜色中
+    - 于夜色中
   gz_four:
-    - 丰饶/一场术后对话
-    - 虚无/晚安与睡颜
-    - 毁灭/鼹鼠党欢迎你
+    - 晚安与睡颜
+    - 鼹鼠党欢迎你
+    - 一场术后对话
   imgs:
-    - https://upload-bbs.miyoushe.com/upload/2026/08/25/288909601/6d3e89a10835c6470735f94cd8b9733c_7561978660233674187.png
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/515f864877707da83e62fa6bf7f403cd_660648913595571180.jpg
+    - https://upload-bbs.miyoushe.com/upload/2026/09/24/288909600/7e191ec19f959efefdded81d62ed4f0a_6032642277039335799.jpg

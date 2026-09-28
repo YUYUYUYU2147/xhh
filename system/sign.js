@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import fs from 'fs';
+import md5 from 'md5';
 
 import {
     sleep,
@@ -11,6 +12,12 @@ import {
 } from '#xhh';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
 import { manualGeetest } from './manual_geetest.js';
+import Runtime from '../../../lib/plugins/runtime.js';
+
+// 手动验证码服务改由 xhh/index.js 在插件载入完成后统一启动。
+// 这里曾放在模块顶层，但 sign.js 会被 system/index.js 循环引用（config 尚未初始化），
+// 启动调用会抛 ReferenceError，导致服务实际没被拉起。
+
 
 
 function cookiePart(ck = '', key) {
@@ -347,14 +354,12 @@ function isAllowSignGroup(signGroup, group) {
 
 /* ============================================================
  * 米游社社区签到
- * 全部 bbs 请求统一交给 https://mhy.989894366.xyz/mihoyo_api/get 代发：
- * 签名、设备指纹、风控都由代理服务端处理，本地只拼请求、读结果、兜超时。
+ * 请求在本地完成；遇到验证码时只通过手动验证页面处理。
  * ============================================================ */
-const MHY_PROXY_URL = 'https://mhy.989894366.xyz/mihoyo_api/get';
 const BBS_API_HOST = 'https://bbs-api.miyoushe.com';
 const BBS_SIGN_PATH = '/apihub/app/api/signIn';
-// 代理是第三方服务，必须有超时兜底，否则指令会一直挂着不回复
-const PROXY_TIMEOUT = 20000;
+const BBS_DS_SALT = 't0qEgfub6cvueAPgR5m9aQWWVciEer7v';
+const BBS_REQUEST_TIMEOUT = 20000;
 // 每日任务取帖用的板块：一个区够用，不必每个板块都刷一遍请求
 const TASK_FORUM_ID = '26';
 const NEED_READ = 5;
@@ -370,79 +375,119 @@ const BBS_FORUMS = [
     { name: '绝区零', signId: '8', forumId: '57' },
 ];
 
-const BBS_PROXY_GAME = {
-    '2': 'hk4e',
-    '6': 'hkrpg',
-    '8': 'nap',
-};
-
 /** 请求间随机停顿：限速 + 降风控 */
 function jitter(min = 600, max = 1200) {
     return sleep(min + Math.floor(Math.random() * (max - min)));
 }
 
-function bbsProxyToken() {
-    return String((config() || {}).Verification_API_KEY || '').trim() || 'xhh-free';
+function bbsDeviceId(account) {
+    return md5(`${account?.stuid || ''}:${account?.ck || ''}`).toUpperCase();
 }
 
-/** 代理统一回 { retcode, message, data }，米游社真实回包在 data 里 */
-function unwrapProxyResult(res) {
-    if (!res || typeof res !== 'object') return { retcode: -500, message: '代理无返回' };
-    if (Number(res.retcode) === 404 || /token/i.test(String(res.message || ''))) {
-        return { retcode: -404, message: '代理token无效' };
-    }
-    const inner = res.data && typeof res.data === 'object' ? res.data : res;
-    if (!inner || typeof inner !== 'object') return { retcode: -500, message: '代理返回异常' };
-    return inner;
+function bbsDs(query = '', body = '') {
+    const t = Math.floor(Date.now() / 1000);
+    const r = 100001 + Math.floor(Math.random() * 99999);
+    const raw = `salt=${BBS_DS_SALT}&t=${t}&r=${r}&b=${body}&q=${query}`;
+    return `${t},${r},${md5(raw)}`;
 }
 
-async function proxyRequest(payload) {
+function bbsLocalHeaders(account, body = '', query = '') {
+    const deviceId = bbsDeviceId(account);
+    return {
+        'Content-Type': 'application/json;charset=UTF-8',
+        'x-rpc-app_version': '2.70.1',
+        'x-rpc-device_model': 'Mi 10',
+        'x-rpc-device_name': md5(account?.stuid || account?.ck || '').slice(0, 5),
+        'x-rpc-channel': 'miyousheluodi',
+        'x-rpc-client_type': '2',
+        'x-rpc-sys_version': '12',
+        'x-rpc-device_id': deviceId,
+        'User-Agent': 'okhttp/4.8.0',
+        Referer: 'https://app.mihoyo.com',
+        Cookie: account?.ck || '',
+        DS: bbsDs(query, body),
+    };
+}
+
+async function localBbsRequest(account, path, opt = {}) {
+    const method = opt.method || (opt.body ? 'POST' : 'GET');
+    const url = /^https?:\/\//.test(path) ? path : `${BBS_API_HOST}${path}`;
+    const query = url.includes('?') ? url.split('?')[1] : '';
+    const body = opt.body ? JSON.stringify(opt.body) : '';
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT);
+    const timer = setTimeout(() => controller.abort(), BBS_REQUEST_TIMEOUT);
     try {
-        const res = await fetch(MHY_PROXY_URL, {
-            method: 'POST',
+        const response = await fetch(url, {
+            method,
             headers: {
-                'Content-Type': 'application/json',
-                'x-mihoyo-api-token': bbsProxyToken(),
+                ...bbsLocalHeaders(account, body, query),
+                ...(opt.headers || {}),
             },
-            body: JSON.stringify(payload),
+            body: body || undefined,
             signal: controller.signal,
-        }).then(r => r.json());
-        return unwrapProxyResult(res);
+        });
+        const result = await response.json();
+        return result && typeof result === 'object'
+            ? result
+            : { retcode: -500, message: '米游社返回异常' };
     } catch (err) {
         return {
             retcode: -500,
-            message: `请求失败:${err?.name === 'AbortError' ? '超时' : err?.message || '未知错误'}`,
+            message: `本地请求失败:${err?.name === 'AbortError' ? '超时' : err?.message || '未知错误'}`,
         };
     } finally {
         clearTimeout(timer);
     }
 }
 
+async function solveBbsCaptchaManually(e, account, forum, original) {
+    try {
+        const create = await localBbsRequest(account, '/misc/wapi/createVerification?gids=2&is_high=false', {
+            method: 'GET',
+            headers: { DS: mhy.getDs() },
+        });
+        if (Number(create?.retcode) !== 0 || !create?.data?.gt || !create?.data?.challenge) return original;
+        const validated = await manualGeetest(
+            e,
+            { ...create.data, uid: account.stuid || '' },
+            `${forum.name}社区签到`,
+        );
+        if (!validated?.validate) return original;
+        const verified = await localBbsRequest(account, '/misc/wapi/verifyVerification', {
+            method: 'POST',
+            body: {
+                geetest_challenge: validated.challenge || create.data.challenge,
+                geetest_validate: validated.validate,
+                geetest_seccode: validated.seccode || `${validated.validate}|jordan`,
+            },
+            headers: { DS: mhy.getDs() },
+        });
+        if (Number(verified?.retcode) !== 0 || !verified?.data?.challenge) return original;
+        logger.mark('[xhh][bbs] 社区验证码手动验证成功');
+        return bbsApi(account, BBS_SIGN_PATH, {
+            method: 'POST',
+            body: { gids: Number(forum.signId) },
+            headers: { 'x-rpc-challenge': verified.data.challenge },
+        });
+    } catch (err) {
+        logger.warn(`[xhh][bbs] 社区验证码处理失败: ${err.message}`);
+        return original;
+    }
+}
+
 /**
- * 单个社区接口调用：只传 cookie，其余签名交给代理
- * -500 是我们自己定义的网络/代理层错误，只有它才重试；米游社业务码原样返回由调用方判定
+ * 单个社区接口调用。
+ * -500 是本地网络层错误；米游社业务码原样返回由调用方判定。
  */
 async function bbsApi(account, path, opt = {}) {
     const method = opt.method || (opt.body ? 'POST' : 'GET');
-    const payload = {
-        url: /^https?:\/\//.test(path) ? path : `${BBS_API_HOST}${path}`,
-        headers: { Cookie: account.ck },
-        method,
-    };
-    if (opt.body) payload.body = opt.body;
-    if (opt.game) payload.game = opt.game;
-    let res = { retcode: -500, message: '未发起请求' };
-    for (let i = 0; i < (opt.times || 2); i++) {
-        if (i) await jitter(1000, 2000);
-        res = await proxyRequest(payload);
-        if (Number(res.retcode) !== -500) break;
-    }
+    const localRes = await localBbsRequest(account, path, opt);
+    const localCode = Number(localRes?.retcode);
     if (config().debug) {
-        logger.mark(`[xhh][bbs] ${method} ${path} => ${res?.retcode} ${String(res?.message || '').slice(0, 60)}`);
+        logger.mark(`[xhh][bbs] local ${method} ${path} => ${localRes?.retcode} ${String(localRes?.message || '').slice(0, 60)}`);
     }
-    return res;
+
+    return localRes;
 }
 
 /** 把米游社回包翻译成给用户看的提示 */
@@ -450,8 +495,7 @@ function bbsResultTip(res) {
     const rc = Number(res?.retcode);
     if (rc === 0) return '签到成功';
     if ([-5003, 1008].includes(rc) || /已经|已签到|重复/.test(String(res?.message || ''))) return '今日已签';
-    if (rc === -404) return '代理不可用';
-    if (rc === -500) return '代理请求失败';
+    if (rc === -500) return '社区请求失败';
     if ([-100, -101, 10001].includes(rc)) return '登录失效,请重新[扫码绑定]';
     if ([1034, 10035, 10041].includes(rc)) return '遇到验证码';
     if (rc === -10001) return '请求被拒(签名)';
@@ -516,15 +560,22 @@ async function markBbsSigned(e, account) {
  */
 async function bbsForumSignIn(e, account, forum, ctx = {}) {
     const body = { gids: Number(forum.signId) };
-    const game = BBS_PROXY_GAME[String(forum.signId)];
-    let res = await bbsApi(account, BBS_SIGN_PATH, { method: 'POST', body, game });
+    let res = await bbsApi(account, BBS_SIGN_PATH, { method: 'POST', body });
+    if ([1034, 10035].includes(Number(res?.retcode))) {
+        ctx.captchaTried ||= {};
+        const key = String(forum.signId);
+        if (!ctx.captchaTried[key]) {
+            ctx.captchaTried[key] = true;
+            res = await solveBbsCaptchaManually(e, account, forum, res);
+        }
+    }
     const needCookieToken = [-100, -101, 10001, 1034, 10035].includes(Number(res?.retcode));
     if (needCookieToken && !/(?:^|;\s*)cookie_token=/.test(account.ck || '') && !ctx.refreshed) {
         ctx.refreshed = true;
         ctx.account = { ...account, ck: await ensureCookieToken(e, account.ck, account) };
         if (ctx.account.ck !== account.ck) {
             await jitter(800, 1500);
-            res = await bbsApi(ctx.account, BBS_SIGN_PATH, { method: 'POST', body, game });
+            res = await bbsApi(ctx.account, BBS_SIGN_PATH, { method: 'POST', body });
         }
     }
     return res;
@@ -587,8 +638,8 @@ async function bbsSignAccount(e, account, lines) {
         const tip = bbsResultTip(res);
         rows.push({ name: forum.name, tip });
         lines.push(`${forum.name}：${tip}`);
-        // 代理不可用 / ck 失效：剩下的板块结果只会一样，别再打一遍浪费请求
-        if (/代理不可用|登录失效/.test(tip)) {
+        // ck 失效：剩下的板块结果只会一样，别再打一遍浪费请求
+        if (/登录失效/.test(tip)) {
             const rest = BBS_FORUMS.slice(rows.length);
             for (const f of rest) rows.push({ name: f.name, tip });
             break;
@@ -680,7 +731,24 @@ async function BbsAutoSign(qqs = []) {
 
 async function sendBbsAutoResult(group, result) {
     const text = (result?.lines || []).join('\n') || '米游社社区自动签到完成';
-    return Bot.pickGroup(Number(group)).sendMsg(text);
+    const target = Bot.pickGroup(Number(group));
+    try {
+        const renderEvent = {
+            runtime: new Runtime(),
+            user_id: String(group),
+            sender: { nickname: target?.info?.group_name || target?.group_name || '小花火' },
+        };
+        const image = await render('sign/sign', {
+            msgs: result?.msgs || [],
+            qq: String(group),
+            name: target?.info?.group_name || target?.group_name || '小花火',
+            saveId: `bbs_auto_${group}`,
+        }, { e: renderEvent, ret: false });
+        if (image) return target.sendMsg(image);
+    } catch (err) {
+        logger.error(`[xhh][bbs_auto] 图片发送失败，回退文本: ${err.message}`);
+    }
+    return target.sendMsg(text);
 }
 
 // 结果汇总：全失败时给出可操作的排查提示，不再 60s 就把消息撤掉
@@ -688,16 +756,13 @@ function bbsResultTips(lines) {
     const body = lines.slice(1);
     const tips = [];
     if (body.some(l => /遇到验证码/.test(l))) {
-        tips.push('提示：代理代发也没绕开米游社验证码，换个 Verification_API_KEY 或晚点再试');
+        tips.push('提示：米游社返回了验证码，社区签到暂时无法自动完成，请稍后重试或在米游社客户端完成一次验证');
     }
     if (body.some(l => /登录失效/.test(l))) {
         tips.push('提示：ck 已失效，重新[扫码绑定]后再试');
     }
-    if (body.some(l => /代理不可用|代理token/.test(l))) {
-        tips.push('提示：代理未授权或不可用，检查 Verification_API_KEY 是否正确');
-    }
-    if (body.some(l => /代理请求失败|超时/.test(l))) {
-        tips.push('提示：代理访问失败(网络或限流)，稍后重试');
+    if (body.some(l => /社区请求失败/.test(l))) {
+        tips.push('提示：社区接口请求失败，请检查网络后重试');
     }
     if (body.some(l => /请求被拒/.test(l))) {
         tips.push('提示：请求被米游社拒绝(签名/版本)，稍后再试或反馈开发者');

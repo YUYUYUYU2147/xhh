@@ -1169,6 +1169,48 @@ export const supportGuoba = () => {
         helpMessage: '输出水晶查询/扫码绑定的详细日志',
         component: 'Switch',
       },
+      {
+        component: 'SOFT_GROUP_BEGIN',
+        label: '验证码',
+      },
+      {
+        field: 'manual_gt_enable',
+        label: '启用手动过码服务',
+        helpMessage: '签到遇到验证码时给链接，手动完成后自动重试；需能访问该地址',
+        component: 'Switch',
+      },
+      {
+        field: 'manual_gt_port',
+        label: '手动过码服务端口',
+        helpMessage: '本机监听端口，被占用会导致启动失败；修改后需重启',
+        component: 'InputNumber',
+        componentProps: { min: 1024, max: 65535, step: 1 },
+      },
+      {
+        field: 'manual_gt_path',
+        label: '手动过码服务路径',
+        helpMessage: '链接前缀，如 /xhh-gt；修改后需重启',
+        component: 'Input',
+      },
+      {
+        field: 'manual_gt_public_url',
+        label: '手动过码公网地址',
+        helpMessage: '浏览器能访问到的地址，如 Cloudflare Tunnel/反向代理地址；留空只能本机访问，也可用环境变量 XHH_MANUAL_GT_PUBLIC_URL',
+        component: 'Input',
+      },
+      {
+        field: 'manual_gt_auto_tunnel',
+        label: '自动启动临时 Tunnel',
+        helpMessage: '公网地址留空时尝试启动 cloudflared 临时隧道；生产环境建议填写固定公网地址',
+        component: 'Switch',
+      },
+      {
+        field: 'manual_gt_timeout',
+        label: '手动过码有效期（秒）',
+        helpMessage: '链接与等待重试的有效时长，默认 120 秒',
+        component: 'InputNumber',
+        componentProps: { min: 30, max: 600, step: 10 },
+      },
     ],
     getConfigData() {
       const cfg = getCfg()
@@ -1240,6 +1282,12 @@ export const supportGuoba = () => {
         Tl: !!cfg.Tl,
         hbxx: !!cfg.hbxx,
         debug: !!cfg.debug,
+        manual_gt_enable: cfg.manual_gt_enable !== false,
+        manual_gt_port: Number(cfg.manual_gt_port || 3000),
+        manual_gt_path: String(cfg.manual_gt_path || '/xhh-gt'),
+        manual_gt_public_url: String(cfg.manual_gt_public_url || ''),
+        manual_gt_auto_tunnel: cfg.manual_gt_auto_tunnel !== false,
+        manual_gt_timeout: Number(cfg.manual_gt_timeout || 120),
         gacha_art_source: cfg.gacha_art_source || 'custom',
         gacha_header_art_source: cfg.gacha_header_art_source || cfg.gacha_art_source || 'custom',
         gacha_up_icon_source: cfg.gacha_up_icon_source || cfg.gacha_art_source || 'custom',
@@ -1441,6 +1489,16 @@ export const supportGuoba = () => {
         .map(v => Number(v))
         .filter(v => Number.isSafeInteger(v) && v > 0)
       yaml.set(_path + 'config.yaml', 'groups', broadcastGroups)
+      // 手动验证码相关
+      yaml.set(_path + 'config.yaml', 'manual_gt_enable', !!data.manual_gt_enable)
+      const gtPort = Number(data.manual_gt_port)
+      yaml.set(_path + 'config.yaml', 'manual_gt_port', Number.isFinite(gtPort) ? Math.max(1024, Math.min(65535, Math.trunc(gtPort))) : 3000)
+      const gtPath = String(data.manual_gt_path || '').trim()
+      yaml.set(_path + 'config.yaml', 'manual_gt_path', gtPath ? (gtPath.startsWith('/') ? gtPath : `/${gtPath}`).replace(/\/+$/, '') || '/xhh-gt' : '/xhh-gt')
+      yaml.set(_path + 'config.yaml', 'manual_gt_public_url', String(data.manual_gt_public_url || '').trim().replace(/\/+$/, ''))
+      yaml.set(_path + 'config.yaml', 'manual_gt_auto_tunnel', data.manual_gt_auto_tunnel !== false)
+      const gtTimeout = Number(data.manual_gt_timeout)
+      yaml.set(_path + 'config.yaml', 'manual_gt_timeout', Number.isFinite(gtTimeout) ? Math.max(30, Math.min(600, Math.trunc(gtTimeout))) : 120)
       yaml.set(_path + 'other.yaml', 'group_config', parseGroupConfig(data.group_config))
 
       const currentBh3Remind = getBh3Remind()

@@ -163,10 +163,11 @@ export class TL extends plugin {
   }
 
   buildRenderData(e, resultData) {
+    const qqname = String(e.sender?.card || e.sender?.nickname || e.user_id || '').trim();
     return {
       bg: Object.values(resultData).filter(Boolean).length > 1 ? 'bg' : 'bg1',
       qq: e.user_id,
-      qqname: e.sender.card&&(e.sender.card.length < 11) ? e.sender.card : e.sender.nickname&&(e.sender.nickname.length<11) ? e.sender.nickname : e.user_id,
+      qqname: qqname || e.user_id,
       time: `${moment().format('MM-DD HH:mm')} ${this.week[moment().day()]}`,
     };
   }

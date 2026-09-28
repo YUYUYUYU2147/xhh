@@ -1,0 +1,31 @@
+# 小花火手动过码隧道 —— systemd 服务模板（可选方案）
+#
+# 安装（把路径换成你自己的仓库目录）：
+#   REPO=/root/TRSS_AllBot/TRSS-Yunzai   # 即 <云崽根目录>/plugins/xhh 的上一级
+#   sudo cp $REPO/plugins/xhh/tools/manual_gt_tunnel.sh /usr/local/bin/
+#   sudo chmod +x /usr/local/bin/manual_gt_tunnel.sh
+#   sudo cp $REPO/plugins/xhh/tools/xhh-gt-tunnel.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now xhh-gt-tunnel
+#
+# 注意：
+#   1) ExecStart 里的端口要和 config.yaml 的 manual_gt_port 保持一致（默认示例 8080）
+#   2) 脚本默认把地址写到 <仓库>/plugins/xhh/data/manual_gt_url，小花火会自动读取
+#   3) 快速隧道地址每次重启都会变，但插件不需要你改配置
+#   4) 用 systemd 方案时，建议把 config.yaml 的 manual_gt_auto_tunnel 设为 false
+#      （隧道由 systemd 常驻，插件不必再自己拉一条，省一份内存）
+
+[Unit]
+Description=xhh manual captcha cloudflared quick tunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/manual_gt_tunnel.sh 8080
+Restart=always
+RestartSec=10
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

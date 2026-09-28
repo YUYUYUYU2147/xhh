@@ -62,6 +62,24 @@ async function fetchPage(url) {
     return '';
 }
 
+// BWiki 卡片里的 src 指向 45px 缩略图，放大到 60px 显示会糊。
+// 优先还原成原图（/images/xx/aa/hash.png），其次取 srcset 里最大的一张，
+// 最后把 /45px- 换成 /120px- 请求。
+function pickAvatarUrl(card = '') {
+    const base = String((card.match(/src="(https:\/\/patchwiki\.biligame\.com\/[^"]+)"/) || [])[1] || '');
+    if (!base) return '';
+    const origin = base.replace(/\/thumb\/(\w)\/(\w\w)\//, '/$1/$2/').replace(/\/\d+px-[^/]+$/, '');
+    if (origin !== base) return origin;
+    const srcset = String((card.match(/srcset="([^"]+)"/) || [])[1] || '');
+    const candidates = srcset
+        .split(',')
+        .map(v => v.trim().split(/\s+/))
+        .filter(v => v.length === 2 && /^https:\/\/patchwiki\.biligame\.com\//.test(v[0]))
+        .sort((a, b) => (parseInt(b[1]) || 0) - (parseInt(a[1]) || 0));
+    if (candidates.length) return candidates[0][0];
+    return base.replace(/\/(\d+)px-/, '/120px-');
+}
+
 function parseCard(card, game, group) {
     // 名称：优先取头像链接的 title，其次 data-name，最后取文本里的第一个链接
     let name = (card.match(/<div class="Gacha-img">[\s\S]{0,600}?title="([^"]+)"/) || [])[1] || '';
@@ -74,7 +92,7 @@ function parseCard(card, game, group) {
     const version = String((card.match(/UP版本：([^<]+)/) || [])[1] || '').replace(/<[^>]+>/g, '').trim();
     const date = String((card.match(/UP时间：([0-9/]+)/) || [])[1] || '').trim();
     const days = Number((card.match(/计时：(\d+)天/) || [])[1] || -1);
-    const icon = String((card.match(/src="(https:\/\/patchwiki\.biligame\.com\/[^"]+)"/) || [])[1] || '');
+    const icon = pickAvatarUrl(card);
 
     return {
         game,

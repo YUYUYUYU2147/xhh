@@ -3,7 +3,12 @@ import { yaml, makeForwardMsg, config, pluginPriority } from '#xhh';
 const path = './plugins/xhh/system/default/gslogs.yaml';
 import common from '../../../lib/common/common.js';
 import { xhh_gacha_pool } from './gacha_pool.js';
-const GS_CURRENT_VERSION = '6.7';
+function latestGsVersion(data = {}) {
+  return Object.keys(data?.date || {})
+    .map(key => key.match(/【(\d+\.\d+)/)?.[1])
+    .filter(Boolean)
+    .sort((a, b) => Number(b) - Number(a))[0] || '';
+}
 
 export class gs_logs extends plugin {
   constructor() {
@@ -78,8 +83,9 @@ export class gs_logs extends plugin {
     } else {
       msg = await this.getmsg(type);
     }
-    if (!msg.length && type.replace(/上半|下半/g, '') === GS_CURRENT_VERSION) {
-      return e.reply(`原神当前版本已标记为 ${GS_CURRENT_VERSION}，但 xhh 的原神历史卡池库还没有录入 ${type} 的具体UP信息。`);
+    const currentVersion = latestGsVersion(await yaml.get(path));
+    if (!msg.length && currentVersion && type.replace(/上半|下半/g, '') === currentVersion) {
+      return e.reply(`原神当前版本为 ${currentVersion}，但 xhh 的原神历史卡池库还没有录入 ${type} 的具体UP信息。`);
     }
     if (!msg.length) return false;
     if (msg.length > 10) msg = await makeForwardMsg(e, msg, type + '卡池');
@@ -90,8 +96,9 @@ export class gs_logs extends plugin {
     if (!config().gs_logs) return false;
     let data = await yaml.get(path);
     let date_list = Object.keys(data.date);
-    if (!date_list.some(v => v.includes(`【${GS_CURRENT_VERSION}`))) {
-      return e.reply(`原神当前版本已标记为 ${GS_CURRENT_VERSION}，但当前卡池详情还没有录入。`);
+    const currentVersion = latestGsVersion(data);
+    if (!currentVersion || !date_list.some(v => v.includes(`【${currentVersion}`))) {
+      return e.reply('原神当前版本数据尚未同步，暂时没有当前卡池详情。');
     }
     let _date = date_list[0];
     let type = _date.match('【(.*)】')[1];

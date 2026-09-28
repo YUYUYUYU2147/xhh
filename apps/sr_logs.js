@@ -1,7 +1,12 @@
 import { yaml, render, config, pluginPriority } from '#xhh';
 
 const path = '../../../../..';
-const SR_CURRENT_VERSION = '4.4';
+function latestSrVersion(data = []) {
+  return (Array.isArray(data) ? data : [])
+    .map(item => String(item?.ver || '').match(/(\d+\.\d+)/)?.[1])
+    .filter(Boolean)
+    .sort((a, b) => Number(b) - Number(a))[0] || '';
+}
 
 export class sr_logs extends plugin {
   constructor(e) {
@@ -95,8 +100,9 @@ export class sr_logs extends plugin {
       }
     }
 
-    if (!data.length && name.replace(/上半|下半/g, '') === SR_CURRENT_VERSION) {
-      return e.reply(`星穹铁道当前版本已标记为 ${SR_CURRENT_VERSION}，但 xhh 的星铁历史卡池库还没有录入 ${name} 的具体UP信息。`);
+    const currentVersion = latestSrVersion(srlogs);
+    if (!data.length && currentVersion && name.replace(/上半|下半/g, '') === currentVersion) {
+      return e.reply(`星穹铁道当前版本为 ${currentVersion}，但 xhh 的星铁历史卡池库还没有录入 ${name} 的具体UP信息。`);
     }
     if (!data.length) return false;
 
