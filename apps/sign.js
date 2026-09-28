@@ -107,6 +107,11 @@ export class Sign extends plugin {
                     fnc: 'gtTest',
                     permission: 'master',
                 },
+                {
+                    reg: '^#*(小花火|xhh)*(手动)?(过码|过验证码|真实过码)(端到端)?(测试|test)$',
+                    fnc: 'gtRealTest',
+                    permission: 'master',
+                },
             ],
         });
         this.task = {
@@ -160,6 +165,50 @@ export class Sign extends plugin {
             try { await recallTip?.(); } catch (_) {}
         }
         return false;
+    }
+
+    // 手动过码端到端测试：用真实的 createVerification 造一个真实验证码，
+    // 过完码再回交 verifyVerification，能完整验证「本地服务 → 页面 → 回传 → 米游社换 challenge」整条链路。
+    async gtRealTest(e) {
+        const { default: api } = await import('../system/api.js');
+        const { default: mhy } = await import('../system/mhy.js');
+        const { manualGeetest } = await import('../system/manual_geetest.js');
+        const uid = e.user?.getUid?.('gs') || e.user?.getUid?.();
+        if (!uid) return e.reply('未找到绑定的 UID，请先 #小花火扫码绑定', true);
+        const sk = await mhy.getstoken(e, uid);
+        if (!sk) return e.reply(`UID:${uid} 未绑定米游社 SToken，请先 #小花火扫码绑定`, true);
+
+        const headers = mhy.getHeaders(e, sk, false);
+        headers['x-rpc-client_type'] = 5;
+        headers.DS = mhy.getDs2('gids=2&is_high=false', '', 4);
+
+        const create = await api(e, { headers, type: 'createVerification' });
+        if (Number(create?.retcode) !== 0 || !create?.data?.gt) {
+            return e.reply(`获取验证码失败：retcode=${create?.retcode} message=${create?.message || '无'}`, true);
+        }
+        await e.reply(`已向米游社申请真实验证码（gt=${String(create.data.gt).slice(0, 12)}…），正在准备验证链接…`, true);
+        const validated = await manualGeetest(e, { ...create.data, uid }, '手动过码端到端测试');
+        if (!validated?.validate) return e.reply('未完成验证（超时或主动关闭），本次测试结束。', true);
+
+        // 回交米游社，换取新的 challenge
+        const body = JSON.stringify({
+            geetest_challenge: validated.challenge || create.data.challenge,
+            geetest_validate: validated.validate,
+            geetest_seccode: validated.seccode || `${validated.validate}|jordan`,
+        });
+        const verifyHeaders = { ...headers, DS: mhy.getDs2('', body, 4) };
+        const verify = await api(e, { headers: verifyHeaders, type: 'verifyVerification', body });
+        if (Number(verify?.retcode) === 0) {
+            return e.reply(
+                `✅ 端到端测试通过\n` +
+                '· 本地验证页渲染正常、Geetest 可加载\n' +
+                '· 滑块结果成功回传\n' +
+                '· 米游社 verifyVerification 校验通过（retcode=0），风控已解除\n' +
+                '现在可以正常查体力/签到了。',
+                true,
+            );
+        }
+        return e.reply(`⚠️ 页面验证成功，但米游社回交校验失败：retcode=${verify?.retcode} message=${verify?.message || '无'}`, true);
     }
 
     // 手动验证服务自测

@@ -1,144 +1,129 @@
-<h1>小花火插件</h1>
+# 小花火 xhh · 米游社四游戏助手
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
+<div align="center">
 
-## v2 分支维护说明
+[![TRSS-Yunzai](https://img.shields.io/badge/TRSS--Yunzai-兼容-3b82f6?style=flat-square&logo=github)](https://github.com/YUYUYUYU2147/Yunzai)
+[![NapCat](https://img.shields.io/badge/NapCat%20/%20LLOneBot-实测可用-success?style=flat-square)](#)
+[![Node](https://img.shields.io/badge/Node-%E2%89%A518-339933?style=flat-square&logo=node.js)](https://nodejs.org)
+[![License](https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square)](LICENSE)
+[![外部依赖](https://img.shields.io/badge/%E5%A4%96%E9%83%A8%E4%BE%9D%E8%B5%96-0%20%E4%B8%AA-ff6b6b?style=flat-square)](#重要说明)
 
-本仓库当前 `v2` 分支为 YUYUYUYU2147 维护/适配版本，原作者 README 内容会在下方继续保留，方便追溯项目来源与原始用法。
+</div>
 
-本分支主要围绕 TRSS-Yunzai / OneBot 环境做功能补充与样式适配，包含但不限于：
+<div align="center">
 
-- 崩坏3体力、深渊、战场、乐土、主页、水晶手账等查询与图片模板优化；
-- 崩坏3抽卡记录、出金记录、历史补给/卡池查询；
-- 崩坏3与绝区零 Wiki 图鉴扩展，含角色、武器/音擎、圣痕/驱动盘、人偶/邦布等查询；
-- 原神、星铁、绝区零、崩坏3卡池图片化展示与米游社官方公告卡池解析；
-- 四游戏体力聚合查询：原神 / 星铁 / 绝区零 / 崩坏3；
-- 米游社游戏签到与社区签到、群聊白名单、崩三周期提醒等；
-- 角色语音：原神 / 星铁多语言语音列表，以及基于官方 WIKI 配音展示的崩坏3中文语音；
-- 锅巴配置适配：常用开关、优先级、提醒群、签到白名单、群名可搜索下拉、卡池立绘来源等；
-- 多处字体、罕见字、图片布局和移动端截图显示问题修复。
+<p><img src="resources/help/xhh.gif" width="680" alt="小花火插件出图效果"></p>
 
-> 说明：本分支是在原项目基础上的二次维护版本。原作者信息、原 README 与 GPL-2.0 开源协议均会保留。若你基于本分支继续修改或分发，请同样保留来源与协议。
+</div>
 
-## 快速安装
+> **原神 / 崩坏：星穹铁道 / 绝区零 / 崩坏3** 的体力、卡池、签到、图鉴、攻略、角色语音，一条指令出图。
+> 卡池与图鉴数据**自动同步米游社官方公告与 BWiki**，不需要你手动维护。
 
-### GitHub 直连安装
+<div align="center">
 
-在云崽根目录执行：
+| 四游戏体力聚合 | 卡池 / 复刻统计 | 崩三全功能 | 自动签到 + 推送 |
+| :---: | :---: | :---: | :---: |
+| `#全体力` | `#原神卡池` | `#崩三深渊` | `#原神自动签到` |
+| `#原神体力` | `#崩三补给` | `#崩三战场` | `#原神体力推送 130` |
+| `#星铁体力` | `#星铁复刻统计` | `#崩三乐土` | `#崩三体力推送` |
+| `#绝区零体力` | `#绝区零卡池` | `#崩三水晶` | `#开启自动米游币` |
+
+</div>
+
+---
+
+## 30 秒上手
 
 ```bash
+# 在云崽根目录执行
 git clone -b v2 https://github.com/YUYUYUYU2147/xhh.git ./plugins/xhh/
-cd ./plugins/xhh
-pnpm i
+cd ./plugins/xhh && pnpm i
 ```
-
-### 可选：安装 cloudflared（启用「手机可开」的验证码链接）
-
-小花火遇到米游社风控（`retcode 1034`）时会给你一个验证链接。想在**手机/其它设备**上打开，
-需要一个公网地址；最省事的办法是装 [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
-用临时隧道。做这一步后不需要改任何配置。
+重启云崽 → 群里发 `#小花火帮助` 就能看到全部指令。
 
 <details>
-<summary><b>Linux 安装（点击展开）</b></summary>
+<summary><b>其它安装方式（换源 / 加速前缀 / 切分支 / 更新）</b></summary>
 
 ```bash
-# Debian / Ubuntu
-sudo mkdir -p --mode=0755 /usr/share/keyrings
-curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
-sudo apt-get update && sudo apt-get install cloudflared
-
-# CentOS / RHEL / Rocky
-curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
-echo "rpm -import /usr/share/keyrings/cloudflare-main.gpg" | sudo tee /etc/yum.repos.d/cloudflare-main.repo
-
-# Alpine
-sudo wget -O /usr/share/keyrings/cloudflare-main.gpg https://pkg.cloudflare.com/cloudflare-main.gpg
-echo "cloudflare gpgkey file:///usr/share/keyrings/cloudflare-main.gpg" | sudo tee /etc/apk/repositories.d/cloudflared.apk.repository
-sudo apk add --no-cache cloudflared
-
-# 任意 Linux：直接下二进制（arm 机器换 cloudflared-linux-arm64）
-sudo install -m 755 cloudflared-linux-amd64 /usr/local/bin/cloudflared
-```
-</details>
-
-<details>
-<summary><b>Windows 安装（PowerShell 管理员，点击展开）</b></summary>
-
-```powershell
-winget install --id Cloudflare.cloudflared
-# 或：choco install cloudflared
-# 或手动：https://github.com/cloudflare/cloudflared/releases/latest 下载 cloudflared-windows-amd64.exe，
-#    改名 cloudflared.exe 放到任意目录并加入 PATH
-```
-</details>
-
-验证：`cloudflared --version`。装不上、或你不想要公网隧道，直接跳过即可 —— 不影响其它功能，
-只是验证码链接只能在服务器本机浏览器打开。完整说明见下文「手动过码（米游社风控 1034）」。
-
-### 使用 GitHub 加速前缀安装
-
-如果服务器访问 GitHub 慢或超时，可以在仓库地址前加 GitHub 代理/加速前缀。下面以 `<加速前缀>` 作为占位，请替换成你当前可用的加速地址：
-
-```bash
+# GitHub 访问慢时用加速前缀（换成你可用的加速地址）
 git clone -b v2 <加速前缀>https://github.com/YUYUYUYU2147/xhh.git ./plugins/xhh/
-cd ./plugins/xhh
-pnpm i
-```
 
-示例格式：
-
-```bash
-git clone -b v2 https://gh-proxy.com/https://github.com/YUYUYUYU2147/xhh.git ./plugins/xhh/
-```
-
-> 加速服务可能会失效或更换域名；如果 clone 失败，请换一个可用前缀，或改用直连。
-
-### 已安装后的换源
-
-如果已经安装过 xhh，可以进入插件目录修改远程仓库地址：
-
-```bash
-cd ./plugins/xhh
-
-# 查看当前远程仓库
-git remote -v
-
-# 换成 YUYUYUYU2147 维护版 GitHub 源
+# 已安装：换源
+cd plugins/xhh
 git remote set-url origin https://github.com/YUYUYUYU2147/xhh.git
 
-# 如果需要使用加速前缀，也可以这样设置
-git remote set-url origin <加速前缀>https://github.com/YUYUYUYU2147/xhh.git
-
-# 拉取最新代码
-git fetch origin
+# 更新
+git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 ```
+</details>
 
-### 切换到 v2 分支
+---
 
-如果本地已经 clone 了仓库，但不在 `v2` 分支，可以执行：
+## 目录
 
-```bash
-cd ./plugins/xhh
+| 章节 | 说明 |
+| --- | --- |
+| [30 秒上手](#30-秒上手) | clone + 安装 + 重启 |
+| [它能做什么](#它能做什么) | 六大功能模块，配常用指令 |
+| [命令速查](#命令速查) | 全量指令表（崩三 / 米游社 / 通用） |
+| [配置说明](#配置说明) | 配置文件与锅巴 |
+| [手动过码（米游社风控 1034）](#手动过码米游社风控-1034) | 撞风控时的验证方案 |
+| [常见问题](#常见问题) | 指令被抢、报错排查 |
+| [更新日志](CHANGELOG.md) | 版本变化 |
+| [开源与二次分发说明](#开源与二次分发说明) | GPL-2.0 |
 
-# 拉取远程分支信息
-git fetch origin
+## 它能做什么
 
-# 切换到 v2 分支；如果本地没有 v2，会自动基于 origin/v2 创建
-git checkout -B v2 origin/v2
+### 四游戏体力聚合
+一条指令拉齐原神 / 星铁 / 绝区零 / 崩坏3 的实时便笺，多账号自动合并成图，超出数量自动转合并转发。
+`#全体力` `#原神体力` `#星铁体力` `#绝区零体力` `#崩三体力` `#体力`（附 UID）
 
-# 更新到远程最新提交
-git pull origin v2
+<p align="center"><img src="resources/readme/note.jpg" width="560" alt="四游戏体力总览（示意数据）"><br><sub>四游戏体力总览（示意数据）</sub></p>
 
-# 安装/更新依赖
-pnpm i
-```
 
-如果你使用原作者仓库，请参考下方“原作者 README（保留）”。
+### 卡池 / 复刻 / 多久没 UP
+本地史料库 + 米游社官方公告双向同步，每天 05:30 自动更新，能问「某角色多久没复刻」「当前 UP 是谁」。
+`#原神卡池` `#崩三补给` `#绝区零卡池` `#官方当前卡池` `#星铁复刻统计` `#可莉多久没复刻`
+
+<p align="center"><img src="resources/readme/pool.jpg" width="520" alt="星铁当前卡池（真实数据：4.6 上半双 UP 真珠 / 绯英）"><br><sub>星铁当前卡池（真实数据：4.6 上半双 UP 真珠 / 绯英）</sub></p>
+
+
+### 崩坏3 全功能
+当期深渊（超弦空间 / 量子流形）、记忆战场、往世乐土、抽卡记录、充值流水、水晶手账、角色主页、日历、活动到期提醒。
+`#崩三深渊` `#崩三战场` `#崩三乐土` `#崩三抽卡记录` `#崩三水晶` `#崩三提醒`
+<p align="center"><img src="resources/readme/help.jpg" width="620" alt="崩三指令一览（真实帮助图数据）"><br><sub>崩三指令一览（真实帮助图数据）</sub></p>
+
+
+### 米游社签到与推送
+游戏签到（多账号）+ 社区签到与米游币每日任务，可按群白名单、按时段自动执行，失败自动 @。
+撞上米游社风控（`retcode 1034`）时会给你一个验证链接，**在浏览器过一下滑块就自动重试**，不需要任何第三方服务。
+`#小花火签到` `#米游社全部签到` `#开启自动米游币` `#原神体力推送 130`
+
+### 图鉴 / 攻略 / 角色语音
+崩三角色、武器、圣痕、人偶图鉴；绝区零代理人、音擎、驱动盘、邦布图鉴；深渊 / 记忆战场 / 往世乐土 / 幻想真境剧诗 攻略作业；原神、星铁、崩三角色语音（回复图片发数字即发语音）。
+`#崩三xxx图鉴` `#绝区零xxx图鉴` `#xx攻略` `#崩三角色名语音`
+
+### 其它
+表情包、塔罗牌、B 站视频/直播解析与推送、九连图、未知藏品识别、货币战争、余额估算。
+
+> 完整指令清单见下方[命令速查](#命令速查)。
+>
+> *示意图说明：卡池图与帮助图使用仓库内真实数据渲染；体力图为版式示意（数值非真实账号）。*
+
+---
+
+## 重要说明
+
+- **不依赖任何第三方服务、不需要付费接口**：验证码走本插件自带的本地验证页（可选 cloudflared 临时隧道把链接暴露到公网，见[手动过码](#手动过码米游社风控-1034)）。
+- **数据来源**：米游社官方公告（需你自己的 CK）、BWiki 静态页、官方 WIKI。插件只做解析与出图，不破解任何接口。
+- **分支约定**：`v2` 为 TRSS-Yunzai / OneBot 适配分支；上游原作者 README 保留在文末，便于追溯。
+
+---
 
 ## 命令速查
 
 > 绝大多数命令都支持 `#` 开头；`小花火` / `xhh` 作为可选前缀（如 `#小花火帮助`）。
+> 指令被其他插件抢走时，可加 `小花火` 前缀点名本插件，并调小对应 `*_priority`（数字越小越先执行）。
 
 ### 崩坏3
 
@@ -146,16 +131,16 @@ pnpm i
 | --- | --- |
 | `#崩三体力` / `#崩三便笺` | 崩坏3体力卡片、实时便笺 |
 | `#崩三主页` | 角色主页数据 |
-| `#崩三深渊` / `#当前深渊` / `#深渊Boss` | 深渊/量子流形当期信息 |
+| `#崩三深渊` / `#当前深渊` / `#深渊Boss` | 当期深渊信息（超弦空间 / 量子流形） |
 | `#崩三深渊战报` | 超弦空间战报 |
-| `#崩三旧深渊` | 原深渊（往期） |
-| `#崩三战场` / `#崩三记忆战场` | 战场/超时空挑战记录 |
-| `#崩三乐土` / `#崩三往世乐土` | 乐土挑战记录 |
+| `#崩三旧深渊` | 量子流形（往期深渊） |
+| `#崩三战场` / `#崩三记忆战场` | 记忆战场挑战记录 |
+| `#崩三乐土` / `#崩三往世乐土` | 往世乐土挑战记录 |
 | `#崩三日历` | 崩三日历与活动一览 |
 | `#崩三抽卡记录` / `#刷新崩三抽卡记录` | 抽卡记录与本地缓存刷新 |
 | `#崩三充值记录` | 充值流水 |
 | `#崩三水晶` / `#上月水晶` | 水晶手账；`#删除水晶uid` `#切换水晶uid` |
-| `#崩三卡池` / `#崩三xx补给` | 当前/角色历史补给 |
+| `#崩三卡池` / `#崩三xx补给` | 当前 / 角色历史补给（精确补给） |
 | `#崩三v8.9卡池` / `#崩三8.9上半卡池` | 指定版本补给 |
 | `#崩三卡池历史` | 全版本补给记录 |
 | `#崩三xx图鉴` | 角色、武器、圣痕、人偶、位面武器等图鉴 |
@@ -172,11 +157,11 @@ pnpm i
 | `#卡池时间` | 当前卡池剩余时间 |
 | `#原神官方卡池` / `#官方卡池` | 米游社官方公告卡池汇总 |
 | `#原神卡池历史` / `#星铁卡池历史` | 历史卡池记录 |
-| `#幻想真境剧诗角色` | 剧诗当期可用角色 |
+| `#幻想真境剧诗角色` / `#幻想剧诗` | 幻想真境剧诗当期可用角色 |
 | `#星铁抽卡记录` / `#星铁角色记录` / `#星铁武器记录` | 星铁抽卡统计 |
-| `#绝区零母带` / `#绝区零存货` | 绝区零特殊统计 |
+| `#绝区零母带` / `#绝区零存货` | 绝区零音擎「加密母带 / 原装母带」与存货统计 |
 | `#原石余额` / `#设置原石余额2000` | 余额估算与校准 |
-| `#货币战争` | 星铁货币战争（可选） |
+| `#货币战争` | 星铁「货币战争」玩法（独立小功能，默认不参与群白名单） |
 | `#原神xx语音` / `#星铁xx语音` | 角色语音列表，回复图片发数字发送 |
 
 ### 通用 / 签到 / 绑定
@@ -186,10 +171,10 @@ pnpm i
 | `#小花火帮助` / `#小花火原神帮助` | 总帮助 / 单游戏帮助 |
 | `#小花火更新` / `#小花火更新日志` | 插件更新与日志 |
 | `#小花火签到` / `#全部游戏签到` | 米游社游戏签到 |
-| `#米游社全部签到` / `#社区签到` | 社区/论坛签到 |
+| `#米游社全部签到` / `#社区签到` | 米游社社区（论坛）签到与米游币每日任务 |
 | `#小花火扫码绑定` | 扫码绑定米游社账号 |
-| `#删除stoken` / `#刷新ck` / `#解码` | 绑定相关维护 |
-| `#设备帮助` / `#绑定设备` | 米游社设备绑定（应对 1034 风控验证码） |
+| `#删除stoken` / `#刷新ck` / `#解码` | 绑定维护（Stoken / CK） |
+| `#设备帮助` / `#绑定设备` | 米游社设备绑定（降低撞 `retcode 1034` 风控的概率） |
 | `#小花火开启设备绑定` | 开启后自动绑定常用设备 |
 | `#xx攻略` / `#xx配队` / `#xx一图流` | 攻略图源查询 |
 | `#小花火播报群列表` | 米游社视频播报群管理 |
@@ -245,28 +230,12 @@ pnpm i
 
 优先级类配置（`*_priority`）见 `config.yaml` 末尾，默认值见同文件注释。
 
-## 常见问题
-
-### 指令被其他插件抢占
-
-云崽的 `priority` 数字**越小越先执行**（`lib/plugins/handler.js` 按 `a.priority - b.priority` 升序排序）。若指令被别的插件先处理：
-
-1. 调小对应优先级，例如 `tl_priority`（体力）、`voice_priority`（语音）、`help_priority`（帮助）；
-2. 或改用带前缀的写法，如 `#小花火体力`、`#小花火德丽莎语音`、`#小花火帮助`；
-3. 优先级类配置修改后**需重启**云崽生效。
-
-### 查询报 `param error` / `retcode 1034`
-
-- `retcode -1 param error`：多 UID 聚合查询时，附加小号在 `data/Stoken/<QQ>.yaml` 里存的 `region` 与实际区服不符（例如原神用了 `prod_gf_cn`）。改为正确区服（国服 `cn_gf01` / 星铁 `prod_gf_cn`）或删掉该小号后重新扫码绑定。
-- `retcode 1034`：米游社风控验证码。插件只保留手动过码：开启 `manual_gt_enable` 后，签到/查询遇到验证码会给出链接，浏览器完成验证后自动重试；也可让用户发送 `#设备帮助` 绑定常用设备降低风控概率。
-- 附加小号查询失败不影响主号，主号卡片照常出图，失败的小号会在末尾以「以下UID获取失败」提示。
-
-### 手动过码（米游社风控 1034）
+## 手动过码（米游社风控 1034）
 
 小花火**只保留手动过码**：米游社返回 `retcode 1034 / 10035` 时，插件会给你一个验证链接，
 你在浏览器里过完滑块，插件拿到结果后自动重试被中断的那个请求（签到 / 体力 / 社区签到都走这一条）。
 
-#### 工作方式
+### 工作方式
 
 ```
 撞码(1034) → 插件登记一个验证任务 → 给你链接
@@ -282,7 +251,7 @@ pnpm i
 - 链接形如 `<公网地址><manual_gt_path>/<8位随机码>`，例如 `https://xxx.trycloudflare.com/xhh-gt/b1ef510e`
 - 验证页默认每 120 秒自动清理一次（每天 4:20 定时），不会堆积
 
-#### 配置项
+### 配置项
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |
@@ -299,7 +268,7 @@ pnpm i
 export XHH_MANUAL_GT_PUBLIC_URL='https://你的域名'
 ```
 
-#### 四种部署方式
+### 四种部署方式
 
 **A. 什么都不配（仅本机浏览器可用）**
 所有配置保持默认，链接是 `http://127.0.0.1:<port>/xhh-gt/<码>`。
@@ -423,7 +392,7 @@ manual_gt_public_url: 'https://xhh-gt.你的域名'
 ```
 插件会优先用它，且**不会**再自动拉隧道，也没有地址变动问题。
 
-#### 自测
+### 自测
 
 主人可发：
 ```
@@ -432,7 +401,11 @@ manual_gt_public_url: 'https://xhh-gt.你的域名'
 会造一个假验证码任务并把链接发出来。打开链接点「模拟提交验证」，机器人会收到结果并回复成功，
 说明「本地服务 → 页面 → 回传」整条链路是通的（真实验证码只有撞码时才有，自测用的是假数据）。
 
-#### 常见问题
+---
+
+## 常见问题
+
+### 手动过码链接打不开
 
 | 现象 | 原因与处理 |
 | --- | --- |
@@ -443,11 +416,6 @@ manual_gt_public_url: 'https://xhh-gt.你的域名'
 | 提示「没有可用公网地址」 | 既没配 `manual_gt_public_url`，也没装 cloudflared，见上文方案 |
 | 撞码了但没收到链接 | 检查 `manual_gt_enable` 是否为 true，以及签到群是否在 `bbs_sign_group` 白名单内 |
 
-本机自检（服务是否在监听）：
-```bash
-curl -s http://127.0.0.1:<manual_gt_port><manual_gt_path>/任意码
-# 返回 {"status":1,"message":"验证信息不存在或已失效"} 说明服务正常
-```
 
 ### 语音列表发出后回复数字没反应
 
@@ -459,6 +427,34 @@ curl -s http://127.0.0.1:<manual_gt_port><manual_gt_path>/任意码
 
 群列表取自 `Bot.gl`（机器人已加载的群信息）。插件启动 30 秒后会把群号+群名写入 `data/GroupName.yaml` 并每 5 分钟刷新。若仍是「名称未知」，说明该 bot 不在这个群，需要先把 bot 拉进群；或在下拉框里手动添加群号。
 
+### 指令被其他插件抢占
+
+云崽的 `priority` 数字**越小越先执行**（`lib/plugins/handler.js` 按 `a.priority - b.priority` 升序排序）。若指令被别的插件先处理：
+
+1. 调小对应优先级，例如 `tl_priority`（体力）、`voice_priority`（语音）、`help_priority`（帮助）；
+2. 或改用带前缀的写法，如 `#小花火体力`、`#小花火德丽莎语音`、`#小花火帮助`；
+3. 优先级类配置修改后**需重启**云崽生效。
+
+### 查询报 `param error` / `retcode 1034`
+
+- `retcode -1 param error`：多 UID 聚合查询时，附加小号在 `data/Stoken/<QQ>.yaml` 里存的 `region` 与实际区服不符（例如原神用了 `prod_gf_cn`）。改为正确区服（国服 `cn_gf01` / 星铁 `prod_gf_cn`）或删掉该小号后重新扫码绑定。
+- `retcode 1034`：米游社风控验证码。插件只保留手动过码：开启 `manual_gt_enable` 后，签到/查询遇到验证码会给出链接，浏览器完成验证后自动重试；也可让用户发送 `#设备帮助` 绑定常用设备降低风控概率。
+- 附加小号查询失败不影响主号，主号卡片照常出图，失败的小号会在末尾以「以下UID获取失败」提示。
+
+
+
+## 贡献与反馈
+
+- **报 Bug / 提需求**：开 Issue，附上「云崽版本 + 适配器（NapCat/LLOneBot…）+ 触发指令 + 完整报错日志」
+- **指令无反应 / 出不来图**：先把 `config.yaml` 的 `debug` 改成 `true` 再复现，日志里 `[xhh][...]` 开头的行最有价值
+- **指令被别的插件抢走**：见[常见问题](#指令被其他插件抢占)，云崽里**优先级数字越小越先执行**，可在 `config.yaml` 调小对应 `*_priority`
+- **二次开发**：fork 后向 `v2` 分支提 PR；改动前先看 `apps/` 里同名模块的既有风格
+
+## 更新日志
+
+见 [CHANGELOG.md](CHANGELOG.md)；群内发 `#小花火更新日志` 也能查看最近几次更新。
+
+---
 
 ## 开源与二次分发说明
 
@@ -484,6 +480,8 @@ curl -s http://127.0.0.1:<manual_gt_port><manual_gt_path>/任意码
 
 ## cd到云崽的根目录，然后↘↓↙
 
+cd到云崽的根目录，然后↘↓↙
+
 ```
 git clone https://gitee.com/this_e/xhh.git ./plugins/xhh/
 ```
@@ -498,6 +496,8 @@ git clone https://github.com/thisee/xhh.git ./plugins/xhh/
 </details>
 
 ## 安装依赖
+
+安装依赖
 
 ```
 pnpm i
@@ -541,6 +541,8 @@ pnpm i
 4. 我是菜鸟，我什么也不懂(ó﹏ò｡) ,非本插件的问题，我都不知道！
 
 ## 星铁攻略图源
+
+星铁攻略图源
 
 |                     星铁攻略图的作者大大                      |
 | :-----------------------------------------------------------: |

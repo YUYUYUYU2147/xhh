@@ -66,7 +66,8 @@ function getManualCfg() {
   const liveTunnel = tunnelUrl || readTunnelUrlFile();
   return {
     enable: cfg.manual_gt_enable !== false,
-    host: cfg.manual_gt_host || '0.0.0.0',
+    // 手动验证码服务只监听本机，公网访问统一交给 Cloudflare Tunnel/反向代理。
+    host: cfg.manual_gt_host || '127.0.0.1',
     port: Number(cfg.manual_gt_port || 3000),
     publicUrl: (isTempDomain && liveTunnel) || configured,
     path: String(cfg.manual_gt_path || '/xhh-gt').replace(/\/+$/, ''),
@@ -442,4 +443,42 @@ export async function manualGeetestTest(e) {
   return e.reply('手动验证完整流程模拟超时：没有收到网页提交结果。', true);
 }
 
-export default { manualGeetest, ensureServer, startManualGeetest, manualGeetestTest };
+
+// 端到端清一次米游社风控：createVerification → 手动页面 → verifyVerification。
+// 卡池刷新、签到、查询等任何撞上 1034 的场景都可以复用它。
+// gids=2 对应社区（bbs）通道，解除后对应接口即可正常访问。
+export async function mihoyoClearRisk(e, label = '米游社风控') {
+  const cfg = getManualCfg();
+  if (!cfg.enable) return { ok: false, reason: '手动过码服务未启用（manual_gt_enable: false）' };
+  if (!ensureServer()) return { ok: false, reason: '本地验证服务启动失败' };
+  const { default: api } = await import('./api.js');
+  const { default: mhy } = await import('./mhy.js');
+  const uid = e?.user?.getUid?.('gs') || e?.user?.getUid?.() || '';
+  let sk = '';
+  try {
+    sk = uid ? await mhy.getstoken(e, uid) : '';
+  } catch (_) {}
+  if (!sk) return { ok: false, reason: '未绑定米游社 SToken，无法构造验证请求' };
+
+  const headers = mhy.getHeaders(e, sk, false);
+  headers['x-rpc-client_type'] = 5;
+  headers.DS = mhy.getDs2('gids=2&is_high=false', '', 4);
+  const create = await api(e, { headers, type: 'createVerification' });
+  if (Number(create?.retcode) !== 0 || !create?.data?.gt) {
+    return { ok: false, reason: `申请验证码失败 retcode=${create?.retcode} message=${create?.message || '无'}` };
+  }
+  const validated = await manualGeetest(e, { ...create.data, uid }, label);
+  if (!validated?.validate) return { ok: false, reason: '未完成验证（超时或关闭）' };
+  const body = JSON.stringify({
+    geetest_challenge: validated.challenge || create.data.challenge,
+    geetest_validate: validated.validate,
+    geetest_seccode: validated.seccode || `${validated.validate}|jordan`,
+  });
+  const verify = await api(e, { headers: { ...headers, DS: mhy.getDs2('', body, 4) }, type: 'verifyVerification', body });
+  if (Number(verify?.retcode) !== 0) {
+    return { ok: false, reason: `回交校验失败 retcode=${verify?.retcode} message=${verify?.message || '无'}` };
+  }
+  return { ok: true, challenge: verified?.challenge };
+}
+
+export default { manualGeetest, ensureServer, startManualGeetest, manualGeetestTest, mihoyoClearRisk };

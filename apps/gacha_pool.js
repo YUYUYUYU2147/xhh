@@ -18,6 +18,19 @@ const SR_BWIKI_URL = 'https://wiki.biligame.com/sr/' + encodeURIComponent('历�
 // 结构参考社区插件：['帖子标题关键字段', 作者uid, [图片索引数组], '作者名']
 const MYS_SEARCH_API = 'https://bbs-api.miyoushe.com/painter/api/user_instant/search/list';
 const MYS_OFFICIAL_UID = { gs: '75276539', sr: '288909600', zzz: '152039148', bh3: '73565430' };
+const SR_COLLAB_IMAGE_POSTS = {
+  '联动1.0': { postId: '66236171', index: 0 },
+  '联动2.0': { postId: '76423940', index: -1 }
+};
+const SR_POOL_IMAGE_KEYWORDS = {
+  真珠: ['沧海萃珠', '流光定影', '献给明日的色彩'],
+  绯英: ['韶艾裁英', '溯回忆象', '邂逅于下一个花季']
+};
+// 4.6 官方公告把两期卡池放在同一篇帖子里，角色背景图在 images 数组中的位置不同。
+const SR_POOL_IMAGE_SPECS = {
+  真珠: { keyword: '4.6版本活动跃迁', imageIndex: 1 },
+  绯英: { keyword: '4.6版本活动跃迁', imageIndex: 4 }
+};
 // 各游戏卡池公告的标题特征：只认带这些词的帖子，避免匹配到「版本更新说明/问题反馈」之类
 const MYS_TITLE_MATCH = {
   gs: /祈愿/,
@@ -27,6 +40,8 @@ const MYS_TITLE_MATCH = {
 };
 const MYS_MAX_IMAGES = 10;
 const MYS_COVER_CACHE = new Map();
+// 星铁封面搜索结果缓存：同一期同一类型只搜一次，避免每次渲染都打米游社搜索接口
+const SR_COVER_CACHE = new Map();
 const MYS_ASPECT_CACHE = new Map();
 const YS_BWIKI_URL = 'https://wiki.biligame.com/ys/' + encodeURIComponent('往期祈愿');
 const GS_POOL_HISTORY_YAML_PATH = './plugins/xhh/system/default/gslogs.yaml';
@@ -320,7 +335,16 @@ export class xhh_gacha_pool extends plugin {
         s: gachas[0]?.title || pool.s || '',
         a: gachas.slice(1).map(v => v.title).filter(Boolean)
       };
-    }).filter(v => v.s);
+    }).filter(v => v.s).filter(v => {
+      // 这个 meta 里是「当前及后续若干期」的完整池子列表，不是只有当期。
+      // 不按时间过滤的话，几十个池子的时间区间都会命中 now，
+      // 「当前卡池」就会渲染出上百张卡（图片高度失控、puppeteer 直接报 65535 像素超限）。
+      const start = new Date(v.startTime || '').getTime();
+      const end = new Date(v.endTime || '').getTime();
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+      const now = Date.now();
+      return now >= start && now <= end;
+    });
   }
 
   loadGsPoolHistory() {
@@ -389,9 +413,23 @@ export class xhh_gacha_pool extends plugin {
       return item;
     }).filter(v => v.s && v.version);
     if (!local.length) return data;
-    const keyOf = pool => `${pool.version || '-'}|${pool.type || '-'}|${pool.s || '-'}|${pool.title || ''}`;
-    const map = new Map(data.map(pool => [keyOf(pool), pool]));
-    for (const pool of local) map.set(keyOf(pool), pool);
+    const keyOf = pool => `${pool.version || '-'}|${pool.type || '-'}|${pool.timer || '-'}|${pool.s || '-'}`;
+    const mergePool = (map, pool) => {
+      const key = keyOf(pool);
+      const old = map.get(key);
+      if (!old) {
+        map.set(key, { ...pool, a: Array.isArray(pool.a) ? [...new Set(pool.a.filter(Boolean))] : pool.a });
+        return;
+      }
+      const oldA = Array.isArray(old.a) ? old.a : String(old.a || '').split(/[\/，,、]/).filter(Boolean);
+      const newA = Array.isArray(pool.a) ? pool.a : String(pool.a || '').split(/[\/，,、]/).filter(Boolean);
+      old.a = [...new Set([...oldA, ...newA])];
+      if (!old.title && pool.title) old.title = pool.title;
+      if (!old.img && pool.img) old.img = pool.img;
+    };
+    const map = new Map();
+    for (const pool of data) mergePool(map, pool);
+    for (const pool of local) mergePool(map, pool);
     return this.resolveZzzVersionUpdateTimes([...map.values()])
       .sort((a, b) => this.poolEndStamp(a) - this.poolEndStamp(b));
   }
@@ -580,6 +618,13 @@ export class xhh_gacha_pool extends plugin {
       data.markWide = true;
     }
     if (Array.isArray(data?.cards) && data.mode !== 'gs-history') {
+      // 兜底上限：单张图最多 20 张卡。数据源异常（例如卡池时间区间解析失效、
+      // 把几十个池子都算成"当前"）时会把页面撑到几万像素，
+      // puppeteer 截图会直接报 "jpeg cannot exceed 65535 pixels on a side" 而整条指令失败。
+      if (data.cards.length > 20) {
+        logger.warn(`[xhh][gacha_pool] ${data.title || data.game || '卡池'} 卡片数 ${data.cards.length} 超过 20，已截断`);
+        data.cards = data.cards.slice(0, 20);
+      }
       data.cards.forEach((card, i) => {
         if (!card.index) card.index = i + 1;
       });
@@ -1067,6 +1112,25 @@ export class xhh_gacha_pool extends plugin {
     }
   }
 
+  patchZzzCardsFromOfficial(cards = [], records = []) {
+    if (!Array.isArray(cards) || !Array.isArray(records)) return;
+    for (const card of cards) {
+      if (card.a && card.a !== '-') continue;
+      const names = String(card.s || '').split(/[\/，,、]/).map(v => v.trim()).filter(Boolean);
+      if (!names.length) continue;
+      const hit = records.find(record => {
+        const recordNames = [
+          ...(Array.isArray(record.up?.s) ? record.up.s : String(record.up?.s || '').split(/[\/，,、]/)),
+          ...(Array.isArray(record.up?.a) ? record.up.a : String(record.up?.a || '').split(/[\/，,、]/))
+        ].map(v => String(v).trim()).filter(Boolean);
+        return recordNames.some(recordName => names.some(name => recordName === name || recordName.includes(name) || name.includes(recordName)));
+      });
+      const a = hit?.up?.a;
+      if (Array.isArray(a) && a.length) card.a = [...new Set(a.map(v => String(v).trim()).filter(Boolean))].join(' / ');
+      else if (a) card.a = String(a).split(/[\/，,、]/).map(v => v.trim()).filter(Boolean).join(' / ');
+    }
+  }
+
   getCardSplashByGame(gameName = '', names = []) {
     const list = (Array.isArray(names) ? names : [names])
       .flatMap(v => String(v || '').split(/[\/,，、]/))
@@ -1429,7 +1493,31 @@ export class xhh_gacha_pool extends plugin {
       await redis.del(ZZZ_CACHE_KEY);
       await redis.del(ZZZ_CACHE_EXPIRE_KEY);
     } catch (_) {}
-    const results = await officialPool.refreshAll();
+    let results = await officialPool.refreshAll();
+
+    // 详情接口撞 1034 时，不只是"用缓存就算了"——先尝试走一次手动过码清风控，
+    // 成功后再重试一次刷新；失败才退回原来的"跳过同步 + 冷却"逻辑。
+    if (results.some(r => r.riskControl) && e?.user) {
+      const hitGames = results.filter(r => r.riskControl).map(r => r.game);
+      const names = hitGames.map(g => officialPool.games[g]?.name || g).join('、');
+      try {
+        await e.reply(`米游社详情接口命中风控(1034)：${names}。
+正在为你准备手动验证链接，请注意查收…`, true, { recallMsg: 300 });
+        const { mihoyoClearRisk } = await import('../system/manual_geetest.js');
+        const res = await mihoyoClearRisk(e, '卡池刷新风控验证');
+        if (res?.ok) {
+          logger.mark('[xhh][gacha_pool] 手动过码成功，重试一次卡池刷新');
+          await this.sleepMs(3000);
+          results = await officialPool.refreshAll();
+        } else {
+          logger.warn(`[xhh][gacha_pool] 手动过码未完成：${res?.reason || '未知原因'}`);
+          try { await e.reply(`手动验证未完成（${res?.reason || '超时'}），将退回缓存数据。`, true, { recallMsg: 300 }); } catch (_) {}
+        }
+      } catch (err) {
+        logger.warn(`[xhh][gacha_pool] 手动过码流程异常：${err?.message || err}`);
+      }
+    }
+
     const lines = results.map(r => {
       const meta = officialPool.games[r.game];
       return `${meta?.name || r.game}：${r.records.length} 条${r.error ? '（' + r.error + '）' : ''}`;
@@ -1560,11 +1648,13 @@ export class xhh_gacha_pool extends plugin {
     const version = verRaw.replace(/联动|上半|下半/g, '').trim();
     const phase = /下半/.test(verRaw) ? '其二' : (/上半/.test(verRaw) ? '其一' : '');
     const names = (upNames || []).filter(Boolean);
-    const key = `${verRaw}|${weapon ? 1 : 0}|${names[0] || ''}`;
+    const imageSpec = !weapon ? SR_POOL_IMAGE_SPECS[names[0] || ''] : null;
+    const key = `${verRaw}|${weapon ? 1 : 0}|${names[0] || ''}|${imageSpec?.imageIndex ?? ''}`;
     if (SR_COVER_CACHE.has(key)) return SR_COVER_CACHE.get(key);
-    const keywords = isCollab
+    const exactKeywords = upNames.flatMap(name => SR_POOL_IMAGE_KEYWORDS[String(name || '')] || []);
+    const keywords = imageSpec?.keyword ? [imageSpec.keyword] : (exactKeywords.length ? exactKeywords : (isCollab
       ? ['联动跃迁']
-      : [...(version ? [`${version}版本活动跃迁`] : []), ...(names[0] ? [names[0]] : [])];
+      : [...(version ? [`${version}版本活动跃迁`] : []), ...(names[0] ? [names[0]] : [])]));
     let result = '';
     for (const kw of keywords) {
       let list = [];
@@ -1578,26 +1668,96 @@ export class xhh_gacha_pool extends plugin {
       let bestScore = -1;
       for (const p of list) {
         const subject = String(p.subject || '');
+        const content = String(p.content || p.summary || '');
         if (!/跃迁/.test(subject)) continue;
-        const imgs = [p.cover?.url || '', ...(p.images || [])].filter(Boolean);
-        if (!imgs.length) continue;
+        const imgs = (p.images || []).map(image => typeof image === 'string' ? image : image?.url).filter(Boolean);
+        const fallbackImgs = [p.cover?.url || ''].filter(Boolean);
+        const usableImgs = imgs.length ? imgs : fallbackImgs;
+        if (!usableImgs.length) continue;
         let score = 0;
         if (version && subject.includes(version)) score += 10;
         if (phase && subject.includes(phase)) score += 8;
         if (isCollab && /联动/.test(subject)) score += 6;
-        for (const n of names) if (n && subject.includes(n)) score += 3;
+        // 角色池必须优先命中标题中明确出现首个 UP 名的公告，
+        // 否则同版本的真珠/绯英会共用版本公告封面。
+        for (const [i, n] of names.entries()) {
+          if (n && subject.includes(n)) score += i === 0 ? 24 : 6;
+        }
+        for (const keyword of exactKeywords) if (keyword && subject.includes(keyword)) score += 30;
+        if (imageSpec?.keyword && (subject.includes(imageSpec.keyword) || content.includes(imageSpec.keyword))) score += 35;
+        if (imageSpec && content.includes(names[0])) score += 20;
         if (score > bestScore) {
-          best = imgs;
+          best = usableImgs;
           bestScore = score;
         }
       }
       if (best) {
-        result = weapon ? (best[1] || best[0]) : best[0];
+        result = imageSpec
+          ? (best[imageSpec.imageIndex] || best[0])
+          : (weapon ? (best[1] || best[0]) : best[0]);
         break;
       }
     }
+    SR_COVER_CACHE.set(key, result);
     MYS_COVER_CACHE.set(key, result);
     return result;
+  }
+
+  async fetchSrCollabImage(ver = '') {
+    const itemSpec = SR_COLLAB_IMAGE_POSTS[String(ver || '')];
+    const item = this.loadSrPoolHistory()?.find(pool => pool?.ver === ver);
+    const spec = itemSpec || (item?.image_post_id ? {
+      postId: String(item.image_post_id),
+      index: String(ver) === '联动2.0' ? -1 : 0
+    } : null);
+    if (!spec) return '';
+    try {
+      // 使用米游社官方号搜索 API 获取帖子，再按 post_id 精确匹配目标公告。
+      // 这样图片来源和顺序都来自官方搜索接口，不把任何图片直链写入仓库。
+      const posts = await this.mysSearchPosts(MYS_OFFICIAL_UID.sr, '联动跃迁');
+      const hit = posts.find(post => String(post?.post_id || post?.postId || '') === String(spec.postId));
+      const apiImages = (Array.isArray(hit?.images) ? hit.images : [])
+        .map(image => typeof image === 'string' ? image : image?.url)
+        .filter(Boolean);
+      if (apiImages.length) return apiImages[spec.index < 0 ? apiImages.length - 1 : spec.index] || '';
+
+      // 搜索结果被米游社裁剪时，才用同一篇文章的详情 API 兜底。
+      const post = await officialPool.requestPostFull('sr', spec.postId);
+      const content = String(post?.content || post?.structured_content || '');
+      const fromContent = [...content.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)]
+        .map(match => match[1])
+        .filter(url => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url));
+      const detailImages = (Array.isArray(post?.images) ? post.images : [])
+        .map(image => typeof image === 'string' ? image : image?.url)
+        .filter(Boolean);
+      const images = [...new Set(detailImages.length ? detailImages : fromContent)];
+      return images[spec.index < 0 ? images.length - 1 : spec.index] || '';
+    } catch (err) {
+      logger.warn(`[xhh][gacha_pool] 星铁${ver}联动公告取图失败（${spec.postId}）：`, err?.message || err);
+      return '';
+    }
+  }
+
+  // 联动池编号按「开放起始时间」升序重排，而不是按 Bwiki 返回顺序或新增顺序。
+  // 否则 Bwiki 里 2026 的 Fate[UBW] 排在 2025 的 Fate 之前时，
+  // 会被分配成 联动1.0，而 2025 那个变成 联动2.0 —— 编号和时间对不上。
+  normalizeSrCollabLabels(list = []) {
+    const collabs = list.filter(v => /^联动/.test(String(v?.ver || '')));
+    if (collabs.length < 1) return list;
+    const startOf = v => {
+      const t = String(v?.time || '').split('~')[0]?.trim() || '';
+      const n = new Date(t).getTime();
+      return Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
+    };
+    const ordered = [...collabs].sort((a, b) => startOf(a) - startOf(b));
+    ordered.forEach((item, i) => {
+      const next = `联动${(i + 1).toFixed(1)}`;
+      if (item.ver !== next) {
+        logger.mark(`[xhh][gacha_pool] 联动编号按时间校正：${item.ver} → ${next}（${(item.js_five || []).join('/')}，${String(item.time).split('~')[0]?.trim()}）`);
+        item.ver = next;
+      }
+    });
+    return list;
   }
 
   async syncSrImagesFromOfficial(records = []) {
@@ -1606,10 +1766,41 @@ export class xhh_gacha_pool extends plugin {
     if (!Array.isArray(history)) return false;
     let changed = false;
     let searched = 0;
+    const usedRoleImages = new Map();
     for (const item of history) {
-      if ((item.imgs || []).filter(Boolean).length) continue;
+      const collabImage = await this.fetchSrCollabImage(item.ver);
+      if (collabImage && item.imgs?.[0] !== collabImage) {
+        item.imgs = [collabImage];
+        changed = true;
+        continue;
+      }
       const roleImg = this.getSrOfficialPoolImage(item, false, records);
       const weaponImg = this.getSrOfficialPoolImage(item, true, records);
+      const existingImgs = (item.imgs || []).filter(Boolean);
+      const firstUp = String(item.js_five?.[0] || '');
+      const versionKey = String(item.ver || '').replace(/上半|下半/g, '');
+      const sameVersionImage = usedRoleImages.get(versionKey);
+      const exactKeywords = SR_POOL_IMAGE_KEYWORDS[firstUp];
+      if (exactKeywords?.length) {
+        const exactImage = await this.srSearchPoolImages(item.ver, [firstUp], false);
+        if (exactImage && existingImgs[0] !== exactImage) {
+          item.imgs = [exactImage, weaponImg].filter(Boolean);
+          usedRoleImages.set(versionKey, exactImage);
+          changed = true;
+          continue;
+        }
+      }
+      // 联动池图片按 UP 名重新校验：旧版本曾把联动 1.0/2.0 写成同一张图，
+      // 不能因为已有 imgs 就永久跳过修正。
+      if (/^联动/.test(String(item.ver || '')) && roleImg && existingImgs[0] !== roleImg) {
+        item.imgs = [roleImg, weaponImg || existingImgs[1]].filter(Boolean).slice(0, 2);
+        changed = true;
+        continue;
+      }
+      if (existingImgs.length && (!sameVersionImage || existingImgs[0] !== sameVersionImage)) {
+        usedRoleImages.set(versionKey, existingImgs[0]);
+        continue;
+      }
       let imgs = [...new Set([roleImg, weaponImg].filter(Boolean))];
       // 公告列表里翻不到（旧版本/过期池）时，改用官方号搜索接口找回封面
       if (!imgs.length && searched < 12) {
@@ -1617,14 +1808,19 @@ export class xhh_gacha_pool extends plugin {
         const found = await this.srSearchPoolImages(item.ver, item.js_five || [], false);
         if (found) imgs = [found];
       }
+      if (imgs[0] === sameVersionImage && firstUp) {
+        const found = await this.srSearchPoolImages(`${item.ver}|${firstUp}`, [firstUp], false);
+        if (found) imgs = [found];
+      }
       if (imgs.length) {
         item.imgs = imgs;
+        usedRoleImages.set(versionKey, imgs[0]);
         changed = true;
       }
     }
     if (!changed) return false;
     try {
-      fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(history), 'utf-8');
+      this.safeWritePoolYaml(SR_POOL_HISTORY_YAML_PATH, history, '星铁补图');
       return true;
     } catch (err) {
       logger.error('[xhh][gacha_pool] sr_logs.yaml 背景图补写失败:', err);
@@ -1670,6 +1866,8 @@ export class xhh_gacha_pool extends plugin {
             ex = local.find(v => /^联动/.test(String(v.ver || '')) && upsOf(v).some(n => bUps.includes(n)));
           }
           if (!ex) {
+            // 只按 UP 名匹配：同版本号的多个 UP（双 UP）时间窗口不同，不能按版本号合并，
+            // 否则贯穿整个版本的 UP 会被截短、当前卡池只剩一个角色。
             ex = local.find(v => v.ver === b.ver && upsOf(v).some(n => bUps.includes(n)));
           }
           if (!ex) {
@@ -1694,10 +1892,12 @@ export class xhh_gacha_pool extends plugin {
             // 否则联动池的 长期 会把常规池的具体结束时间顶掉（4.4上半被改成 07/24 ~ 长期）。
             const allowLong = isCollab && /^联动/.test(String(ex.ver || ''));
             if (b.time && !curIsLong && !farFuture && (allowLong || (/长期/.test(b.time) === allowLong)) && (!ex.time || new Date(candEnd) > new Date(curEnd || 0))) ex.time = b.time;
-            if (!ex.js_five?.length && b.js_five?.length) ex.js_five = b.js_five;
-            if (!ex.gz_five?.length && b.gz_five?.length) ex.gz_five = b.gz_five;
-            if (!ex.js_four?.length && b.js_four?.length) ex.js_four = b.js_four;
-            if (!ex.gz_four?.length && b.gz_four?.length) ex.gz_four = b.gz_four;
+            // 并集：同一行可能是多次同步累积的，只在为空时填会把后来的 UP 丢掉
+            const uni = (a, b2) => [...new Set([...(Array.isArray(a) ? a : []), ...(Array.isArray(b2) ? b2 : [])])];
+            ex.js_five = uni(ex.js_five, b.js_five);
+            ex.gz_five = uni(ex.gz_five, b.gz_five);
+            ex.js_four = uni(ex.js_four, b.js_four);
+            ex.gz_four = uni(ex.gz_four, b.gz_four);
             if (JSON.stringify(ex) !== before) updated++;
           }
         }
@@ -1707,8 +1907,13 @@ export class xhh_gacha_pool extends plugin {
           const n = new Date(t).getTime();
           return /长期/.test(t) || !t || Number.isNaN(n) ? Number.MAX_SAFE_INTEGER : n;
         };
-        local.sort((a, b) => endTime(b) - endTime(a));
-        fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(local), 'utf-8');
+        // 写盘前统一校正：① 同版本同窗口的重复行合并（并集）
+        // ② 联动编号按开放时间重排（否则编号会随 Bwiki 返回顺序翻转）
+        const mergedLocal = this.normalizeSrCollabLabels(this.mergeSrPeriods(local));
+        mergedLocal.sort((a, b) => endTime(b) - endTime(a));
+        local.length = 0;
+        local.push(...mergedLocal);
+        this.safeWritePoolYaml(SR_POOL_HISTORY_YAML_PATH, local, '星铁 Bwiki 同步');
         // 联动池长期开放（结束时间最远），不能算「最新版本」；排除后再取最新。
         const latest = local.find(v => !/^联动/.test(String(v?.ver || ''))) || local[0];
         await this.syncSrImagesFromOfficial(records); // 仍尝试用官方公告补背景图
@@ -1791,7 +1996,7 @@ export class xhh_gacha_pool extends plugin {
         data.date = nextDate;
         const latestNum = Number(String(latest.ver || '').replace(/[^0-9.]/g, ''));
         if (latestNum) this.setCurrentVersion('gs', latestNum);
-        fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
+        this.safeWritePoolYaml(GS_POOL_HISTORY_YAML_PATH, data, '原神卡池库');
         logger.mark(`[xhh][gacha_pool] 原神 Bwiki 同步明细：新增 ${added} / 修正 ${updated}`);
         // 封面统一走米游社：数据以 Bwiki 为准，图片仍用官方公告封面补录
         await this.syncGsImagesFromOfficial(records);
@@ -1874,7 +2079,7 @@ export class xhh_gacha_pool extends plugin {
       if ((data.imgs?.[key] || []).filter(Boolean).length >= 3 && !stale) return false;
       data.imgs = this.sortGsImgsByVersion({ ...(data.imgs || {}), [key]: list });
       data.imgs_src = { ...(data.imgs_src || {}), [key]: this.gsPoolSignature(pools) };
-      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
+      this.safeWritePoolYaml(GS_POOL_HISTORY_YAML_PATH, data, '原神卡池库');
       logger.mark(`[xhh][gacha_pool] 原神 ${key} 已用米游社公告补封面 ${list.length} 张${stale ? '（覆盖旧封面）' : ''}`);
       return true;
     } catch (err) {
@@ -1910,7 +2115,7 @@ export class xhh_gacha_pool extends plugin {
       if (!list.length) return false;
       data.imgs = this.sortGsImgsByVersion({ ...(data.imgs || {}), [key]: list });
       data.imgs_src = { ...(data.imgs_src || {}), [key]: this.gsPoolSignature(pools) };
-      fs.writeFileSync(GS_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
+      this.safeWritePoolYaml(GS_POOL_HISTORY_YAML_PATH, data, '原神卡池库');
       logger.mark(`[xhh][gacha_pool] 原神 ${key} 列表无祈愿公告，已用搜索接口补封面 ${list.length} 张${stale ? '（覆盖旧封面）' : ''}`);
       return true;
     } catch (err) {
@@ -2072,7 +2277,7 @@ export class xhh_gacha_pool extends plugin {
         const sorted = [...merged].sort((a, b) => this.poolEndStamp(b) - this.poolEndStamp(a));
         const latest = sorted[0];
         try {
-          fs.writeFileSync(ZZZ_POOL_HISTORY_YAML_PATH, YAML.stringify(merged), 'utf-8');
+          this.safeWritePoolYaml(ZZZ_POOL_HISTORY_YAML_PATH, merged, '绝区零 Bwiki 同步');
         } catch (err) {
           logger.warn('[xhh][gacha_pool] 绝区零本地库写入失败:', err);
         }
@@ -3171,16 +3376,50 @@ ${r.summary || ''}`;
     const data = await this.fetchZzzPools();
     if (data) {
       const now = new Date();
-      const pools = data.filter(p => {
+      {
+        const latest = [...data].sort((a, b) => this.poolEndStamp(b) - this.poolEndStamp(a))[0];
+        logger.mark(
+          `[xhh][gacha_pool] 绝区零卡池库共 ${data.length} 条，最新一期 ${latest?.version || '-'} ` +
+          `(${latest?.timer || '-'}，结束 ${latest?.endTime || '解析失败'})`,
+        );
+      }
+      // 注意顺序：必须先「合并本地库」再按时间筛当期。
+      // 反过来写（先筛后合并）的话，mergeZzzLocalPools 会把 140 条历史池子全塞回来，
+      // 当期卡池就会变成 144 张卡，图片高度失控导致渲染失败。
+      const pools = this.mergeZzzLocalPools(data).filter(p => {
         const { start, end } = this.parseTime(p);
         return start && end && now >= start && now <= end;
       });
+      // 同一池子可能同时存在于远程源和本地库（timer 写法略有差异时去重键对不上），这里再按「版本+类型+名称」去一次
+      const seenPool = new Set();
+      for (let i = pools.length - 1; i >= 0; i--) {
+        const k = `${pools[i].version || ''}|${pools[i].type || ''}|${pools[i].s || pools[i].title || ''}`;
+        if (seenPool.has(k)) pools.splice(i, 1);
+        else seenPool.add(k);
+      }
       if (pools.length) {
+        logger.mark(
+          `[xhh][gacha_pool] 绝区零当前期命中 ${pools.length} 个池子：` +
+          pools.map(p => `${p.version || '?'}/${p.s || p.title || '?'}`).join('、'),
+        );
+        // 兜底：单张图最多 20 张卡，避免异常数据把图片撑到上万像素导致渲染失败
+        if (pools.length > 20) {
+          logger.warn(`[xhh][gacha_pool] 绝区零当前期匹配到 ${pools.length} 个池子，已截断为 20 个`);
+          pools.length = 20;
+        }
         const sample = pools[0];
         this.setCurrentVersion('zzz', sample.version);
         const { end } = this.parseTime(sample);
         const days = end ? Math.max(Math.ceil((end.getTime() - now.getTime()) / 86400000), 0) : '?';
-        const cards = await this.applyZzzCardBackgrounds(pools.map((p, i) => { const c = this.poolToCard(p); c.index = i + 1; c.versionTag = `#${c.index} ${c.version || '-'}`; return c; }), zzzOfficial.records || []);
+        const cards = pools.map((p, i) => {
+          const c = this.poolToCard(p);
+          c.index = i + 1;
+          c.versionTag = `#${c.index} ${c.version || '-'}`;
+          return c;
+        });
+        this.patchZzzCardsFromOfficial(cards, zzzOfficial.records || []);
+        await this.patchZzzOfficialCards(cards, data);
+        await this.applyZzzCardBackgrounds(cards, zzzOfficial.records || []);
         const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
         return this.renderPoolImage(e, {
           game: '绝区零',
@@ -3197,7 +3436,13 @@ ${r.summary || ''}`;
     const { records } = zzzOfficial;
     if (records.length) {
       // 只使用公告标题能明确解析到当前版本的记录；避免旧公告解析不到版本时被 officialCard 兜底成 3.0，导致右上角抽到旧角色（如比利）。
-      const useRecords = records.filter(r => String(r.version || '').startsWith(this.currentVersionByGame('zzz')));
+      // 本地卡池库过期时 currentVersionByGame 会停在旧版本，这里再用「本地最新一期」的版本号兜底，
+      // 否则 startsWith('') 会把全部公告都匹配上，当期卡池就变成「一堆历史卡池」。
+      let verFilter = this.currentVersionByGame('zzz');
+      if (!verFilter) verFilter = await this.getZzzCurrentLocalVersion();
+      const useRecords = verFilter
+        ? records.filter(r => String(r.version || '').startsWith(verFilter))
+        : records.slice(0, 4);
       if (!useRecords.length) {
         logger.mark('[xhh][gacha_pool] 绝区零官方公告未解析到当前版本记录，改用本地卡池数据兜底');
       } else {
@@ -3231,21 +3476,22 @@ ${r.summary || ''}`;
           });
         }
       }
-      const currentCards = rawCards.filter(c => String(c.version || '').startsWith(this.currentVersionByGame('zzz')));
+      const currentCards = rawCards.filter(c => String(c.version || '').startsWith(verFilter));
       const cards = (currentCards.length ? currentCards : rawCards).slice(0, 4).map((card, i) => {
         card.index = i + 1;
         card.versionTag = `#${card.index}${card.version && card.version !== '-' ? ' ' + card.version : ''}`;
         return card;
       });
       // 官方公告缺 A 级时用本地卡池库补齐
-      await this.patchZzzOfficialCards(cards);
+      this.patchZzzCardsFromOfficial(cards, zzzOfficial.records || []);
+      await this.patchZzzOfficialCards(cards, data);
       this.applyCardVersion(cards, await this.getZzzCurrentLocalVersion());
       const markIcon = this.getZzzHeaderSplashFromCards(cards, ZZZ_MARK_ICON);
       let markWide = !!markIcon;
       return this.renderPoolImage(e, {
         game: '绝区零',
         title: '绝区零当前卡池',
-        subtitle: `数据来源：米游社公告 · v${this.currentVersionByGame('zzz')}`,
+        subtitle: `数据来源：米游社公告 · v${verFilter || '-'}`,
         mode: 'zzz',
         markIcon,
         markWide,
@@ -4197,8 +4443,51 @@ ${r.summary || ''}`;
     };
   }
 
-  buildSrHistorySections(data = [], query = '') {
-    if (!Array.isArray(data)) return [];
+  // BWiki「历史跃迁」里同一版本号可能出现多行，各自对应一个 UP，时间窗口也可能不同
+  // （例如 4.6 上半是双 UP：真珠贯穿整个版本 ~ 11/10，绯英只到上半结束 ~ 10/21）。
+  // 所以这里只在「版本号 + 结束时间都相同」时合并（纯粹是重复行），
+  // 绝不能跨不同时间窗口合并，否则会把贯穿版本的 UP 截短、丢掉一个 UP。
+  mergeSrPeriods(data = []) {
+    if (!Array.isArray(data) || !data.length) return Array.isArray(data) ? data : [];
+    const group = new Map();
+    const result = [];
+    for (const item of data) {
+      if (!item || typeof item !== 'object') continue;
+      const ver = String(item.ver || '').trim();
+      const endStamp = this.srTimeEnd(item.time);
+      // 联动池长期挂着、版本号形如「联动2.0」，不参与合并
+      const key = !ver || /^联动/.test(ver) || !endStamp ? '' : `${ver}@${endStamp}`;
+      if (!key) {
+        result.push(item);
+        continue;
+      }
+      if (!group.has(key)) {
+        group.set(key, { ...item, ver });
+        continue;
+      }
+      const base = group.get(key);
+      const uniq = (a, b) => [...new Set([...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])])];
+      base.js_five = uniq(base.js_five, item.js_five);
+      base.js_four = uniq(base.js_four, item.js_four);
+      base.gz_five = uniq(base.gz_five, item.gz_five);
+      base.gz_four = uniq(base.gz_four, item.gz_four);
+      base.imgs = uniq(base.imgs, item.imgs);
+    }
+    for (const item of group.values()) result.push(item);
+    return result;
+  }
+
+  // 取 "A ~ B" 里的结束时间戳（解析不了返回 0）
+  srTimeEnd(time = '') {
+    const end = String(time || '').split('~')[1]?.trim() || '';
+    if (!end || /长期|未知/.test(end)) return 0;
+    const t = new Date(end).getTime();
+    return Number.isNaN(t) ? 0 : t;
+  }
+
+  buildSrHistorySections(input = [], query = '') {
+    if (!Array.isArray(input)) return [];
+    const data = this.mergeSrPeriods(input);
     const q = this.normalizeSrName(query || '');
     let prevEnd = '';
     return data.map(item => {
@@ -4284,13 +4573,91 @@ ${r.summary || ''}`;
     return weapon ? (imgs[1] || imgs[0]) : imgs[0];
   }
 
+  // 卡池库是「累积型」数据：任何一次同步/补图都只能往上加，不能整份覆盖。
+  // 之前封面写回直接 YAML.stringify(过滤后的子集)，子集为空时就把整个库写成 0 字节。
+  // 这里统一做四件事：格式校验、写前备份、条目数/键数不允许锐减、写入前确认序列化非空。
+  // 注意两种库结构：星铁/绝区零/崩三是数组；原神 gslogs.yaml 是 { date, imgs, imgs_src } 对象。
+  safeWritePoolYaml(path, data, label = '') {
+    try {
+      const isArr = Array.isArray(data);
+      if (!data || typeof data !== 'object' || (isArr && !data.length)) {
+        logger.error(`[xhh][gacha_pool] 拒绝写入空的卡池库（${label}）：${path}`);
+        return false;
+      }
+      const before = this.loadYamlDoc(path);
+      if (isArr) {
+        if (Array.isArray(before) && before.length && data.length < before.length) {
+          logger.error(
+            `[xhh][gacha_pool] 拒绝写入条目数锐减的卡池库（${label}）：` +
+            `${before.length} → ${data.length}，已跳过。请检查数据源或用 git checkout 恢复。`,
+          );
+          return false;
+        }
+      } else {
+        // 对象型（原神库）：结构必须一致，且 date / imgs 的键数不许减少
+        if (!before || typeof before !== 'object' || Array.isArray(before)) {
+          logger.error(`[xhh][gacha_pool] 卡池库结构与新数据不一致，拒绝写入（${label}）：${path}`);
+          return false;
+        }
+        const beforeKeys = Object.keys(before);
+        const newKeys = Object.keys(data);
+        if (newKeys.length < beforeKeys.length) {
+          logger.error(`[xhh][gacha_pool] 拒绝写入顶层键减少的卡池库（${label}）：${beforeKeys} → ${newKeys}`);
+          return false;
+        }
+        for (const k of ['date', 'imgs']) {
+          if (before[k] && data[k] && typeof before[k] === 'object' && typeof data[k] === 'object') {
+            const bn = Object.keys(before[k]).length;
+            const nn = Object.keys(data[k]).length;
+            if (nn < bn) {
+              logger.error(`[xhh][gacha_pool] 拒绝写入 ${k} 键数减少的卡池库（${label}）：${bn} → ${nn}`);
+              return false;
+            }
+          } else if (before[k] && !data[k]) {
+            logger.error(`[xhh][gacha_pool] 拒绝写入丢失 ${k} 字段的卡池库（${label}）`);
+            return false;
+          }
+        }
+      }
+      const text = YAML.stringify(data);
+      if (!text || !text.trim()) {
+        logger.error(`[xhh][gacha_pool] 序列化结果为空，拒绝写入（${label}）`);
+        return false;
+      }
+      if (fs.existsSync(path)) {
+        try {
+          fs.copyFileSync(path, `${path}.bak`);
+        } catch (_) {}
+      }
+      fs.writeFileSync(path, text, 'utf-8');
+      return true;
+    } catch (err) {
+      logger.error(`[xhh][gacha_pool] 卡池库写入失败（${label}）:`, err);
+      return false;
+    }
+  }
+
+  loadYamlDoc(path) {
+    try {
+      if (!fs.existsSync(path)) return null;
+      return YAML.parse(fs.readFileSync(path, 'utf-8'));
+    } catch (_) {
+      return null;
+    }
+  }
+
   async loadSrLocalCards(type = '', officialRecords = [], all = false) {
-    const data = this.loadSrPoolHistory();
-    if (!Array.isArray(data)) return [];
+    const rawData = this.loadSrPoolHistory();
+    if (!Array.isArray(rawData)) return [];
+    // 先把同期的多行合并（BWiki 同一期会按角色拆行，且个别行的结束时间会写串）
+    const data = this.mergeSrPeriods(rawData);
     const query = this.normalizeSrName(type);
     const isCurrent = query === 'current';
     const cards = [];
-    const currentVersion = this.currentVersionByGame('sr');
+    // 当前版本只从本地卡池数据推导，不能让空字符串参与 startsWith 判断。
+    // 否则类似「正式开服后」这种无法解析具体日期的远古条目会被全部误判为当前池。
+    const currentVersion = this.currentVersionByGame('sr') ||
+      this.latestVersion(data.filter(item => !/^联动/.test(String(item?.ver || ''))).map(item => item?.ver));
     let prevEnd = '';
     let srImgDirty = false;
     // 「X.X版本更新后」这类没有具体开始时间的条目，要靠上一期的结束时间 +1s 反推。
@@ -4307,11 +4674,15 @@ ${r.summary || ''}`;
     const findPrevEnd = (idx) => {
       const own = endStamps[idx] || 0;
       const nowTs = Date.now();
+      const ownVer = String(data[idx]?.ver || '');
       let best = 0;
       for (let j = 0; j < endStamps.length; j++) {
         if (j === idx) continue;
         const t = endStamps[j];
         if (!t) continue;
+        // 同版本的另一条是「同期并行的另一个 UP」（如 4.6 的真珠 / 绯英），不是上一期。
+        // 拿它当基准会把开始时间算到未来，导致整个当前期卡池查不到。
+        if (ownVer && String(data[j]?.ver || '') === ownVer) continue;
         // 优先取「结束时间早于本条结束时间」里最晚的一期；本条没有结束时间则取已结束的最晚一期
         if (own ? (t < own && t > best) : (t <= nowTs && t > best)) best = t;
       }
@@ -4347,7 +4718,7 @@ ${r.summary || ''}`;
       // 4.5下半开放后，同版本的 4.5上半 已过期，必须让位（否则上半会一直挂在当前卡池里）。
       // 时间解析不出（如缺 start/end）时才用当前版本号兜底，避免本地库缺时间导致当前卡池空白。
       const timeParsed = !Number.isNaN(startAt) && !Number.isNaN(endAt);
-      const keepForCurrent = timeActive || (ver.startsWith(currentVersion) && !timeParsed);
+      const keepForCurrent = timeActive || (!!currentVersion && ver.startsWith(currentVersion) && !timeParsed);
       if (isCurrent && !keepForCurrent) continue;
       if (!all && !isCurrent && !versionHit && !nameHit) continue;
       const itemImgs = (item.imgs || []).filter(Boolean);
@@ -4393,13 +4764,19 @@ ${r.summary || ''}`;
       });
       if (!all && (isCurrent || versionHit)) continue;
     }
-    // 搜索接口找回的封面写回本地库，避免每次渲染都现拉
+    // 搜索接口找回的封面写回本地库，避免每次渲染都现拉。
+    // 注意：data 是「过滤后的子集」，不能直接覆盖整库 —— 必须把 imgs 变更映射回完整的 rawData 再写。
     if (srImgDirty) {
-      try {
-        fs.writeFileSync(SR_POOL_HISTORY_YAML_PATH, YAML.stringify(data), 'utf-8');
-      } catch (err) {
-        logger.error('[xhh][gacha_pool] sr_logs.yaml 封面写回失败:', err);
+      const keyOf = v => `${v?.ver || ''}|${v?.time || ''}|${v?.s || ''}`;
+      const dirtyMap = new Map();
+      for (const item of data) {
+        if (item?.imgs?.length) dirtyMap.set(keyOf(item), item.imgs);
       }
+      for (const item of rawData) {
+        const imgs = dirtyMap.get(keyOf(item));
+        if (imgs && JSON.stringify(imgs) !== JSON.stringify(item.imgs)) item.imgs = imgs;
+      }
+      this.safeWritePoolYaml(SR_POOL_HISTORY_YAML_PATH, this.mergeSrPeriods(rawData), '星铁封面写回');
     }
     if (isCurrent) {
       // 联动池是长期开放（相当于常驻），排到末尾，避免把常规版本（如 4.5）的当期卡池挤到后面。

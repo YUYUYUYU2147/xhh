@@ -3,3 +3,5 @@ data/
 node_modules/
 temp/
 resources/srstrategy/
+# 卡池库写盘备份（由 safeWritePoolYaml 自动生成）
+system/default/*.yaml.bak
