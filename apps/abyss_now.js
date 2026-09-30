@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import moment from 'moment';
 import { render, pluginPriority } from '#xhh';
+import { enrichNanokaForAlioth, pickStageEnrich } from '../system/sr_enrich.js';
 
 // 数据来源：Alioth.wiki（开源站点，静态 JSON 直出，无需鉴权）
 // 数据：https://json.alioth.wiki/data/{gi|hsr}/ch/{file}.json 与 {file}/{期id}.json
@@ -394,31 +395,49 @@ async function buildStygian(mode, opts = {}) {
 
 /* ---------------- 星铁：混沌回忆 / 虚构叙事 / 末日幻影 ---------------- */
 
-function srMonster(detail, m = {}) {
+function srMonster(detail, m = {}, healPct = 0) {
   const info = detail.Monsters?.[m.ID] || {};
   const res = Object.entries(info.RES || {}).map(([k, v]) => ({
     elems: elemView('sr', k),
     value: pct(v),
   })).filter(v => v.elems.length);
-  return {
+  const mon = {
     name: info.Name || `怪物 ${m.ID}`,
     icon: monsterIcon('sr', info.Icon),
     hp: fmt(m.HP),
+      // HPCount = 血条数，即页面上的 xN（如「9,645,484 x2」），与污染等级无关
+      hpMult: Number(info.HPCount) > 1 ? Number(info.HPCount) : 0,
+      // VoracityHP = 污染（贪饕）额外加的血量，独立字段，不是百分比推导
+      voracityHp: m.VoracityHP ? fmt(m.VoracityHP) : '',
+      // 贪饕被击倒时回复的血量 = 本层 HP × 该期贪饕回血比例。
+      // 比例只有 nanoka 有（maze_buff_param[1]），由 enrichNanokaForAlioth 补进来。
+      greedPct: 0,
+      greedHp: '',
+      spd: m.SPD ? fmt(m.SPD) : '',
+      stance: m.Stance ? (Math.round(Number(m.Stance) * 10) / 10).toFixed(1) : '',
     count: '',
     weak: elemView('sr', info.Weak),
     res,
     mech: '',
   };
+  if (healPct > 0) {
+    const base = Number(String(mon.hp).replace(/,/g, '')) || 0;
+    if (base > 0) {
+      mon.greedPct = Math.round(healPct * 100);
+      mon.greedHp = fmt(Math.round(base * healPct));
+    }
+  }
+  return mon;
 }
 
 // 混沌/虚构的 Waves 是数组；末日幻影的 Waves 是单个对象（首领本体）
-function srWaves(detail, stage) {
+function srWaves(detail, stage, healPct = 0) {
   const raw = stage.Waves;
   const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
   return list.map((w, i) => {
     let monsters = [];
-    if (Array.isArray(w.Monsters)) monsters = w.Monsters.map(m => srMonster(detail, m));
-    else if (w.ID) monsters = [srMonster(detail, w)];
+    if (Array.isArray(w.Monsters)) monsters = w.Monsters.map(m => srMonster(detail, m, healPct));
+    else if (w.ID) monsters = [srMonster(detail, w, healPct)];
     return {
       name: w.WaveName || (Array.isArray(raw) && list.length > 1 ? `第${w.Wave ?? i + 1}波` : ''),
       monsters,
@@ -426,13 +445,15 @@ function srWaves(detail, stage) {
   }).filter(v => v.monsters.length);
 }
 
-function srStageHalf(detail, st, label) {
-  const stage = detail.Stages?.[String(st.StageID)] || detail.Stages?.[st.StageID] || {};
+function srStageHalf(detail, st, label, nanokaMap) {
+  const stageId = st.StageID;
+  const stage = detail.Stages?.[String(stageId)] || detail.Stages?.[stageId] || {};
+  const healPct = Number(pickStageEnrich(nanokaMap, stageId)?.healPct) || 0;
   return {
     label,
     level: stage.Level,
     elems: elemView('sr', st.Elem),
-    waves: srWaves(detail, stage),
+    waves: srWaves(detail, stage, healPct),
   };
 }
 
@@ -442,13 +463,15 @@ async function buildSr(mode, opts = {}) {
   if (!loaded) return null;
   if (loaded.error) return { error: loaded.error };
   const { phase, detail, tag } = loaded;
+  // alioth 没有污染机制说明与贪饕回血比例，这两样只有 nanoka 有，补进来
+  const nanokaMap = await enrichNanokaForAlioth(String(phase._id), detail, mode.file || 'chaos');
   const floors = detail.Floors || [];
   if (!floors.length) return null;
   const nums = floors.map(f => Number(f.Floor)).filter(Number.isFinite);
   const want = nums.includes(Number(layer)) ? Number(layer) : Math.max(...nums);
   const floor = floors.find(f => Number(f.Floor) === want) || floors[floors.length - 1];
 
-  const halves = (floor.Stages || []).map(st => srStageHalf(detail, st, Number(st.Half) === 1 ? '上半' : Number(st.Half) === 2 ? '下半' : `第${st.Half}关`))
+  const halves = (floor.Stages || []).map(st => srStageHalf(detail, st, Number(st.Half) === 1 ? '上半' : Number(st.Half) === 2 ? '下半' : `第${st.Half}关`, nanokaMap))
     .filter(v => v.waves.length);
 
   const buffs = [];
@@ -585,7 +608,10 @@ export class AbyssNow extends plugin {
       if (!view || !view.sections?.length) {
         return e.reply('未获取到 Alioth 当期数据，请稍后再试。', true, { recallMsg: 60 });
       }
-      const img = await render('abyss_now/overview', view, { e, pct: 1 });
+      // 原来传 pct:1，等于完全不缩放，输出只有 1200px 宽，
+      // 是全插件最小的（速报 1.5 / 日历 1.65 / 角色战力 1.6），字小又糊。
+      // 1.5 与速报对齐，输出 1800px，字体按 1.5 倍重新栅格化而不是拉伸。
+      const img = await render('abyss_now/overview', view, { e, pct: 1.5 });
       if (view.tip) await e.reply(view.tip, true, { recallMsg: 60 });
       return e.reply(img);
     } catch (err) {

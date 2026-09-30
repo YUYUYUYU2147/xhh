@@ -920,13 +920,13 @@ export const supportGuoba = () => {
       {
         field: 'abyss_report_sr_maze_levels',
         label: '星铁混沌回忆难度筛选',
-        helpMessage: '留空显示全部；用数字1-12指定要显示的难度，如 11,12 只显示第十一、十二层',
+        helpMessage: '留空默认只显示第十一、十二层（深层才有参考价值）；想看其他层用数字指定，如 1,2 只显示第一、二层',
         component: 'Input',
       },
       {
         field: 'abyss_report_sr_doom_levels',
         label: '星铁末日幻影难度筛选',
-        helpMessage: '留空显示全部；用数字1-5指定要显示的难度，如 3,4 只显示难度三、四',
+        helpMessage: '留空默认只显示难度三、四；想看其他难度用数字指定，如 1,2 只显示难度一、二',
         component: 'Input',
       },
       {
@@ -1211,6 +1211,25 @@ export const supportGuoba = () => {
         component: 'InputNumber',
         componentProps: { min: 30, max: 600, step: 10 },
       },
+      {
+        field: 'manual_gt_notify_group',
+        label: '过码通知群',
+        helpMessage: '自动签到/社区签到是定时任务，无法在群里回复指令，所以撞到验证码时把链接发到这个群；留空则不推送',
+        component: 'Select',
+        componentProps: {
+          mode: 'multiple',
+          allowAdd: true,
+          allowDel: true,
+          options: groupList,
+        },
+      },
+      {
+        field: 'manual_gt_notify_at',
+        label: '过码通知额外@谁',
+        helpMessage: '发链接时已经会自动 @ 本次签到失败的那个成员；只有还想额外提醒别人时才填这里',
+        component: 'Select',
+        componentProps: { mode: 'tags', allowClear: true },
+      },
     ],
     getConfigData() {
       const cfg = getCfg()
@@ -1288,6 +1307,10 @@ export const supportGuoba = () => {
         manual_gt_public_url: String(cfg.manual_gt_public_url || ''),
         manual_gt_auto_tunnel: cfg.manual_gt_auto_tunnel !== false,
         manual_gt_timeout: Number(cfg.manual_gt_timeout || 120),
+        manual_gt_notify_group: cfg.manual_gt_notify_group ? [Number(cfg.manual_gt_notify_group)] : [],
+        manual_gt_notify_at: Array.isArray(cfg.manual_gt_notify_at)
+          ? cfg.manual_gt_notify_at.map(String)
+          : String(cfg.manual_gt_notify_at || '').split(',').map(v => v.trim()).filter(Boolean),
         gacha_art_source: cfg.gacha_art_source || 'custom',
         gacha_header_art_source: cfg.gacha_header_art_source || cfg.gacha_art_source || 'custom',
         gacha_up_icon_source: cfg.gacha_up_icon_source || cfg.gacha_art_source || 'custom',
@@ -1498,7 +1521,19 @@ export const supportGuoba = () => {
       yaml.set(_path + 'config.yaml', 'manual_gt_public_url', String(data.manual_gt_public_url || '').trim().replace(/\/+$/, ''))
       yaml.set(_path + 'config.yaml', 'manual_gt_auto_tunnel', data.manual_gt_auto_tunnel !== false)
       const gtTimeout = Number(data.manual_gt_timeout)
-      yaml.set(_path + 'config.yaml', 'manual_gt_timeout', Number.isFinite(gtTimeout) ? Math.max(30, Math.min(600, Math.trunc(gtTimeout))) : 120)
+        yaml.set(_path + 'config.yaml', 'manual_gt_timeout', Number.isFinite(gtTimeout) ? Math.max(30, Math.min(600, Math.trunc(gtTimeout))) : 120)
+        // 过码通知：定时任务无法在群里回复指令，撞风控时把链接发到指定群并 @ 指定 QQ
+        const toGid = v => {
+          const n = Number(String(v).trim())
+          return Number.isSafeInteger(n) && n > 0 ? n : 0
+        }
+        const gid = Array.isArray(data.manual_gt_notify_group) ? data.manual_gt_notify_group[0] : data.manual_gt_notify_group
+        yaml.set(_path + 'config.yaml', 'manual_gt_notify_group', toGid(gid))
+        const atList = (Array.isArray(data.manual_gt_notify_at)
+          ? data.manual_gt_notify_at
+          : String(data.manual_gt_notify_at || '').split(/[,\s]+/)
+        ).map(v => String(v).trim()).filter(v => /^\d{5,12}$/.test(v))
+        yaml.set(_path + 'config.yaml', 'manual_gt_notify_at', atList.length ? atList : [])
       yaml.set(_path + 'other.yaml', 'group_config', parseGroupConfig(data.group_config))
 
       const currentBh3Remind = getBh3Remind()

@@ -11,7 +11,7 @@
         {{each data s}}
         <div class="box_">
           {{if s.icon}}
-          <img class="rank {{s.rankClass}}" src="{{s.icon}}" data-alt="{{s.iconFallback || ''}}" onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}else{this.style.visibility='hidden'}" />
+          <img class="rank {{s.rankClass}}" src="{{s.icon}}" data-alt="{{s.iconFallback || ''}}" onerror="var a=(this.dataset.alt||'').split(',').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alt=a.join(',');}else{this.style.visibility='hidden'}" />
           {{else}}
           <div class="img-ph rank {{s.rankClass}}">{{s.name[0]}}</div>
           {{/if}}

@@ -18,9 +18,17 @@ const SR_BWIKI_URL = 'https://wiki.biligame.com/sr/' + encodeURIComponent('历�
 // 结构参考社区插件：['帖子标题关键字段', 作者uid, [图片索引数组], '作者名']
 const MYS_SEARCH_API = 'https://bbs-api.miyoushe.com/painter/api/user_instant/search/list';
 const MYS_OFFICIAL_UID = { gs: '75276539', sr: '288909600', zzz: '152039148', bh3: '73565430' };
+// 联动池背景图：按 post_id 定位公告帖，再从帖子的 images 里挑出指定的那张。
+//
+// 这里用「图片特征串」而不是 images 的下标，因为下标会随官方编辑正文而漂移
+// （实测 post 76423940 的封面在 images[1]，而 images[3] 是另一张；
+//   之前用 index:-1 取最后一张，结果取到了 377db88f 而不是封面）。
+// 特征串只是图片名里的哈希片段，不是图片直链，图片本体仍然实时从米游社接口取。
+//   联动1.0 → post 66236171「「联动跃迁」说明」2025-07-09
+//   联动2.0 → post 76423940「Fate[UBW] 联动跃迁说明」2026-07-02（该帖封面）
 const SR_COLLAB_IMAGE_POSTS = {
-  '联动1.0': { postId: '66236171', index: 0 },
-  '联动2.0': { postId: '76423940', index: -1 }
+    '联动1.0': { postId: '66236171', match: 'acf7bbf4689ffc62cc7d92992730be95', index: 2 },
+    '联动2.0': { postId: '76423940', match: 'a4ddb83026852aa545db03aa502a7ec5', index: 1 }
 };
 const SR_POOL_IMAGE_KEYWORDS = {
   真珠: ['沧海萃珠', '流光定影', '献给明日的色彩'],
@@ -1651,6 +1659,23 @@ export class xhh_gacha_pool extends plugin {
     const imageSpec = !weapon ? SR_POOL_IMAGE_SPECS[names[0] || ''] : null;
     const key = `${verRaw}|${weapon ? 1 : 0}|${names[0] || ''}|${imageSpec?.imageIndex ?? ''}`;
     if (SR_COVER_CACHE.has(key)) return SR_COVER_CACHE.get(key);
+    // 联动池不走下面的搜索打分，直接用已指定好的公告帖取图。
+    //
+    // 原因（实测）：两篇联动公告的标题里都不含 UP 名
+    //（「联动跃迁」说明 / Fate[UBW] 联动跃迁说明 里都没有 Saber/Archer/吉尔伽美什…），
+    // 所以 UP 名加分拿不到，两篇都只靠「标题含联动」拿 6 分，正好打平；
+    // 而搜索接口 sort_type=2 是新→旧，2026 那篇排前面，判定又用的是
+    // `score > bestScore`（严格大于），平分时先到的赢 ——
+    // 结果联动1.0 会取到 2026 那篇的图，整篇帖子都错位。
+    if (isCollab && !weapon && SR_COLLAB_IMAGE_POSTS[verRaw]) {
+      const collabImage = await this.fetchSrCollabImage(verRaw);
+      if (collabImage) {
+        SR_COVER_CACHE.set(key, collabImage);
+        MYS_COVER_CACHE.set(key, collabImage);
+        return collabImage;
+      }
+      logger.warn(`[xhh][gacha_pool] ${verRaw} 指定的公告帖取图失败，回退搜索打分`);
+    }
     const exactKeywords = upNames.flatMap(name => SR_POOL_IMAGE_KEYWORDS[String(name || '')] || []);
     const keywords = imageSpec?.keyword ? [imageSpec.keyword] : (exactKeywords.length ? exactKeywords : (isCollab
       ? ['联动跃迁']
@@ -1711,6 +1736,15 @@ export class xhh_gacha_pool extends plugin {
       index: String(ver) === '联动2.0' ? -1 : 0
     } : null);
     if (!spec) return '';
+    // 有特征串就按特征串挑那张图，挑不到再退回下标，避免官方改帖顺序后取错图
+    const pickImage = images => {
+      if (!images.length) return '';
+      if (spec.match) {
+        const hit = images.find(url => String(url).includes(spec.match));
+        if (hit) return hit;
+      }
+      return images[spec.index < 0 ? images.length - 1 : spec.index] || '';
+    };
     try {
       // 使用米游社官方号搜索 API 获取帖子，再按 post_id 精确匹配目标公告。
       // 这样图片来源和顺序都来自官方搜索接口，不把任何图片直链写入仓库。
@@ -1719,7 +1753,7 @@ export class xhh_gacha_pool extends plugin {
       const apiImages = (Array.isArray(hit?.images) ? hit.images : [])
         .map(image => typeof image === 'string' ? image : image?.url)
         .filter(Boolean);
-      if (apiImages.length) return apiImages[spec.index < 0 ? apiImages.length - 1 : spec.index] || '';
+      if (apiImages.length) return pickImage(apiImages);
 
       // 搜索结果被米游社裁剪时，才用同一篇文章的详情 API 兜底。
       const post = await officialPool.requestPostFull('sr', spec.postId);
@@ -1731,7 +1765,7 @@ export class xhh_gacha_pool extends plugin {
         .map(image => typeof image === 'string' ? image : image?.url)
         .filter(Boolean);
       const images = [...new Set(detailImages.length ? detailImages : fromContent)];
-      return images[spec.index < 0 ? images.length - 1 : spec.index] || '';
+      return pickImage(images);
     } catch (err) {
       logger.warn(`[xhh][gacha_pool] 星铁${ver}联动公告取图失败（${spec.postId}）：`, err?.message || err);
       return '';

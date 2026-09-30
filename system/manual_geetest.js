@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { config, sleep } from '#xhh';
+import { pickSentMsgId, scheduleGroupRecall } from './msgRecall.js';
 
 const tasks = new Map();
 let server = null;
@@ -73,6 +74,12 @@ function getManualCfg() {
     path: String(cfg.manual_gt_path || '/xhh-gt').replace(/\/+$/, ''),
     timeout: Number(cfg.manual_gt_timeout || 120),
     autoTunnel: cfg.manual_gt_auto_tunnel !== false,
+    // 自动签到/社区签到是定时任务，e.reply 被写成空壳（async () => false），
+    // 验证码链接必须主动发到群里，否则用户根本不知道要去过码，任务只能干等到超时重试。
+    notifyGroup: Number(cfg.manual_gt_notify_group || 0),
+    notifyAt: (Array.isArray(cfg.manual_gt_notify_at) ? cfg.manual_gt_notify_at : String(cfg.manual_gt_notify_at || '').split(','))
+      .map(v => String(v).trim())
+      .filter(v => /^\d{5,12}$/.test(v)),
   };
 }
 
@@ -375,6 +382,53 @@ export function startManualGeetest() {
   }
 }
 
+// 发送验证码通知。
+// 定时任务里 e.reply 是空壳（bbsSignForUser 构造的 e.reply = async () => false），
+// 直接 await e.reply 只会静默丢弃，用户永远收不到链接。
+// 因此先判断 e.reply 是否真的可用，不可用时改用 Bot.pickGroup 主动发群消息。
+// @ 的是「这条签到失败对应的成员」——即 e.user_id（社区/游戏签到任务里就是那个失败账号的 QQ），
+// 由他自己去网页过滑块；notifyAt 仅作为额外补充（例如需要同时提醒管理员时再填）。
+async function notifyCaptcha(e, cfg, text) {
+  const recalled = { recallMsg: cfg.timeout };
+  // 手动指令触发的场景（e.reply 真实可用且在群里）直接回复即可
+  if (typeof e?.reply === 'function' && e.isGroup) {
+    try {
+      const ok = await e.reply(text, true, recalled);
+      if (ok !== false) return true;
+    } catch { /* 落到下面的群推送 */ }
+  }
+  const gid = cfg.notifyGroup || (e?.isGroup ? Number(e.group_id) : 0);
+  if (!gid) {
+    logger.warn('[xhh][manual_gt] 无可用通知渠道（e.reply 不可用且未配置 manual_gt_notify_group），验证码链接未送达');
+    return false;
+  }
+  // 优先 @ 本次失败账号的 QQ（定时任务构造的 e.user_id），再补上额外通知对象并去重
+  const ats = [];
+  for (const q of [e?.user_id, ...cfg.notifyAt]) {
+    const s = String(q ?? '').trim();
+    if (/^\d{5,12}$/.test(s) && !ats.includes(s)) ats.push(s);
+  }
+  try {
+    // 必须用 segment.at()，直接拼 [CQ:at,qq=xxx] 字符串在 TRSSYz/OneBotv11 下不会被渲染成 @，
+    // 会原样显示成字面量
+    const msg = ats.length
+      ? [...ats.map(q => segment.at(q)), '\n', text]
+      : text;
+    const sent = await Bot.pickGroup(gid).sendMsg(msg);
+    // 这条是主动群发，e.reply 的 recallMsg 选项在这里完全不生效（定时任务里 e.reply
+    // 还是空壳 async () => false），所以以前这条验证码通知是永不撤回的。
+    // 板块有 7 个、群和号一多就会刷屏。按验证有效期 cfg.timeout 到点撤回，
+    // 用户该点的时间已经给足了。
+    const msgId = pickSentMsgId(sent);
+    const willRecall = scheduleGroupRecall(gid, sent, Math.max(30, Number(cfg.timeout) || 120));
+    logger.mark(`[xhh][manual_gt] 验证码通知已发送（群 ${gid}${ats.length ? '，已 @' + ats.join(',') : ''}${willRecall ? `，${cfg.timeout}s 后自动撤回` : '，未取到消息ID无法撤回'}）`);
+    return true;
+  } catch (err) {
+    logger.error(`[xhh][manual_gt] 验证码通知发送失败（群 ${gid}）: ${err?.message || err}`);
+    return false;
+  }
+}
+
 export async function manualGeetest(e, data = {}, title = '米游社签到') {
   const cfg = getManualCfg();
   if (!cfg.enable || !data.gt || !data.challenge) return false;
@@ -387,7 +441,7 @@ export async function manualGeetest(e, data = {}, title = '米游社签到') {
   }
   const task = makeTask(data, publicUrl);
   const { key, link } = task;
-  await e.reply(`${title}遇到验证码，请打开地址并完成验证：\n${link}\n验证有效期 ${cfg.timeout} 秒，完成后小花火会自动重试。`, true, { recallMsg: cfg.timeout });
+  await notifyCaptcha(e, cfg, `${title}遇到验证码，请打开地址并完成验证：\n${link}\n验证有效期 ${cfg.timeout} 秒，完成后小花火会自动重试。`);
   for (let i = 0; i < cfg.timeout; i += 2) {
     const task = tasks.get(key);
     if (task?.result?.geetest_validate) {

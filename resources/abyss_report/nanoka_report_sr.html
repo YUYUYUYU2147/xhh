@@ -86,9 +86,12 @@
                   {{/if}}
                   {{if m.stats}}
                   <div class="m-stats">
-                    <div class="m-stat"><span class="m-stat-label">HP</span><span class="m-stat-val">{{m.stats.hp}}</span>{{if m.count > 1}} <span class="m-stat-count">×{{m.count}}</span>{{/if}}</div>
+                    <div class="m-stat"><span class="m-stat-label">HP</span><span class="m-stat-val">{{m.stats.hp}}</span>{{if m.hpMult}} <i class="m-x">×{{m.hpMult}}</i>{{/if}}{{if m.count > 1}} <span class="m-stat-count">×{{m.count}}</span>{{/if}}</div>
                     <div class="m-stat"><span class="m-stat-label">SPD</span><span class="m-stat-val">{{m.stats.speed}}</span></div>
                     <div class="m-stat"><span class="m-stat-label">Tough</span><span class="m-stat-val">{{m.stats.toughness}}</span></div>
+                    {{if m.stats.greedPct}}<div class="m-stat-greed">贪饕生命值：+{{m.stats.greedHp}}（{{m.stats.greedPct}}%）</div>{{/if}}
+                    {{if m.stats.voracityHp}}<div class="m-stat-greed">污染加血：+{{m.stats.voracityHp}}</div>{{/if}}
+                    {{if m.stats.statusRes != null}}<div class="m-stat-greed">效果抗性：{{m.stats.statusResF}}%</div>{{/if}}
                   </div>
                   {{/if}}
                 </div>
@@ -114,6 +117,16 @@
                     {{each m.weak w}}<span class="weak-dot" title="{{w.name}}">{{if w.icon}}<img class="weak-icon" src="{{w.icon}}" alt="{{w.name}}" onerror="this.remove()" />{{/if}}<span class="weak-text" style="color:{{w.color}}">{{w.name}}</span></span>{{/each}}
                   </div>
                   {{/if}}
+                    {{if m.stats}}
+                    <div class="m-stats">
+                      <div class="m-stat"><span class="m-stat-label">HP</span><span class="m-stat-val">{{m.stats.hp}}</span>{{if m.hpMult}} <i class="m-x">×{{m.hpMult}}</i>{{/if}}</div>
+                      <div class="m-stat"><span class="m-stat-label">SPD</span><span class="m-stat-val">{{m.stats.speed}}</span></div>
+                      <div class="m-stat"><span class="m-stat-label">Tough</span><span class="m-stat-val">{{m.stats.toughness}}</span></div>
+                      {{if m.stats.greedPct}}<div class="m-stat-greed">贪饕生命值：+{{m.stats.greedHp}}（{{m.stats.greedPct}}%）</div>{{/if}}
+                      {{if m.stats.voracityHp}}<div class="m-stat-greed">污染加血：+{{m.stats.voracityHp}}</div>{{/if}}
+                      {{if m.stats.statusRes != null}}<div class="m-stat-greed">效果抗性：{{m.stats.statusResF}}%</div>{{/if}}
+                    </div>
+                    {{/if}}
                 </div>
                 {{/each}}
               </div>

@@ -5,6 +5,7 @@ import _ from 'lodash';
 import moment from 'moment';
 import { render, config, pluginPriority, makeForwardMsg } from '#xhh';
 import sharp from '../node_modules/sharp/lib/index.js';
+import { enrichFromAlioth, pickEnrich } from '../system/sr_enrich.js';
 
 const MANIFEST_URL = 'https://static.nanoka.cc/manifest.json';
 const DEFAULT_REPOS = [
@@ -445,13 +446,13 @@ function srMonsterInfo(id, map, childMap) {
 // SPD = SpeedBase* child.SpeedModifyRatio * EliteGroup.SpeedRatio * HardLevelGroup.SpeedRatio + SpeedModifyValue
 // Toughness = StanceBase * child.StanceModifyRatio * EliteGroup.StanceRatio * HardLevelGroup.StanceRatio / 3
 // EliteGroup 优先使用 stage 的 elite_group（混沌/末日），缺失时回退到怪物自身的 EliteGroup（虚构叙事）。
-function srMonsterStats(pid, level, stageEliteGroup, valueByChild, eliteMap, hlgMap) {
+function srMonsterStats(pid, level, stageEliteGroup, stageHardLevelGroup, valueByChild, eliteMap, hlgMap) {
   if (!pid || !valueByChild || !eliteMap || !hlgMap) return null;
   const cv = valueByChild.get(String(pid));
   if (!cv) return null;
   const lv = Number(level) || cv.level || 95;
   const eg = eliteMap.get(stageEliteGroup ?? cv.eliteGroup) || {};
-  const hl = hlgMap.get(`${cv.hardLevelGroup}_${lv}`) || {};
+  const hl = hlgMap.get(`${stageHardLevelGroup ?? cv.hardLevelGroup}_${lv}`) || {};
   const hp = cv.HPBase * (cv.HPModifyRatio || 1) * (eg.HPRatio || 1) * (hl.HPRatio || 1);
   const spd = cv.SpeedBase * (cv.SpeedModifyRatio || 1) * (eg.SpeedRatio || 1) * (hl.SpeedRatio || 1) + (cv.SpeedModifyValue || 0);
   const tough = cv.StanceBase * (cv.StanceModifyRatio || 1) * (eg.StanceRatio || 1) * (hl.StanceRatio || 1) / 3;
@@ -459,6 +460,13 @@ function srMonsterStats(pid, level, stageEliteGroup, valueByChild, eliteMap, hlg
     hp: Math.round(hp).toLocaleString('en-US'),
     speed: Math.round(spd),
     toughness: (Math.round(tough * 10) / 10).toFixed(1),
+    // 通关需要打 N 个阶段，即页面显示的 ×N
+    phase: cv.maxPhase || 1,
+    // 效果抗性 = base + hlg.StatusResistance × 阶段数
+    // 实测：8003010(0.2,1,组3) = 30.0%；5014010(0.3,2,组3) = 50.0%
+    statusRes: (Number(cv.statusResBase || 0) + Number(hl.StatusResistance || 0) * (cv.maxPhase || 1)) * 100,
+    // 浮点会算出 30.000000000000004，这里保留一位小数
+    statusResF: Math.round((Number(cv.statusResBase || 0) + Number(hl.StatusResistance || 0) * (cv.maxPhase || 1)) * 1000) / 10,
   };
 }
 
@@ -543,12 +551,22 @@ function srSide(stages = [], weakness = [], monsterMap, monsterChildMap, bossIds
   const stage = (stages || [])[0];
   const level = stage?.level;
   const stageEliteGroup = stage?.elite_group;
-  const { valueByChild, eliteMap, hlgMap } = refs || {};
+    // 等级成长表要按关卡自己的 hard_level_group 查，不能用怪物表里的（两者系统性不同）
+    const stageHardLevelGroup = stage?.hard_level_group;
+  const { valueByChild, eliteMap, hlgMap, enrichMap } = refs || {};
   const addInfo = (pid) => {
     const k = String(pid);
     const info = srMonsterInfo(k, monsterMap, monsterChildMap);
     if (!info.name || info.name === k) return null;
-    info.stats = srMonsterStats(k, level, stageEliteGroup, valueByChild, eliteMap, hlgMap);
+    info.stats = srMonsterStats(k, level, stageEliteGroup, stageHardLevelGroup, valueByChild, eliteMap, hlgMap);
+    // 血条数 ×N：alioth 的 HPCount 优先，取不到就退回 nanoka 的 MaxMonsterPhase，
+    // 两个源同源同义，不必按「污染怪/普通怪」区别对待。
+    const ex = pickEnrich(enrichMap, stage?.stage_id, pid);
+    if (ex?.hpCount > 1) info.hpMult = ex.hpCount;
+    else if (info.stats.phase > 1) info.hpMult = info.stats.phase;
+    if (ex?.voracityHp && info.stats) {
+      info.stats.voracityHp = ex.voracityHp.toLocaleString('en-US');
+    }
     info.pid = k;
     return info;
   };
@@ -580,22 +598,46 @@ function srSide(stages = [], weakness = [], monsterMap, monsterChildMap, bossIds
     }
   }
   if (bossWave.length) waves.unshift(bossWave);
+  // 贪饕回血比例是【整个关卡】的常量（maze_buff_param[1]），
+  // 不只污染块里的贪饕怪才有，所以提前取出来给本场所有怪统一用，
+  // 免得「只有污染块才显示贪饕生命值」这种区别对待。
+  // 已实测核对：4.5.51「来生泅渡其十二」HP 9,645,484 ×0.3 = 2,893,645，正是页面显示的 30%。
+  // 注意 [0] 是另一个参数（实测为 0.65/0.4），用它会显示成 65%/40%，是错的。
+  const healPct = Number(stage?.invasion?.maze_buff_param?.[1]) || 0;
+  const applyGreed = (info) => {
+    if (!healPct || !info?.stats) return;
+    const base = Number(String(info.stats.hp).replace(/,/g, '')) || 0;
+    if (base <= 0) return;
+    info.stats.greedPct = Math.round(healPct * 100);
+    info.stats.greedHp = Math.round(base * healPct).toLocaleString('en-US');
+  };
+  for (const wave of waves) for (const m of wave) applyGreed(m);
   // 星启模式（污染入侵）模式：提取 stage.invasion，附加到 side 供模板渲染
   let invasion = null;
   if (config().abyss_report_sr_invasion !== false && stage?.invasion) {
+    const inv = stage.invasion;
+    // invasion.level 是【污染等级】不是 HP 倍率：污染 3 级 = 额外 +30% 血量，
+    // 与页面标的 xN 无关（xN 来自血条数）。
+    const pollution = Number(inv.level) || 0;
     const monsters = [];
-    for (const m of stage.invasion.monster_list || []) {
-      const pid = m?.unk_0;
+    for (const m of inv.monster_list || []) {
+      // 字段名是 monster_id，旧代码写成 unk_0 导致永远取不到，贪饕怪从没被列出来
+      const pid = m?.monster_id ?? m?.unk_0;
       if (pid == null) continue;
       const info = addInfo(pid);
-      if (info) {
-        info.count = info.count || 1;
-        monsters.push(info);
+      if (!info) continue;
+      info.count = info.count || 1;
+      applyGreed(info);
+      if (info.stats) {
+        info.pollution = pollution;
+        // 效果抗性用 nanoka 的 StatusResistance + HardLevelGroup 算（×血条数），
+        // alioth 只补它独有的污染加血 VoracityHP（在 addInfo 里统一处理）。
       }
+      monsters.push(info);
     }
     invasion = {
-      level: stage.invasion.level,
-      desc: stripHtml(stage.invasion.desc || '').replace(/\\n/g, '\n'),
+      level: inv.level,
+      desc: stripHtml(inv.desc || '').replace(/\\n/g, '\n'),
       monsters,
     };
   }
@@ -650,6 +692,10 @@ async function loadSrNanoka(reqType, opts = {}) {
           eliteGroup: c?.EliteGroup,
           hardLevelGroup: c?.HardLevelGroup,
           level: c?.Level,
+          // MaxMonsterPhase = 血条数，即页面显示的 ×N
+          maxPhase: entry?.MaxMonsterPhase ?? 1,
+          // 效果抗性基础值
+          statusResBase: entry?.StatusResistanceBase ?? 0,
         });
       });
     });
@@ -674,7 +720,7 @@ async function loadSrNanoka(reqType, opts = {}) {
   } catch (err) {
     logger.warn(`[xhh][abyss_report] 加载星铁等级成长数据失败: ${err.message}`);
   }
-  const srRefs = { valueByChild: hsrMonsterValueByChild, eliteMap: hsrEliteMap, hlgMap: hsrHardLevelMap };
+    const srRefs = { valueByChild: hsrMonsterValueByChild, eliteMap: hsrEliteMap, hlgMap: hsrHardLevelMap, enrichMap: {} };
   const routeMap = {
     '混沌回忆': { versionMap: `https://static.nanoka.cc/hsr/${nv}/zh/maze/version.json`, detail: `https://static.nanoka.cc/hsr/${nv}/zh/maze`, mode: 'maze' },
     '虚构叙事': { list: `https://static.nanoka.cc/hsr/${nv}/maze_extra.json`, detail: `https://static.nanoka.cc/hsr/${nv}/zh/story`, mode: 'story' },
@@ -714,10 +760,22 @@ async function loadSrNanoka(reqType, opts = {}) {
   }
   if (!id) return null;
   const detail = await fetchJson(`${cfg.detail}/${id}.json`, 8000);
+  // 向 alioth 补一次该期的 HPCount / VoracityHP / IAR。
+  // 不再只在「当期有污染」时才补：血条数 ×N 和污染加血现在对所有怪一视同仁地取。
+  // 两源期 id 与 stage_id 同号（实测 nanoka 迷宫集 1035 <-> alioth chaos/1035），可直接按 id 查。
+  try {
+    const alFile = cfg.mode === 'doom' ? 'boss' : cfg.mode === 'story' ? 'fiction' : cfg.mode === 'peak' ? 'arbitration' : 'chaos';
+    srRefs.enrichMap = await enrichFromAlioth(id, alFile);
+    if (config().debug) logger.mark('[xhh][abyss] alioth 补充数据:', Object.keys(srRefs.enrichMap).length, '个 stage');
+  } catch (err) {
+    logger.warn?.('[xhh][abyss] alioth 补充数据失败:', err?.message || err);
+  }
+
   const base = { version: nv, id, title: reqType, period: label || `当前版本 ${live}`, tip, gameKey: 'sr', mode: cfg.mode };
 
   if (reqType === '混沌回忆') {
-    const mazeLevels = String(config().abyss_report_sr_maze_levels || '11,12')
+    // 默认只展示第十一、十二层：深层才有参考价值，留空即用默认值
+      const mazeLevels = String(config().abyss_report_sr_maze_levels || '11,12')
       .split(/[,，\s]+/)
       .map(s => Number(s))
       .filter(n => Number.isFinite(n) && n >= 1 && n <= 12);
@@ -813,7 +871,8 @@ async function loadSrNanoka(reqType, opts = {}) {
       }
     }
     const fallback = srCleanText(detail.name || '');
-    const doomLevels = String(config().abyss_report_sr_doom_levels || '3,4')
+    // 同理：默认只展示难度三、四
+      const doomLevels = String(config().abyss_report_sr_doom_levels || '3,4')
       .split(/[,，\s]+/)
       .map(s => Number(s))
       .filter(n => Number.isFinite(n) && n >= 1 && n <= 5);

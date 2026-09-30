@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/gs_role_nk.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page">
+  <div class="topbar"></div>
+
+  <header class="hero">
+    <img class="avatar" src="{{icon}}" alt="" />
+    <div class="hero-txt">
+      <h1>{{name}} <span class="rarity">{{rarity}}</span></h1>
+      <div class="tags">
+        <span class="tag">{{element}}</span>
+        {{if region}}<span class="tag">{{region}}</span>{{/if}}
+        {{if constellation}}<span class="tag">{{constellation}}</span>{{/if}}
+        {{if birth}}<span class="tag">生日 {{birth}}</span>{{/if}}
+        {{if release}}<span class="tag">实装 {{release}}</span>{{/if}}
+      </div>
+      {{if title}}<div class="subtitle">{{title}}</div>{{/if}}
+    </div>
+  </header>
+
+  <div class="panel">
+    <div class="ptitle">基础属性</div>
+    <div class="cards">
+      <div class="c"><span>生命</span><b>{{baseHp}}</b></div>
+      <div class="c"><span>攻击</span><b>{{baseAtk}}</b></div>
+      <div class="c"><span>防御</span><b>{{baseDef}}</b></div>
+      <div class="c"><span>暴击率</span><b>{{critRate}}</b></div>
+      <div class="c"><span>暴击伤害</span><b>{{critDmg}}</b></div>
+      {{if stamina}}<div class="c"><span>体力回复</span><b>{{stamina}}</b></div>{{/if}}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitle">技能 <span class="hint">数值为满级</span></div>
+    <div class="skills">
+      {{each skills s}}
+      <div class="skill">
+        <div class="skill-head">
+          {{if s.icon}}<img src="{{s.icon}}" alt="" />{{/if}}
+          <b>{{s.name}}</b>
+          {{if s.maxLevel}}<span class="lv">Lv.{{s.maxLevel}}</span>{{/if}}
+        </div>
+        <div class="skill-desc">{{each s.lines l}}{{l}}
+{{/each}}</div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitle">命座</div>
+    <div class="cons">
+      {{each constellations c}}
+      <div class="con">
+        <div class="con-head"><b>{{c.no}}</b><span>{{c.name}}</span></div>
+        <div class="con-desc">{{c.desc}}</div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ptitle">天赋</div>
+    <div class="passives">
+      {{each passives p}}
+      <div class="passive">
+        <div class="passive-head"><b>{{p.name}}</b></div>
+        <div class="passive-desc">{{p.desc}}</div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+
+  {{if ascensionStages.length}}
+  <div class="panel">
+    <div class="ptitle">突破材料</div>
+    <div class="mat-note">逐阶列出真实用量，不合并同名材料</div>
+    {{each ascensionStages st}}
+    <div class="stage">
+      <div class="stage-head"><span class="stage-no">第 {{st.no}} 阶</span><span class="stage-cost">摩拉 {{st.cost}}</span></div>
+      <div class="mats">
+        {{each st.mats m}}
+        <div class="mat">
+          {{if m.icon}}<img src="{{m.icon}}" alt="" />{{/if}}
+          <span class="mat-name">{{m.name}}</span><i>×{{m.count}}</i>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  {{if expMats.length}}
+  <div class="panel">
+    <div class="ptitle">升级材料</div>
+    <div class="mat-note">角色经验素材，所有角色通用</div>
+    <div class="mats">
+      {{each expMats m}}
+      <div class="mat">
+        {{if m.icon}}<img src="{{m.icon}}" alt="" />{{/if}}
+        <span class="mat-name">{{m.name}}</span>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{if talentStages.length}}
+  <div class="panel">
+    <div class="ptitle">天赋材料</div>
+    <div class="mat-note">逐阶列出真实用量</div>
+    {{each talentStages st}}
+    <div class="stage">
+      <div class="stage-head"><span class="stage-no">第 {{st.no}} 阶</span><span class="stage-cost">摩拉 {{st.cost}}</span></div>
+      <div class="mats">
+        {{each st.mats m}}
+        <div class="mat">
+          {{if m.icon}}<img src="{{m.icon}}" alt="" />{{/if}}
+          <span class="mat-name">{{m.name}}</span><i>×{{m.count}}</i>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  {{if desc}}
+  <div class="panel">
+    <div class="ptitle">简介</div>
+    <div class="story">{{desc}}</div>
+  </div>
+  {{/if}}
+
+  <footer>数据来源 nanoka.cc</footer>
+</div>
+</body>
+</html>

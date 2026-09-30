@@ -1,6 +1,7 @@
 import { api, mhy, yaml, config, pluginPriority } from '#xhh';
 import puppeteer from '../../../lib/puppeteer/puppeteer.js';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
+import { getRoleProfile } from '../system/roleProfile.js';
 import moment from "moment";
 import fs from 'fs';
 import YAML from 'yaml';
@@ -59,6 +60,10 @@ export class bh3_ledger extends plugin {
                 {
                     reg: '^#*(?:(?:崩三|崩坏3|崩坏三))?上月水晶$',
                     fnc: 'ledgerLastMonth',
+                },
+                {
+                    reg: '^#*(?:(?:崩三|崩坏3|崩坏三))?水晶统计$',
+                    fnc: 'ledgerCount',
                 },
                 {
                     reg: '^#*删除水晶uid.*',
@@ -578,36 +583,27 @@ export class bh3_ledger extends plugin {
         return "每天都是一个小进步"
     }
 
+    /**
+     * 玩家资料（头像/昵称/等级/服务器）统一走 system/roleProfile.js，
+     * 原石/星琼/菲林账本用的是同一个函数，不再各写一套。
+     *
+     * 保留崩三自己的兜底：index 接口没给头像时，用第一个角色的头像
+     * （崩三 index 的 role.AvatarUrl 偶尔是空的，实测遇到过）。
+     */
     async getUserInfo(e, headers, uid, server) {
-        if (!server) server = mhy.getServer(uid, 'bh3');
-        let res = await api(e, {
-            type: 'bh3_index',
-            uid,
-            headers,
-            game: 'bh3',
-            server,
-        });
-        let avatarUrl = "", nickname = "", userLevel = 0, serverName = "";
-        if (res && res.retcode === 0 && res.data?.role) {
-            avatarUrl = res.data.role.AvatarUrl || "";
-            nickname = res.data.role.nickname || "";
-            userLevel = res.data.role.level || 0;
-            const region = res.data.role.region || "";
-            const serverMap = {
-                "cn_gf01": "官服", "cn_qd01": "B服", "os_usa": "美服", "os_euro": "欧服",
-                "os_asia": "亚服", "os_cht": "港澳台服", "android01": "安卓官服", "ios01": "iOS服",
-                "bb01": "哔哩哔哩", "pc01": "全平台（桌面）服", "yyb01": "应用宝服", "hun01": "渠道1服", "hun02": "渠道2服"
-            };
-            serverName = serverMap[region] || region || "未知";
-        }
+        const info = await getRoleProfile(e, uid, 'bh3');
+        let avatarUrl = info.avatar || "";
+        const nickname = info.nickname || "";
+        const userLevel = info.userLevel || 0;
+        const serverName = info.serverName || "未知";
         if (!avatarUrl) {
             try {
-                let char = await api(e, {
+                const char = await api(e, {
                     type: 'bh3_character',
                     uid,
                     headers,
                     game: 'bh3',
-                    server,
+                    server: server || mhy.getServer(uid, 'bh3'),
                 });
                 if (char && char.retcode === 0 && char.data?.characters?.length > 0) {
                     avatarUrl = char.data.characters[0].character?.avatar?.icon_path || "";
@@ -615,6 +611,226 @@ export class bh3_ledger extends plugin {
             } catch (_) { }
         }
         return { avatarUrl, nickname, userLevel, serverName };
+    }
+
+    async fetchBh3MonthData(e, auth) {
+        const { uid, headers, region } = auth;
+        const queryStr = `game_biz=bh3_cn&bind_uid=${uid}&bind_region=${region}`;
+        debugLog('[水晶] query:', queryStr);
+        const res = await fetch(`https://api.mihoyo.com/bh3-weekly_finance/api/index?${queryStr}`, {
+            method: 'GET',
+            headers: {
+                Cookie: headers.Cookie,
+                DS: mhy.getDs2(queryStr, '', '4'),
+                'x-rpc-client_type': '5',
+                'x-rpc-app_version': '2.73.1',
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 12; XQ-AT52 Build/58.2.A.7.93; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/100.0.4896.88 Mobile Safari/537.36 miHoYoBBS/2.73.1',
+                Referer: 'https://webstatic.mihoyo.com/',
+            },
+        }).then(r => r.json());
+
+        debugLog('[水晶] API response:', JSON.stringify(res));
+        if (!res || res.retcode !== 0 || !res.data) {
+            let msg = '获取水晶数据失败';
+            if (res?.retcode === -110) msg = `UID:${uid} 该账号没有绑定崩坏3角色`;
+            else if (res?.retcode === -120) msg = `UID:${uid} 崩坏3角色等级不足`;
+            return { error: msg };
+        }
+        return { MonthData: res.data };
+    }
+
+    // 把各月已存的 group_by 按来源合并，num 累加、percent 按累计总量重算
+    // 注意：action_id 跨月不稳定（同一 id 在不同月份对应不同来源名，如 2011
+    // 在 5 月是「剩余途径」、在 8 月是「记忆战场积分奖励」），只能按 name 合并，
+    // 否则会出现两个同名「剩余途径」被拆成两项、当月来源未结算的月份不参与聚合。
+    /**
+     * 抓取「上一个自然月」的水晶数据（含 group_by 来源明细）并回写磁盘。
+     *
+     * 关键：group_by 只存在于 getLastMonthInfo（上个���）接口，
+     * api/index（当月）永远不返回它，且传 month 参数无效（实测返回的仍是当月数据）。
+     * 因此**只有相邻的一个月能被抓到**，跨月就永久丢失——
+     * 所以每月只要有人发一次 #上月水晶 或 #崩三水晶统计，就不会再漏。
+     */
+    async captureLastMonthGroupBy(e, auth) {
+        const { uid, headers, region } = auth;
+        const queryStr = `game_biz=bh3_cn&bind_uid=${uid}&bind_region=${region}`;
+        try {
+            const res = await fetch(`https://api.mihoyo.com/bh3-weekly_finance/api/getLastMonthInfo?${queryStr}`, {
+                method: 'GET',
+                headers: {
+                    Cookie: headers.Cookie,
+                    DS: mhy.getDs2(queryStr, '', '4'),
+                    'x-rpc-client_type': '5',
+                    'x-rpc-app_version': '2.73.1',
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 12; XQ-AT52 Build/58.2.A.7.93; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/100.0.4896.88 Mobile Safari/537.36 miHoYoBBS/2.73.1',
+                    Referer: 'https://webstatic.mihoyo.com/',
+                },
+            }).then(r => r.json());
+            if (res?.retcode !== 0 || !res?.data) {
+                logger.warn?.(`[水晶] 上月数据抓取失败: retcode=${res?.retcode} ${res?.message || ''}`);
+                return false;
+            }
+            const data = res.data;
+            const monthKey = this.getLedgerMonthKey(data);
+            debugLog('[水晶] 上月数据:', monthKey, 'group_by=',
+                Array.isArray(data.group_by) ? data.group_by.length + '项' : typeof data.group_by);
+            if (!Array.isArray(data.group_by) || !data.group_by.length) return false;
+            const existing = this.getHistoryMonth(uid, monthKey);
+            // 已有完整数据就别覆盖，避免把已存的 month_hcoin 换成接口的另一套口径
+            if (existing && Array.isArray(existing.group_by) && existing.group_by.length) return false;
+            await this.saveLedger(uid, data);
+            debugLog('[水晶] 上月 group_by 已入库:', monthKey);
+            return true;
+        } catch (err) {
+            logger.warn?.(`[水晶] 上月数据抓取异常: ${err?.message || err}`);
+            return false;
+        }
+    }
+
+    /**
+     * 把各月已存的 group_by 按来源合并。
+     *
+     * 关键：group_by 只存在于 getLastMonthInfo，且该接口仅能取「相邻的一个月」，
+     * 跨月即永久丢失。某些历史月份因此没有来源明细（当年月中只跑了 #崩三水晶，
+     * 该接口不返回 group_by；下个月又没发 #上月水晶，就再也补不回来了）。
+     *
+     * 为保证环形图比例好看，这里只统计【真实记录了来源明细】的部分，
+     * 没有明细的月份（当年月中只跑了 #崩三水晶，该接口不返回 group_by；
+     * 下个月又没发 #上月水晶，就再也补不回来了）直接不参与占比，
+     * 不再并成一项「来源未记录」去撑大饼图。
+     *
+     * 注意：action_id 跨月不稳定（同一 id 在不同月份对应不同来源名，如 2011
+     * 在 5 月是「剩余途径」、在 8 月是「记忆战场积分奖励」），只能按 name 合并。
+     */
+    buildCumulativeSource(monthList, grandTotal = 0) {
+        const merged = new Map();
+        for (const m of monthList) {
+            const list = m?.group_by;
+            if (!Array.isArray(list) || !list.length) continue;
+            for (const item of list) {
+                const name = String(item?.name || '').trim();
+                if (!name) continue;
+                if (!merged.has(name)) merged.set(name, { name, num: 0 });
+                merged.get(name).num += Number(item.num) || 0;
+            }
+        }
+        const list = [...merged.values()].filter(i => i.num > 0).sort((a, b) => b.num - a.num);
+        // 占比按「有明细来源的合计」算，而不是按全部月水晶 —— 这样每一块都是真实来源
+        const base = list.reduce((s, i) => s + i.num, 0);
+        // 最大余数法：逐项四舍五入会算出合计 101% 这种数（实测 15505/6210/3320/680/600/450
+        // 四舍五入后是 58+23+12+3+2+2=100，这次刚好撞上，但换一批数据就会超），
+        // 这里先取整再把余数补给小数最大的几项，保证图例加起来正好 100%
+        const raw = list.map(i => (base > 0 ? (i.num / base) * 100 : 0));
+        const percent = raw.map(v => Math.floor(v));
+        let rest = 100 - percent.reduce((a, b) => a + b, 0);
+        const order = raw
+            .map((v, idx) => ({ idx, frac: v - Math.floor(v) }))
+            .sort((a, b) => b.frac - a.frac);
+        for (const { idx } of order) {
+            if (rest <= 0) break;
+            percent[idx] += 1;
+            rest -= 1;
+        }
+        const color = ['#73a8c6', '#d56565', '#70b2b4', '#bd9a5a', '#739970', '#7a6da7', '#597ea0'];
+        return list.map((i, idx) => ({
+            ...i,
+            percent: percent[idx],
+            color: color[idx % color.length],
+        }));
+    }
+
+    async ledgerCount(e) {
+        try {
+            sendMsg(e, '正在统计水晶数据，请稍后...', { recallMsg: 60 });
+            const auth = await this.getBh3Auth(e);
+            if (!auth) return false;
+            const { uid, headers, qq, region } = auth;
+
+            // 先把当月数据抓下来存盘，保证统计里包含最新月份
+            const fetched = await this.fetchBh3MonthData(e, auth);
+            if (fetched?.MonthData) {
+                let MonthData = fetched.MonthData;
+                const hcoinRes = await api(e, { type: 'bh3_hcoinBalance', uid, headers, game: 'bh3' });
+                if (hcoinRes?.retcode === 0 && hcoinRes.data?.list?.length > 0) {
+                    const cur = hcoinRes.data.list[0].item.find(i => i.label === "当前水晶余量");
+                    if (cur) MonthData.hcoinBalance = parseInt(cur.value);
+                }
+                let cards = await this.getHandbookSupplyCardCount(uid, headers, region, false);
+                if (cards === null) cards = await this.getEquipSupplyCardNum(e, uid, headers);
+                MonthData.equipSupplyCardNum = cards;
+                await this.saveLedger(uid, MonthData);
+            }
+
+            // 先补上个月的来源明细：group_by 只存在于 getLastMonthInfo，且只能取相邻的一个月，
+            // 放到读盘之前，后面的 monthList 就自然包含它了。
+            await this.captureLastMonthGroupBy(e, auth);
+
+            const data = this.loadLedgerData(uid) || {};
+            // 月份键形如 202609；只取合法键并按时间升序
+            const monthList = Object.keys(data)
+                .filter(k => /^\d{6}$/.test(k))
+                .sort()
+                .map(k => ({ ...data[k], _key: k }));
+            if (!monthList.length) {
+                sendMsg(e, `UID:${uid} 暂无水晶历史数据，请先发送 #崩三水晶 生成当月记录后再试`);
+                return true;
+            }
+
+            const hcoinMonth = [], starMonth = [];
+            let allHcoin = 0, allStar = 0, maxHcoin = 0, maxMonth = '', maxMonthLabel = '';
+            for (const m of monthList) {
+                const h = Number(m.month_hcoin) || 0;
+                const s = Number(m.month_star) || 0;
+                allHcoin += h;
+                allStar += s;
+                const label = `${parseInt(String(m._key).slice(4), 10)}月`;
+                hcoinMonth.push({ month: label, value: h, year: String(m._key).slice(0, 4) });
+                starMonth.push({ month: label, value: s, year: String(m._key).slice(0, 4) });
+                if (h > maxHcoin) { maxHcoin = h; maxMonth = String(m._key); maxMonthLabel = label; }
+            }
+
+            // 只统计真实记录了来源明细的部分；没有明细的月份不参与占比。
+            const hcoinList = this.buildCumulativeSource(monthList, allHcoin);
+            const firstKey = monthList[0]._key;
+            const lastKey = monthList[monthList.length - 1]._key;
+            const rangeText = `${firstKey.slice(0, 4)}${firstKey.slice(4)}-${lastKey.slice(0, 4)}${lastKey.slice(4)}`;
+
+            const { avatarUrl, nickname, userLevel, serverName } = await this.getUserInfo(e, headers, uid, region);
+            const latest = monthList[monthList.length - 1];
+            const hcoinBalance = Number(latest?.hcoinBalance) || Number(latest?.month_level) || 0;
+
+            let buf = await puppeteer.render('小花火/bh3_ledger/ledger_count', {
+                uid,
+                qq,
+                rangeText,
+                allHcoin,
+                allStar,
+                maxMonthLabel,
+                maxMonthHcoin: maxHcoin,
+                latestMonthLabel: `${parseInt(lastKey.slice(4), 10)}月`,
+                latestMonthHcoin: Number(latest?.month_hcoin) || 0,
+                hcoinMonth,
+                starMonth,
+                hcoinMonthB64: Buffer.from(JSON.stringify(hcoinMonth)).toString('base64'),
+                hcoinList,
+                hcoinListB64: Buffer.from(JSON.stringify(hcoinList)).toString('base64'),
+                hcoinTotal: hcoinList.reduce((s, i) => s + i.num, 0),
+                avatarUrl,
+                nickname,
+                userLevel,
+                serverName,
+            sys: { scale: 'style=transform:scale(2.4)' },
+            ppath: '../../../../../plugins/xhh/resources/',
+            tplFile: process.cwd() + '/plugins/xhh/resources/bh3_ledger/ledger_count.html',
+            saveId: 'ledger_count',
+            });
+            if (buf && Buffer.isBuffer(buf)) return e.reply(segment.image(buf));
+            throw new Error('渲染水晶统计图失败');
+        } catch (err) {
+            logger.error('[水晶统计] 失败:', err);
+            sendMsg(e, `水晶统计失败：${err?.message || err}`);
+            return true;
+        }
     }
 
     async ledger(e) {

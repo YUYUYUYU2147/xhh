@@ -1,4 +1,5 @@
 import { yaml, render, mys, config, reply_recallMsg } from '#xhh';
+import { gsRoleView, srRoleView } from '../system/role_detail.js';
 import fs from 'fs';
 import { JSDOM } from 'jsdom';
 const { window } = new JSDOM();
@@ -241,13 +242,22 @@ export class Wiki extends plugin {
 
     const gsIconMap = {
       '水': '水.png', '火': '火.png', '冰': '冰.png', '雷': '雷.png',
-      '风': '风.png', '岩': '岩.png', '草': '草.png'
+      '风': '风.png', '岩': '岩.png', '草': '草.png',
+      // 武器类型图标此前一个都没有，原神角色列表的武器徽章一直是纯文字。
+      // 来源是米游社社区文章 67647108「武器类型图标」的五张 720×720 官方图
+      // （文章 55479392 里那三张是头像框/成就杂图和壁纸，不是武器类型）。
+      // 原图是半透明中灰，在近白底徽章上发灰，已整体转黑剪影并居中裁到 256×256，
+      // 和命途图标（毁灭.png 等）风格一致。
+      '单手剑': '单手剑.png', '长枪': '长枪.png', '双手剑': '双手剑.png',
+      '弓': '弓.png', '法器': '法器.png'
+      // 特弓 / 特殊武器官方没给对应图，先不映射，保持纯文字，不硬凑
     };
     const srIconMap = {
       '物理': 'sr_物理.png', '火': 'sr_火.png', '冰': 'sr_冰.png',
       '雷': 'sr_雷.png', '风': 'sr_风.png', '量子': 'sr_量子.png', '虚数': 'sr_虚数.png',
       '毁灭': '毁灭.png', '巡猎': '巡猎.png', '智识': '智识.png', '同谐': '同谐.png',
-      '虚无': '虚无.png', '存护': '存护.png', '丰饶': '丰饶.png', '记忆': '记忆.png'
+      '虚无': '虚无.png', '存护': '存护.png', '丰饶': '丰饶.png', '记忆': '记忆.png',
+      '欢愉': '欢愉.png'
     };
     const zzzIconMap = {
       '物理': 'zzz_物理.png',
@@ -598,7 +608,10 @@ export class Wiki extends plugin {
       const diff = (ratingOrder[a.ji] ?? 99) - (ratingOrder[b.ji] ?? 99);
       if (diff) return diff;
       if (isZZZ) {
-        // 降序：content_id 越大上线越晚，最新的排在前（与原神/星铁一致）
+        // 降序：content_id 越大上线越晚，最新的排在前。
+        // 原神/星铁不用这段 —— 它们的 nanoka 列表已按 release 排好（content_id 与上线
+        // 顺序不对应：原神 薇斯纳 id=10000143 比 奥黛塔 id=10000150 小，却更晚上线），
+        // 这里再按 id 排会把预排的顺序打乱。Array.sort 是稳定的，不改也能保住预排结果。
         const ai = Number(a.id), bi = Number(b.id);
         if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return bi - ai;
       }
@@ -618,6 +631,8 @@ export class Wiki extends plugin {
       rankClass: rankClassMap[item.ji] || 'r0',
       badges: (isBH3
         ? [item.yuanshu, ...(Array.isArray(item.damage) ? item.damage : [item.damage]), item.starRingField, ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]), item.wuqi]
+        // 星铁的特性来自命途/属性，不是元素/武器，不接上这两个分支星铁就只剩一个星级徽章
+        : isSr ? [item.ji, item.mingtu, item.shuxing]
         : [item.ji, item.yuanshu, item.wuqi])
         .filter(v => v && v !== '未知' && v !== 'false')
         .map(v => {
@@ -1165,7 +1180,7 @@ export class Wiki extends plugin {
       const ret = await mys.data(name, 'js', false, true);
       if (!ret?.id) { dbg('ZZZ wiki 无此角色:', name); return false; }
       dbg('ZZZ 命中条目:', `id=${ret.id}`, ret.official ? '来源=官方Wiki兜底(详情走官方)' : '来源=nanoka');
-      // ret.official：id 来自官方 Wiki 兜底匹配，详情直接走官方源（nanoka 用自己的编号体系，拿官方 id 查必然 404）
+      // ret.official：id 来自官方 Wiki 兜底匹配，详情直接走官方源（nanoka 使用独立编号体系，拿官方 id 查必然 404）
       const data = await mys.detail(ret.id, false, true, false, !!ret.official);
       if (!data) { dbg('ZZZ 角色详情获取失败:', name, 'id=' + ret.id); return false; }
       this.zzz_role_pictures(e, data);
@@ -1191,13 +1206,32 @@ export class Wiki extends plugin {
       const miao = await miaoResolve(name, 'char', isSr ? 'sr' : 'gs');
       if (miao) rname = miao;
     }
-    if (!rname) dbg(`${isSr ? '星铁' : isBH3 ? '崩三' : '原神'} 本地别名/喵喵别名均未命中:`, name);
+    // 本地别名表是人工维护的，会漏新角色（官方 94 个角色本地只有 89 条），
+    // 具体就是带装饰符的：「星神★阿哈」「砂金•戏浪」「银狼LV.999」等。
+    // 别名表没命中时，直接拿原名去官方 Wiki 做模糊匹配（mys.data() 已支持「精确 -> 包含」两级匹配），
+    // 这样下个新角色上线不再需要手动补别名。
+    if (!rname) {
+      dbg('本地/喵喵别名未命中，回退官方 Wiki 模糊匹配:', name);
+      rname = name;
+    }
     if (rname) {
-      const { id } = await mys.data(rname, 'js', isSr, isZZZ, isBH3);
+      let hitSr = isSr;
+      let { id } = await mys.data(rname, 'js', hitSr, isZZZ, isBH3);
+      if (!id && !isZZZ && !isBH3) {
+        // 命令没带游戏前缀时只查命令暗示的那一个游戏，于是「#阿哈图鉴」会去
+        // 原神列表里找，而阿哈是星铁角色。实测阿哈不在原神列表、芙宁娜不在
+        // 星铁列表，两边都查一遍才能让「#角色名图鉴」不必显式写「星铁」。
+        // 命令带了前缀的第一次就能查到，不会走到这里，不会覆盖显式指定。
+        hitSr = !isSr;
+        ({ id } = await mys.data(rname, 'js', hitSr, isZZZ, isBH3));
+        if (id) dbg('跨游戏回退命中:', rname, '→', hitSr ? '星铁' : '原神');
+      }
       if (!id) { dbg('wiki 无此角色条目:', rname); return false; }
+      isSr = hitSr;
       let data = await mys.detail(id, isSr, isZZZ, isBH3);
       if (!data) { dbg('角色详情获取失败:', rname, 'id=' + id); return false; }
-      if (isZZZ) this.zzz_role_pictures(e, data);
+        if (data?.nanoka) return this.nanoka_role_pictures(e, data, isSr);
+        else if (isZZZ) this.zzz_role_pictures(e, data);
       else if (isBH3) this.bh3_role_pictures(e, data);
       else if (isSr) this.sr_role_pictures(e, data);
       else this.gs_role_pictures(e, data);
@@ -1207,6 +1241,16 @@ export class Wiki extends plugin {
   }
 
   //星铁角色
+    // nanoka 源的角色详情卡：技能逐级数值 / 命座(星魂) / 天赋 / 属性成长表
+    async nanoka_role_pictures(e, data, isSr = false) {
+        const c = data?.content || {};
+        const tpl = isSr ? 'wiki/sr_role_nk' : 'wiki/gs_role_nk';
+        const view = isSr ? srRoleView(c, c.id || '') : gsRoleView(c, c.id || '');
+        const name = c.name;
+        if (!name) return false;
+        return render(tpl, { ...view, name }, { e, ret: true });
+    }
+
   async sr_role_pictures(e, data) {
     const userinfo = data.content.rpg_new_tmp_content?.base?.userInfo;
     const modules = data.content.rpg_new_tmp_content?.modules;

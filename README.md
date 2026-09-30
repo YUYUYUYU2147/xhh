@@ -17,7 +17,8 @@
 </div>
 
 > **原神 / 崩坏：星穹铁道 / 绝区零 / 崩坏3** 的体力、卡池、签到、图鉴、攻略、角色语音，一条指令出图。
-> 卡池与图鉴数据**自动同步米游社官方公告与 BWiki**，不需要你手动维护。
+> 卡池数据**自动同步米游社官方公告与 BWiki**，不需要你手动维护；
+> 原神与星铁的图鉴数据取自 nanoka.cc，查询更快且不需要米游社 Cookie。
 
 <div align="center">
 
@@ -82,25 +83,29 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 
 <p align="center"><a href="resources/readme/note.jpg"><img src="resources/readme/note.jpg" width="400" alt="四游戏体力聚合真实渲染（点击查看大图）"></a></p>
 
-### 卡池 / 复刻 / 多久没 UP
-本地史料库 + 米游社官方公告双向同步，每天 05:30 自动更新，能问「某角色多久没复刻」「当前 UP 是谁」。
-`#原神卡池` `#崩三补给` `#绝区零卡池` `#官方当前卡池` `#星铁复刻统计` `#可莉多久没复刻`
+### 卡池 / 复刻 / 抽卡记录 / 多久没 UP
+本地史料库 + 米游社官方公告双向同步，每天 05:30 自动更新，能问「某角色多久没复刻」「当前 UP 是谁」「我抽了多少」。
+`#原神卡池` `#崩三补给` `#绝区零卡池` `#官方当前卡池` `#星铁复刻统计` `#星铁抽卡记录` `#可莉多久没复刻`
 
-<p align="center"><a href="resources/readme/pool.jpg"><img src="resources/readme/pool.jpg" width="400" alt="星铁当前卡池真实渲染（点击查看大图）"></a></p>
+<div align="center">
 
-<p align="center"><a href="resources/readme/official_pool.jpg"><img src="resources/readme/official_pool.jpg" width="320" alt="米游社官方当前卡池（点击查看大图）"></a></p>
+| 星铁当前卡池 | 米游社官方卡池 | 星铁抽卡记录 |
+| :---: | :---: | :---: |
+| <a href="resources/readme/pool.jpg"><img src="resources/readme/pool.jpg" width="230" alt="星铁当前卡池（点击查看大图）"></a> | <a href="resources/readme/official_pool.jpg"><img src="resources/readme/official_pool.jpg" width="230" alt="米游社官方当前卡池（点击查看大图）"></a> | <a href="resources/readme/sr_gacha.jpg"><img src="resources/readme/sr_gacha.jpg" width="230" alt="星铁抽卡记录（点击查看大图）"></a> |
+
+</div>
 
 ### 崩坏3 全功能
-当期深渊（超弦空间 / 量子流形）、记忆战场、往世乐土、抽卡记录、充值流水、水晶手账、角色主页、日历、活动到期提醒。
-`#崩三深渊` `#崩三战场` `#崩三乐土` `#崩三抽卡记录` `#崩三水晶` `#崩三提醒`
+当期深渊（超弦空间 / 量子流形）、记忆战场、往世乐土、抽卡记录、充值流水、水晶手账与累计统计、角色主页、日历、活动到期提醒。
+`#崩三深渊` `#崩三战场` `#崩三乐土` `#崩三抽卡记录` `#崩三水晶` `#崩三水晶统计` `#崩三提醒`
 
-<p align="center"><a href="resources/readme/bh3_record.jpg"><img src="resources/readme/bh3_record.jpg" width="360" alt="崩坏3抽卡记录真实渲染（点击查看大图）"></a></p>
+<div align="center">
 
-<p align="center"><a href="resources/readme/settle_bh3.jpg"><img src="resources/readme/settle_bh3.jpg" width="420" alt="深渊/战场/乐土到期速报提醒（点击查看大图）"></a></p>
+| 当期深渊战报 | 往世乐土战绩 | 抽卡记录 |
+| :---: | :---: | :---: |
+| <a href="resources/readme/bh3_abyss.jpg"><img src="resources/readme/bh3_abyss.jpg" width="230" alt="崩坏3当期深渊战报（点击查看大图）"></a> | <a href="resources/readme/bh3_letu.jpg"><img src="resources/readme/bh3_letu.jpg" width="230" alt="崩坏3往世乐土战绩（点击查看大图）"></a> | <a href="resources/readme/bh3_record.jpg"><img src="resources/readme/bh3_record.jpg" width="230" alt="崩坏3抽卡记录（点击查看大图）"></a> |
 
-<p align="center"><a href="resources/readme/abyss_strategy.jpg"><img src="resources/readme/abyss_strategy.jpg" width="330" alt="当期深渊速报附带群聊攻略（点击查看大图）"></a></p>
-
-<p align="center"><a href="resources/readme/settle_alert.jpg"><img src="resources/readme/settle_alert.jpg" width="460" alt="记忆战场与往世乐土结算速报提醒（点击查看大图）"></a></p>
+</div>
 
 
 ### 米游社签到与推送
@@ -109,8 +114,21 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 `#小花火签到` `#米游社全部签到` `#开启自动米游币` `#原神体力推送 130`
 
 ### 图鉴 / 攻略 / 角色语音
-崩三角色、武器、圣痕、人偶图鉴；绝区零代理人、音擎、驱动盘、邦布图鉴；深渊 / 记忆战场 / 往世乐土 / 幻想真境剧诗 攻略作业；原神、星铁、崩三角色语音（回复图片发数字即发语音）。
-`#崩三xxx图鉴` `#绝区零xxx图鉴` `#xx攻略` `#崩三角色名语音`
+原神与星铁的角色、武器、光锥、圣遗物图鉴；崩三角色、武器、圣痕、人偶图鉴；绝区零代理人、音擎、驱动盘、邦布图鉴；深渊 / 记忆战场 / 往世乐土 / 幻想真境剧诗 攻略作业；原神、星铁、崩三角色语音（回复图片发数字即发语音）。
+原神与星铁的**角色详情**含技能满级数值、命座 / 星魂、突破与培养材料（带图标）、推荐光锥与推荐遗器；列表按**上线时间**排序，**未上线（测试服）的内容会自动置顶**。
+`#xx图鉴`（如 `#芙宁娜图鉴`、`#阿哈图鉴`、`#光锥图鉴`；角色名不必带游戏前缀，查不到会自动到另一个游戏里找） `#崩三xxx图鉴` `#绝区零xxx图鉴` `#xx攻略` `#崩三角色名语音`
+
+<div align="center">
+
+| 原神角色详情 | 星铁角色详情 |
+| :---: | :---: |
+| <a href="resources/readme/gs_wiki_detail.jpg"><img src="resources/readme/gs_wiki_detail.jpg" width="300" alt="原神角色详情：突破材料与技能满级数值（点击查看大图）"></a> | <a href="resources/readme/sr_wiki_detail.jpg"><img src="resources/readme/sr_wiki_detail.jpg" width="300" alt="星铁角色详情：培养材料、推荐光锥与推荐遗器（点击查看大图）"></a> |
+
+| 崩坏3角色图鉴 | 崩坏3武器图鉴 |
+| :---: | :---: |
+| <a href="resources/readme/bh3_wiki.jpg"><img src="resources/readme/bh3_wiki.jpg" width="300" alt="崩坏3角色图鉴（点击查看大图）"></a> | <a href="resources/readme/bh3_wiki_weapon.jpg"><img src="resources/readme/bh3_wiki_weapon.jpg" width="300" alt="崩坏3武器图鉴（点击查看大图）"></a> |
+
+</div>
 
 ### 其它
 表情包、塔罗牌、B 站视频/直播解析与推送、九连图、未知藏品识别、货币战争、余额估算。
@@ -124,7 +142,7 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 ## 重要说明
 
 - **不依赖任何第三方服务、不需要付费接口**：验证码走本插件自带的本地验证页（可选 cloudflared 临时隧道把链接暴露到公网，见[手动过码](#手动过码米游社风控-1034)）。
-- **数据来源**：米游社官方公告（需你自己的 CK）、BWiki 静态页、官方 WIKI。插件只做解析与出图，不破解任何接口。
+- **数据来源**：米游社官方公告（需你自己的 CK）、BWiki 静态页、官方 WIKI、nanoka.cc（原神与星铁的角色 / 武器图鉴与角色详情）。插件只做解析与出图，不破解任何接口。
 - **分支约定**：`v2` 为 TRSS-Yunzai / OneBot 适配分支；上游原作者 README 保留在文末，便于追溯。
 
 ---
@@ -133,6 +151,8 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 
 > 绝大多数命令都支持 `#` 开头；`小花火` / `xhh` 作为可选前缀（如 `#小花火帮助`）。
 > 指令被其他插件抢走时，可加 `小花火` 前缀点名本插件，并调小对应 `*_priority`（数字越小越先执行）。
+
+<p align="center"><a href="resources/readme/help.jpg"><img src="resources/readme/help.jpg" width="380" alt="小花火插件完整命令一览（点击查看大图）"></a></p>
 
 ### 崩坏3
 
@@ -148,7 +168,9 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 | `#崩三日历` | 崩三日历与活动一览 |
 | `#崩三抽卡记录` / `#刷新崩三抽卡记录` | 抽卡记录与本地缓存刷新 |
 | `#崩三充值记录` | 充值流水 |
-| `#崩三水晶` / `#上月水晶` | 水晶手账；`#删除水晶uid` `#切换水晶uid` |
+| `#崩三水晶` / `#上月水晶` | 舰长手账（当月） |
+| `#崩三水晶统计` | 水晶累计统计（多月柱状图 + 来源占比） |
+| `#删除水晶uid` `#切换水晶uid` | 多账号管理 |
 | `#崩三卡池` / `#崩三xx补给` | 当前 / 角色历史补给（精确补给） |
 | `#崩三v8.9卡池` / `#崩三8.9上半卡池` | 指定版本补给 |
 | `#崩三卡池历史` | 全版本补给记录 |
@@ -167,6 +189,7 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 | `#原神官方卡池` / `#官方卡池` | 米游社官方公告卡池汇总 |
 | `#原神卡池历史` / `#星铁卡池历史` | 历史卡池记录 |
 | `#幻想真境剧诗角色` / `#幻想剧诗` | 幻想真境剧诗当期可用角色 |
+| `#xx图鉴` | 原神 / 星铁角色、武器、光锥、圣遗物图鉴，如 `#芙宁娜图鉴`、`#阿哈图鉴`。角色详情含技能满级数值、命座 / 星魂、突破与培养材料、推荐光锥与遗器；列表按上线时间排序，未上线内容置顶 |
 | `#星铁抽卡记录` / `#星铁角色记录` / `#星铁武器记录` | 星铁抽卡统计 |
 | `#绝区零母带` / `#绝区零存货` | 绝区零音擎「加密母带 / 原装母带」与存货统计 |
 | `#原石余额` / `#设置原石余额2000` | 余额估算与校准 |

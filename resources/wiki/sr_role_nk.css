@@ -1,0 +1,61 @@
+*{box-sizing:border-box}
+body{margin:0;min-width:1000px;background:#eef1f6;color:#3b4252;
+  font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc}
+.topbar{position:absolute;left:0;top:0;width:100%;height:5px;
+  background:linear-gradient(90deg,#5b8fd6,#7a6da7)}
+
+.hero{display:flex;align-items:center;gap:18px;margin:4px 0 16px}
+/* 头部用 avatarshopicon（376×512 商店立绘）而不是 avatardrawcard（2048² 卡面）：
+   112px 方槽里裁 2048² 卡面只剩一小块，人物缩成看不清的小人；
+   商店立绘按 top center 裁正好取到脸部特写，与角色列表头像同一套源。 */
+.avatar{width:112px;height:112px;border-radius:18px;object-fit:cover;object-position:top center;flex:none;
+  background:#e9edf3;border:1px solid #dfe4ec}
+.hero-txt h1{margin:0;font-size:28px;font-weight:900;color:#1f2937;letter-spacing:.5px}
+.rarity{font-size:15px;font-weight:800;color:#d4a017;margin-left:8px}
+.tags{margin-top:8px;display:flex;gap:7px;flex-wrap:wrap}
+.tag{font-size:12.5px;padding:3px 10px;border-radius:8px;background:#fff;
+  border:1px solid #e2e7ef;color:#5a6478}
+
+.panel{background:#fff;border:1px solid #e9edf3;border-radius:15px;padding:15px 18px 17px;
+  margin-bottom:12px;box-shadow:0 3px 10px rgba(31,41,55,.05)}
+.ptitle{font-size:17px;font-weight:800;margin:0 0 12px;padding-left:10px;
+  border-left:4px solid #5b8fd6;color:#1f2937}
+
+table.stats{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+table.stats th{background:#f2f5fa;color:#8a94a6;font-weight:700;padding:7px 6px;text-align:center}
+table.stats td{padding:6px 6px;text-align:center;border-bottom:1px solid #f0f3f8;color:#3b4252}
+table.stats tr.hi td{background:#fdf6e3;font-weight:800;color:#8a6a12}
+table.stats i{font-style:normal;color:#a3adbd;font-weight:400;margin-left:1px}
+
+.skills{display:flex;flex-direction:column;gap:12px}
+.skill-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.skill-head img{width:22px;height:22px;border-radius:5px;object-fit:contain}
+.skill-type{font-size:11.5px;padding:2px 8px;border-radius:6px;background:#eef2fa;color:#4a6fa5;font-weight:700}
+.skill-head b{font-size:15px;color:#1f2937}
+.skill-head .lv{margin-left:auto;font-size:12px;color:#8a94a6}
+.skill-desc{margin-top:6px;font-size:13px;line-height:1.75;color:#4a5468;white-space:pre-line}
+
+.ranks{display:flex;flex-direction:column;gap:11px}
+.rank-head{display:flex;align-items:center;gap:8px}
+.rank-head img{width:22px;height:22px;border-radius:5px;object-fit:contain}
+.rank-head b{width:20px;height:20px;border-radius:50%;background:#7a6da7;color:#fff;
+  font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.rank-head span{font-size:14.5px;font-weight:700;color:#1f2937}
+.rank-desc{margin-top:5px;padding-left:28px;font-size:12.5px;line-height:1.7;color:#5a6478}
+
+.story{font-size:13.5px;line-height:1.9;color:#4a5468;white-space:pre-line}
+
+footer{text-align:center;margin-top:12px;color:#a3adbd;font-size:12.5px}
+
+.mat-note{margin:-4px 0 10px;font-size:12px;color:#9aa3b2}
+.mats{display:flex;flex-wrap:wrap;gap:8px}
+.mat{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px 4px 4px;
+  border-radius:8px;background:#eef2fb;border:1px solid #d8e0f2;color:#3c4a6b}
+.mat img{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:0 0 auto}
+.mat-name{line-height:1.2}
+.mat i{font-style:normal;margin-left:2px;font-weight:800}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:12.5px;padding:5px 10px;border-radius:8px;background:#f2f4f8;
+  border:1px solid #e2e7f0;color:#4a5468}

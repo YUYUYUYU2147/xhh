@@ -152,6 +152,12 @@ manual_gt_public_url: ''
 manual_gt_auto_tunnel: true
 manual_gt_path: /xhh-gt
 manual_gt_timeout: 120
+# 自动签到/社区签到是定时任务，无法用指令回复，所以过码链接主动发到这个群
+# 留空(0)则不推送（此时只能手动发 #小花火过码测试 过码）
+manual_gt_notify_group: 0
+# 额外要 @ 的 QQ（可多个）。主 @ 对象是「本次签到失败的那个成员」，
+# 由他自己去网页过滑块；这里只在还想额外提醒别人时才填，留空为列表即可
+manual_gt_notify_at: []
 
 #卡池立绘来源：兼容旧配置；新配置见下面两个字段
 gacha_art_source: custom
@@ -205,6 +211,24 @@ abyss_report_repos: |-
 #原神/星铁深渊速报默认版本，留空自动读取Nanoka live版本
 abyss_report_gs_version: ''
 abyss_report_sr_version: ''
+#绝区零深渊速报默认版本（和上面两个一样留空自动读 live 版本）
+#这个键之前漏声明了，代码里一直在读但默认配置里没有 —— 绝区零的版本号设不了
+abyss_report_zzz_version: ''
+
+#星铁虚构叙事关卡筛选：填要显示的关卡，逗号分隔（如 3,4 表示只显示第3、4关）
+abyss_report_sr_fiction_levels: '3,4'
+#星铁混沌回忆难度筛选：填要显示的难度编号，逗号分隔（如 11,12）
+abyss_report_sr_maze_levels: '11,12'
+#星铁末日幻影难度筛选：填要显示的难度编号，逗号分隔（如 3,4）
+abyss_report_sr_doom_levels: '3,4'
+#绝区零式舆防卫战关卡筛选：填要显示的关卡，逗号分隔（如 4,5）
+abyss_report_zzz_shiyu_stages: '4,5'
+#式舆防卫战返回期数：last=只返回末期（默认），all=返回全部期
+abyss_report_zzz_shiyu_periods: last
+#危局强袭战返回期数：last=只返回末期（默认），all=返回全部期
+abyss_report_zzz_deadly_periods: last
+#星铁深渊星启模式：true开，false关
+abyss_report_sr_invasion: true
 
 #Meme表情包设置
 #meme表情包总开关：true开，false关
@@ -240,9 +264,22 @@ bh3_ledger_priority: 100
 abyss_report_priority: 100
 bilibili_priority: -120
 bilibili_push_priority: -119
+bili_live_priority: -115
 gacha_pool_priority: -1000000000
 gs_logs_priority: -99
 sr_logs_priority: -88
+#以下 7 个之前只存在于代码的 pluginPriority 兜底里，默认配置没声明，
+#用户看不到也没法改，补齐。值与代码兜底一一对应，行为不变。
+abyss_now_priority: 100
+currency_ledger_priority: 100
+stamina_remind_priority: 100
+sr_gacha_priority: 1
+monster_priority: -200
+gacha_timer_priority: -3000
+#代码兜底是 -Infinity（永远最优先），但 YAML 读回 -Infinity 会变成字符串
+#"-Infinity"，pluginPriority 就返回字符串了，所以这里用一个小于所有现有值
+#（最小是 -9999999999）的有限值来保持「永远最优先」。
+forward_info_priority: -99999999999
 mhy_estimate_priority: -9999999999
 video_priority: 1
 voice_priority: 15

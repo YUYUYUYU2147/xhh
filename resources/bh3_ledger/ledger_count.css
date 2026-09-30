@@ -1,0 +1,303 @@
+@font-face {
+    font-family: "Chinese";
+    src: url("../font/SR.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "CJKFallback";
+    src: url("../font/wqy-microhei.ttc") format("truetype");
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    width: 960px;
+    transform: scale(1);
+    transform-origin: 0 0;
+    font-family: "Chinese", "CJKFallback", sans-serif;
+    color: #28384d;
+    font-size: 20px;
+}
+
+.container {
+    width: 960px;
+    background-color: #1a1a2e;
+    background-image: url(../img/ledger/img.jpg);
+    background-repeat: no-repeat;
+    background-size: cover;
+    padding: 30px 40px 40px 40px;
+}
+
+.content {
+    position: relative;
+}
+
+.content-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.bg-top {
+    position: absolute;
+    top: -20px;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(180deg, rgba(26, 26, 46, 0.85), rgba(26, 26, 46, 0));
+}
+
+.bg-mid {
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 26, 46, 0.55);
+}
+
+.titltle {
+    position: relative;
+    z-index: 2;
+    padding: 6px 4px 10px 4px;
+}
+
+.titltle-top {
+    font-size: 40px;
+    font-weight: 700;
+    color: #f0ce6e;
+    letter-spacing: 1px;
+}
+
+.titltle-top .top-month {
+    color: #f0ce6e;
+}
+
+.titltle-line {
+    height: 2px;
+    background: linear-gradient(90deg, rgba(240, 206, 110, 0.9), rgba(240, 206, 110, 0.05));
+    margin: 12px 0 10px 0;
+}
+
+.titltle-bottom {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.user-profile {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin: 18px 0 6px 0;
+}
+
+.avatar {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    border: 3px solid #f0ce6e;
+    background: #22283c;
+}
+
+.user-name {
+    font-size: 30px;
+    font-weight: 700;
+    color: #f0ce6e;
+}
+
+.user-level {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 4px;
+}
+
+.block {
+    position: relative;
+    z-index: 2;
+    margin-top: 22px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 18px 20px 20px 20px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+.block-header {
+    display: inline-block;
+    font-size: 20px;
+    color: #28384d;
+    background: #f0ce6e;
+    border-radius: 8px 0 8px 0;
+    padding: 2px 12px;
+    margin-bottom: 16px;
+}
+
+/* 数据总览 */
+.overview {
+    display: flex;
+    gap: 16px;
+}
+
+.ov-card {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    padding: 16px 8px 12px 8px;
+    text-align: center;
+}
+
+.ov-num {
+    font-size: 34px;
+    font-weight: 700;
+    color: #28384d;
+    line-height: 1.2;
+    word-break: break-all;
+}
+
+.ov-label {
+    font-size: 18px;
+    color: #6b7688;
+    margin-top: 6px;
+}
+
+/* 柱状图 */
+.chart-wrap {
+    /* 不透明：背景图底部有 HONKAI IMPACT 3RD 字样，半透明卡片会把它透上来压住坐标轴标签 */
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 14px 10px 6px 10px;
+}
+
+.legend-row {
+    display: flex;
+    gap: 18px;
+    padding-left: 12px;
+    margin-bottom: 4px;
+}
+
+.legend-key {
+    font-size: 18px;
+    color: #28384d;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.sw-hcoin {
+    background: #6b8fd4;
+}
+
+/* 详细统计 */
+.breakdown-main {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+
+.breakdown-left {
+    flex: 1;
+}
+
+.breakdown-right {
+    width: 360px;
+    display: flex;
+    justify-content: center;
+}
+
+.pie-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 19px;
+    color: #28384d;
+}
+
+.legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.legend-name {
+    flex: 1;
+}
+
+.legend-value {
+    font-weight: 700;
+    margin-left: 10px;
+}
+
+.legend-pct {
+    color: #f0a63c;
+    font-weight: 700;
+    margin-left: 10px;
+    min-width: 48px;
+    text-align: right;
+}
+
+.pie-total {
+    margin-top: 14px;
+    font-size: 20px;
+    color: #6b7688;
+    text-align: center;
+}
+
+.pie-total-num {
+    font-size: 30px;
+    font-weight: 700;
+    color: #28384d;
+    margin-left: 8px;
+}
+
+.footer-subtitle {
+    position: relative;
+    z-index: 2;
+    margin-top: 26px;
+    font-size: 18px;
+    color: #f0ce6e;
+    letter-spacing: 3px;
+}
+
+.footer {
+    position: relative;
+    z-index: 2;
+    margin-top: 6px;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: center;
+}
+
+/* 崩坏3 logo：独立元素，不放在 .container 背景里。
+   背景图会叠加 .bg-mid(rgba(26,26,46,.55)) 和顶部 .bg-top 渐变(最高 .85)，
+   嵌在背景里的 logo 会被压到几乎看不见，故单独放并提高 z-index。 */
+.corner-logo {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    height: 92px;
+    z-index: 5;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+

@@ -44,15 +44,19 @@ body{margin:0;min-width:1240px;font-family:"Noto Sans CJK SC","Microsoft YaHei",
 .wave{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
 .monster{display:flex;flex-direction:column;align-items:center;width:140px;padding:8px 6px;border-radius:12px;background:#fff;border:1px solid #e9edf3;color:#3b4252;text-align:center}
 .m-ico{width:54px;height:54px;border-radius:10px;object-fit:cover;background:#f1f5f9;flex:none}
-.m-name{font-size:12.5px;font-weight:700;color:#1f2937;margin:6px 0 4px;line-height:1.25;max-height:2.6em;overflow:hidden}
+/* 名字块固定占两行高：否则长名字换行会把下面的弱点整体顶下去，
+   同一排里短名字的怪和长名字的怪弱点就错开了 */
+.m-name{font-size:12.5px;font-weight:700;color:#1f2937;margin:6px 0 4px;line-height:1.25;height:2.5em;overflow:hidden}
 .m-count{font-size:11.5px;color:#ea580c;font-weight:800}
-.m-weak{display:flex;gap:2px;flex-wrap:nowrap;justify-content:flex-start;align-items:center;margin-bottom:4px;width:100%}
+.m-weak{display:flex;gap:2px;flex-wrap:nowrap;justify-content:center;align-items:center;margin-bottom:4px;width:100%}
 .weak-dot{padding:0 2px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:1px;font-size:9px;font-weight:700;color:#475569;background:transparent;white-space:nowrap;flex:none}
 .weak-dot .weak-icon{width:10px;height:10px;display:block;margin:0;border-radius:50%;object-fit:contain;flex:none}
 .weak-text{line-height:1;font-weight:900}
 .weak-text[style*="color:#a970ff"]{font-size:12px;color:#7c3aed!important}
 .m-stats{width:100%;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#8a94a6;margin-top:2px}
 .m-stat{display:flex;justify-content:space-between;align-items:center;padding:0 2px}
+/* 血量数字很长（如 27,234,308），必须禁止折行，否则会挤到卡片外面 */
+.m-stat-val,.m-stat-count,.m-x{white-space:nowrap}
 .m-stat-label{opacity:.75}
 .m-stat-val{font-weight:700;color:#1f2937}
 .m-stat-count{font-size:10px;color:#ea580c}
@@ -64,15 +68,33 @@ body{margin:0;min-width:1240px;font-family:"Noto Sans CJK SC","Microsoft YaHei",
 .invasion-badge{padding:3px 10px;border-radius:8px;background:#f97316;color:#fff;font-size:13px;font-weight:800;letter-spacing:1px}
 .invasion-desc{font-size:12.5px;line-height:1.6;color:#9a3412}
 .invasion-monsters{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.invasion-monsters .monster{width:96px;padding:6px 4px;border-color:#fed7aa;background:#fff}
+.invasion-monsters .monster{width:128px;padding:6px 4px;border-color:#fed7aa;background:#fff}
 .invasion.invasion-star{background:#f5f3ff;border:1px solid #ddd6fe;padding:14px 16px;border-radius:14px}
 .invasion.invasion-star .invasion-head{margin-bottom:8px}
 .invasion.invasion-star .invasion-badge{background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;padding:4px 12px;font-size:13px;font-weight:800;letter-spacing:1px;border-radius:8px}
 .invasion.invasion-star .invasion-desc{background:#faf5ff;border:1px solid #ede9fe;border-radius:10px;padding:10px 12px;margin-top:2px;color:#6d28d9;font-size:12.5px;line-height:1.65;white-space:pre-line}
 .invasion.invasion-star .invasion-monsters{margin-top:12px}
-.invasion.invasion-star .invasion-monsters .monster{background:#faf5ff;border-color:#ddd6fe;color:#4c1d95;width:96px;padding:6px 4px;border-radius:12px}
+.invasion.invasion-star .invasion-monsters .monster{background:#faf5ff;border-color:#ddd6fe;color:#4c1d95;width:128px;padding:6px 4px;border-radius:12px}
 .invasion.invasion-star .invasion-monsters .monster .m-name{color:#4c1d95}
 .boss-node{grid-column:1/-1;background:#fffbeb;border:1px solid #fde68a}
 .boss-node .node-title{color:#b45309}
 .side:nth-child(3) .side-label{background:#a855f7;color:#fff}
 footer{text-align:center;margin-top:22px;color:#a3adbd;font-size:16px}
+
+/* 贪饕怪被击倒后回复的生命值 */
+.m-stat-greed {
+    /* 污染卡片是浅紫底(#faf5ff)，用白字会完全看不见；改用与卡片一致的深紫 */
+    color: #6d28d9;
+
+    font-size: 12px;
+    margin-top: 3px;
+}
+
+/* 污染（贪饕）怪：从 alioth 补充的字段 */
+.m-x {
+    color: #f0ce6e;
+    font-weight: bold;
+    font-style: normal;
+    margin-left: 2px;
+}
+

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <title>崩坏3 水晶统计</title>
+    <link rel="stylesheet" type="text/css" href="{{ppath}}bh3_ledger/ledger_count.css" />
+</head>
+<body {{sys.scale}}>
+    <div class="container">
+        <div class="content">
+            <div class="content-bg">
+                <div class="bg-top"></div>
+                <div class="bg-mid"></div>
+            </div>
+
+            <img class="corner-logo" src="{{ppath}}img/ledger/logo.png" alt="" draggable="false">
+
+          <div class="titltle">
+                <div class="titltle-top">
+                    <span class="top-month">{{rangeText}}</span> 水晶统计
+                </div>
+                <div class="titltle-line"></div>
+                <div class="titltle-bottom">
+                    <span>UID：{{uid}}</span>
+                    <span style="margin-left: 20px;">服务器：{{serverName}}</span>
+                </div>
+            </div>
+
+            <div class="user-profile">
+                <img src="{{avatarUrl}}" alt="" draggable="false" class="avatar">
+                <div class="user-info-text">
+                    <div class="user-name">{{nickname}}</div>
+                    <div class="user-level">Lv.{{userLevel}}</div>
+                </div>
+            </div>
+
+            <div class="block">
+                <div class="block-header">数据总览</div>
+                <div class="overview">
+                    <div class="ov-card">
+                        <div class="ov-num">{{allHcoin}}</div>
+                        <div class="ov-label">总水晶</div>
+                    </div>
+                    <div class="ov-card">
+                        <div class="ov-num">{{maxMonthLabel}}</div>
+                        <div class="ov-label">水晶最多</div>
+                    </div>
+                    <div class="ov-card">
+                        <div class="ov-num">{{latestMonthHcoin}}</div>
+                        <div class="ov-label">{{latestMonthLabel}}水晶</div>
+                    </div>
+                    <div class="ov-card">
+                        <div class="ov-num">{{allStar}}</div>
+                        <div class="ov-label">总星石</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="block">
+                <div class="block-header">月份统计</div>
+                <div class="chart-wrap">
+                    <div class="legend-row">
+                        <span class="legend-key"><i class="swatch sw-hcoin"></i>水晶</span>
+                    </div>
+                    <canvas id="barChart" width="880" height="300" data-bardata="{{hcoinMonthB64}}"></canvas>
+                </div>
+            </div>
+
+            {{if hcoinList && hcoinList.length}}
+            <div class="block">
+                <div class="block-header">详细统计</div>
+                <div class="breakdown-main">
+                    <div class="breakdown-left">
+                        <div class="pie-legend">
+                            {{each hcoinList item}}
+                            <div class="legend-item">
+                                <span class="legend-color" style="background:{{item.color}}"></span>
+                                <span class="legend-name">{{item.name}}</span>
+                                <span class="legend-value">{{item.num}}</span>
+                                <span class="legend-pct">{{item.percent}}%</span>
+                            </div>
+                            {{/each}}
+                        </div>
+                          <div class="pie-total">
+                              总计 <span class="pie-total-num">{{hcoinTotal}}</span>
+                          </div>
+                    </div>
+                    <div class="breakdown-right">
+                        <canvas id="pieChart" width="360" height="360" data-piedata="{{hcoinListB64}}"></canvas>
+                    </div>
+                </div>
+            </div>
+            {{/if}}
+
+            <div class="footer-subtitle">HONKAI IMPACT 3RD</div>
+            <div class="footer">from 小花火</div>
+        </div>
+    </div>
+
+    <script>
+        // atob() 返回的是「逐字节」二进制字符串，直接 JSON.parse 会把中文 UTF-8
+        // 按 Latin-1 拆成乱码（"月"=E6 9C 88 会变成 "æ"+U+009C+U+0088），
+        // 其中两个控制字符没有字形，浏览器会画成缺失字形框。
+        // 这里显式按 UTF-8 解码。
+        function decodeB64Utf8(b64) {
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+
+        // 月份柱状图
+        (function () {
+            const canvas = document.getElementById('barChart');
+            if (!canvas) return;
+            const rows = JSON.parse(decodeB64Utf8(canvas.dataset.bardata));
+            if (!rows.length) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            const padL = 70, padR = 20, padT = 30, padB = 40;
+            const plotW = W - padL - padR, plotH = H - padT - padB;
+            const max = Math.max.apply(null, rows.map(r => r.value)) || 1;
+            // 取 5 的整数倍做刻度，避免出现 8425/1.5 这种零碎刻度
+            const step = Math.max(1, Math.ceil(max / 5 / 100) * 100);
+            const top = Math.ceil(max / step) * step;
+            const niceMax = top || step;
+            ctx.clearRect(0, 0, W, H);
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let v = 0; v <= niceMax; v += step) {
+                const y = padT + plotH - (v / niceMax) * plotH;
+                ctx.strokeStyle = 'rgba(26,26,46,0.10)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padL, y);
+                ctx.lineTo(W - padR, y);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(26,26,46,0.55)';
+                ctx.fillText(String(v), padL - 10, y);
+            }
+            const slot = plotW / rows.length;
+            const barW = Math.min(70, slot * 0.5);
+            rows.forEach((r, i) => {
+                const h = (r.value / niceMax) * plotH;
+                const x = padL + slot * i + (slot - barW) / 2;
+                const y = padT + plotH - h;
+                const grad = ctx.createLinearGradient(0, y, 0, y + h);
+                grad.addColorStop(0, '#7fa8e8');
+                grad.addColorStop(1, '#5b7fc4');
+                ctx.fillStyle = grad;
+                ctx.fillRect(x, y, barW, h);
+                // 数值与月份各用各的字号。ctx.font 会跨迭代保留，
+                // 若不在每次绘制前显式指定，第一个数值会用 16px、其余用 20px 粗体。
+                ctx.fillStyle = 'rgba(26,26,46,0.85)';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(String(r.value), x + barW / 2, y - 6);
+                ctx.fillStyle = 'rgba(26,26,46,0.85)';
+                ctx.font = 'bold 20px sans-serif';
+                ctx.textBaseline = 'top';
+                ctx.fillText(r.month, x + barW / 2, padT + plotH + 10);
+            });
+        })();
+
+        // 来源环形图
+        (function () {
+            const canvas = document.getElementById('pieChart');
+            if (!canvas) return;
+            const data = JSON.parse(decodeB64Utf8(canvas.dataset.piedata));
+            if (!data.length) return;
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2, cy = canvas.height / 2;
+            const total = data.reduce((s, d) => s + d.num, 0) || 1;
+            let startAngle = -Math.PI / 2;
+            data.forEach(d => {
+                const slice = (d.num / total) * 2 * Math.PI;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 150, startAngle, startAngle + slice);
+                ctx.arc(cx, cy, 78, startAngle + slice, startAngle, true);
+                ctx.closePath();
+                ctx.fillStyle = d.color;
+                ctx.fill();
+                startAngle += slice;
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -34,6 +34,16 @@ const ALIAS_FILES = {
   sr: path.join(PLUGIN_ROOT, 'system/default/sralias.json'),
   zzz: path.join(PLUGIN_ROOT, 'system/default/zzzalias.json'),
 };
+// 米游社 game_id → 站点路径段。原帖链接必须带路径段，否则 /article/{id} 打不开会跳首页
+const MYS_PATH_BY_GID = { 1: 'bh3', 2: 'ys', 6: 'sr', 8: 'zzz' };
+const MYS_PATH_BY_GAME = { gs: 'ys', sr: 'sr', zzz: 'zzz', bh3: 'bh3' };
+
+function mysPostUrl(postId, gid, game) {
+  if (!postId) return '';
+  const path = MYS_PATH_BY_GID[Number(gid)] || MYS_PATH_BY_GAME[game] || 'ys';
+  return `https://www.miyoushe.com/${path}/article/${postId}`;
+}
+
 // 游戏前缀：#绝区零鲨鱼妹攻略 这类写法可显式指定游戏，解决跨游戏别名冲突（如 鲨鱼妹 → 原神玛拉妮 / 绝区零艾莲）
 const GAME_PREFIX_MAP = {
   '原神': 'gs', 'gs': 'gs',
@@ -142,6 +152,7 @@ async function searchPosts(keyword, uid, size = DEFAULT_SIZE) {
         post_id: post.post_id,
         created_at: post.created_at,
         publish_at: post.publish_at,
+        game_id: v?.game_id,
         images: extractImages(v),
       };
     })
@@ -222,19 +233,19 @@ export class custom_guide extends plugin {
     //  命中别名 → 各命中游戏的默认源；未命中 → 各游戏默认源；最后全局兜底源 → 代码内置 74019947
     const candidates = [];
     const seenCand = new Set();
-    const pushCand = (kw, uid) => {
+    const pushCand = (kw, uid, game) => {
       const n = Number(uid);
       if (!uid || !Number.isSafeInteger(n) || n <= 0 || seenCand.has(`${kw}@${n}`)) return;
       seenCand.add(`${kw}@${n}`);
-      candidates.push({ keyword: kw, uid: n });
+      candidates.push({ keyword: kw, uid: n, game });
     };
     if (matchedGames.length) {
-      for (const m of matchedGames) pushCand(m.formal, m.uid);
+      for (const m of matchedGames) pushCand(m.formal, m.uid, m.key);
     } else {
-      for (const g of games) pushCand(roleQuery, g.uid);
+      for (const g of games) pushCand(roleQuery, g.uid, g.key);
     }
-    pushCand(keyword, cfg.custom_guide_uid);
-    pushCand(keyword, FALLBACK_UID);
+    pushCand(keyword, cfg.custom_guide_uid, matchedGames[0]?.key);
+    pushCand(keyword, FALLBACK_UID, matchedGames[0]?.key);
     // 一个可用UID都没有：静默放行，交给 mora 等其它插件处理
     if (!candidates.length) return false;
 
@@ -243,7 +254,7 @@ export class custom_guide extends plugin {
     const msg = [];
     const seenImages = new Set();
     for (const cand of candidates) {
-      const { keyword: kw, uid } = cand;
+      const { keyword: kw, uid, game } = cand;
       try {
         const posts = await searchPosts(kw, uid, DEFAULT_SIZE);
         logger.mark(`[xhh][custom_guide] ${kw}/${uid} 搜到 ${posts.length} 帖，各帖图数: ${posts.map(p => p.images.length).join(',') || '0'}`);
@@ -256,7 +267,7 @@ export class custom_guide extends plugin {
           const time = Number(post.created_at || post.publish_at || 0);
           // 老攻略在发布时间后挂时效提醒，避免拿几年前的内容当现版本作业
           if (time) lines.push(`发布：${new Date(time * 1000).toLocaleString('zh-CN', { hour12: false })}${oldPostWarn(time)}`);
-          if (post.post_id) lines.push(`原帖：https://www.miyoushe.com/article/${post.post_id}`);
+          if (post.post_id) lines.push(`原帖：${mysPostUrl(post.post_id, post.game_id, game)}`);
           // 每张图独立一个转发节点：部分适配器对「单节点多图」发送不可靠（只出第一张、其余全丢）
           // 纯图片节点也包成数组，确保适配器按节点渲染
           msg.push([lines.join('\n'), segment.image(images[0])]);

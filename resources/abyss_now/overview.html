@@ -104,7 +104,9 @@
                 </div>
                 <div class="monster-info">
                   {{if m.name}}<div class="monster-name">{{m.name}}</div>{{/if}}
-                  {{if m.hp}}<div class="monster-hp">{{m.hp}}</div>{{/if}}
+                  {{if m.hp}}<div class="monster-hp">{{m.hp}}{{if m.hpMult}} <i class="mult">×{{m.hpMult}}</i>{{/if}}{{if m.voracityHp}} <i class="voracity">+{{m.voracityHp}}</i>{{/if}}</div>{{/if}}
+                  {{if m.spd || m.stance}}<div class="monster-stat">{{if m.spd}}<span>SPD {{m.spd}}</span>{{/if}}{{if m.stance}}<span>韧性 {{m.stance}}</span>{{/if}}</div>{{/if}}
+                  {{if m.greedHp}}<div class="monster-stat greed">贪饕生命值：+{{m.greedHp}}（{{m.greedPct}}%）</div>{{/if}}
                   {{if m.weak && m.weak.length}}
                   <div class="tag-row weak">
                     {{each m.weak e}}<i>{{if e.icon}}<img src="{{e.icon}}" alt="" />{{/if}}{{e.cn}}</i>{{/each}}

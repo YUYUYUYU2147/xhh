@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{gameName}} {{unit}}统计</title>
+    <link rel="stylesheet" type="text/css" href="{{ppath}}currency_ledger/count.css" />
+</head>
+<body {{sys.scale}}>
+    <div class="container">
+        <div class="content">
+            <div class="content-bg">
+                <div class="bg-top"></div>
+                <div class="bg-mid"></div>
+            </div>
+
+            <!-- 右上角装饰图：取该游戏「当前卡池」第一个 UP 的立绘（与卡池卡片右上角同一套图）。
+                 取不到时退回文字徽章，不留空位。 -->
+            {{if cornerSplash}}
+            <img class="corner-splash" src="{{if cornerSplash.startsWith('http') || cornerSplash.startsWith('/')}}{{cornerSplash}}{{else}}{{ppath}}{{cornerSplash}}{{/if}}" alt="" draggable="false">
+            {{else}}
+            <div class="corner-badge">{{gameName}}</div>
+            {{/if}}
+
+            <div class="titltle">
+                <div class="titltle-top">
+                    <span class="top-month">{{rangeText}}</span> {{unit}}统计
+                </div>
+                <div class="titltle-line"></div>
+                <div class="titltle-bottom">
+                    <span>UID：{{uid}}</span>
+                    {{if serverName}}<span style="margin-left: 20px;">服务器：{{serverName}}</span>{{/if}}
+                </div>
+            </div>
+
+            <div class="user-profile">
+                {{if avatarUrl}}<img src="{{avatarUrl}}" alt="" draggable="false" class="avatar">{{/if}}
+                <div class="user-info-text">
+                    <div class="user-name">{{nickname || '未绑定'}}</div>
+                    <div class="user-level">已统计 {{monthCount}} 个月</div>
+                </div>
+            </div>
+
+            <div class="block">
+                <div class="block-header">数据总览</div>
+                <div class="overview">
+                    <div class="ov-card">
+                        <div class="ov-num">{{total}}</div>
+                        <div class="ov-label">累计{{unit}}</div>
+                    </div>
+                    <div class="ov-card">
+                        <div class="ov-num">{{bestValue}}</div>
+                        <div class="ov-label">最高月</div>
+                    </div>
+                    <div class="ov-card">
+                        <div class="ov-num">{{bestMonth}}</div>
+                        <div class="ov-label">最高月份</div>
+                    </div>
+                    <div class="ov-card">
+                        <div class="ov-num">{{monthCount}}</div>
+                        <div class="ov-label">统计月份</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="block">
+                <div class="block-header">月份统计</div>
+                <div class="chart-wrap">
+                    <div class="legend-row">
+                        <span class="legend-key"><i class="swatch sw-cur"></i>{{unit}}</span>
+                    </div>
+                    <canvas id="barChart" width="880" height="300" data-bardata="{{itemsB64}}"></canvas>
+                </div>
+            </div>
+
+            <div class="block">
+                <div class="block-header">来源占比</div>
+                <div class="breakdown-main">
+                    <div class="breakdown-left">
+                        <div id="pieLegend" class="pie-legend" data-piedata="{{sourceB64}}"></div>
+                        <div class="pie-total">
+                            总计 <span class="pie-total-num">{{sourceTotal}}</span>
+                        </div>
+                    </div>
+                    <div class="breakdown-right">
+                        <canvas id="pieChart" width="360" height="360" data-piedata="{{sourceB64}}"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-subtitle">{{gameSub}}</div>
+            <div class="footer">from 小花火</div>
+        </div>
+    </div>
+
+    <script>
+        // atob() 返回逐字节二进制字符串，直接 JSON.parse 会把中文 UTF-8 按 Latin-1
+        // 拆开（"月"=E6 9C 88 会变成 "æ"+U+009C+U+0088），后两个控制字符没有字形，
+        // 浏览器会画成缺失字形框。这里显式按 UTF-8 解码。
+        function decodeB64Utf8(b64) {
+            if (!b64) return '';
+            try {
+                const bin = atob(b64);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                return new TextDecoder('utf-8').decode(bytes);
+            } catch (e) { return ''; }
+        }
+        function readData(canvas) {
+            const raw = decodeB64Utf8(canvas.dataset.bardata || canvas.dataset.piedata);
+            if (!raw) return [];
+            try { return JSON.parse(raw); } catch (e) { return []; }
+        }
+        // 画不出来时给个可见提示，别留一片空白让人以为没数据
+        function fail(canvas, msg) {
+            const c = canvas.getContext('2d');
+            c.clearRect(0, 0, canvas.width, canvas.height);
+            c.fillStyle = 'rgba(26,26,46,0.45)';
+            c.font = '18px sans-serif';
+            c.textAlign = 'center'; c.textBaseline = 'middle';
+            c.fillText(msg, canvas.width / 2, canvas.height / 2);
+        }
+
+        // 月份柱状图
+        (function () {
+            const canvas = document.getElementById('barChart');
+            if (!canvas) return;
+            const rows = readData(canvas);
+            if (!rows.length) return fail(canvas, '暂无月度数据');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            const padL = 70, padR = 20, padT = 30, padB = 40;
+            const plotW = W - padL - padR, plotH = H - padT - padB;
+            const max = Math.max.apply(null, rows.map(r => r.value)) || 1;
+            // 取整刻度，避免出现 8425/1.5 这种零碎刻度
+            const step = Math.max(1, Math.ceil(max / 5 / 100) * 100);
+            const niceMax = Math.ceil(max / step) * step || step;
+            ctx.clearRect(0, 0, W, H);
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let v = 0; v <= niceMax; v += step) {
+                const y = padT + plotH - (v / niceMax) * plotH;
+                ctx.strokeStyle = 'rgba(26,26,46,0.10)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padL, y);
+                ctx.lineTo(W - padR, y);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(26,26,46,0.55)';
+                ctx.font = '16px sans-serif';
+                ctx.fillText(String(v), padL - 10, y);
+            }
+            const slot = plotW / rows.length;
+            const barW = Math.min(70, slot * 0.5);
+            rows.forEach((r, i) => {
+                const h = (r.value / niceMax) * plotH;
+                const x = padL + slot * i + (slot - barW) / 2;
+                const y = padT + plotH - h;
+                const grad = ctx.createLinearGradient(0, y, 0, y + h);
+                grad.addColorStop(0, '#7fa8e8');
+                grad.addColorStop(1, '#5b7fc4');
+                ctx.fillStyle = grad;
+                ctx.fillRect(x, y, barW, h);
+                // 数值与月份各用各的字号：ctx.font 会跨迭代保留，
+                // 不在每次绘制前显式指定的话，第一个数值会用 16px、其余用 20px 粗体。
+                ctx.fillStyle = 'rgba(26,26,46,0.85)';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(String(r.value), x + barW / 2, y - 6);
+                ctx.font = 'bold 20px sans-serif';
+                ctx.textBaseline = 'top';
+                ctx.fillText(r.month, x + barW / 2, padT + plotH + 10);
+            });
+        })();
+
+        // 来源环形图 + 图例
+        (function () {
+            const canvas = document.getElementById('pieChart');
+            const legend = document.getElementById('pieLegend');
+            if (!canvas) return;
+            const data = readData(canvas);
+            if (!data.length) {
+                fail(canvas, '暂无来源明细');
+                if (legend) legend.innerHTML = '<div class="legend-empty">本月接口未返回来源明细</div>';
+                return;
+            }
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2, cy = canvas.height / 2;
+            const total = data.reduce((s, d) => s + d.num, 0) || 1;
+            let startAngle = -Math.PI / 2;
+            data.forEach(d => {
+                const slice = (d.num / total) * 2 * Math.PI;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 150, startAngle, startAngle + slice);
+                ctx.arc(cx, cy, 78, startAngle + slice, startAngle, true);
+                ctx.closePath();
+                ctx.fillStyle = d.color;
+                ctx.fill();
+                startAngle += slice;
+            });
+            if (legend) {
+                legend.innerHTML = data.map(d =>
+                    '<div class="legend-item">' +
+                    '<span class="legend-color" style="background:' + d.color + '"></span>' +
+                    '<span class="legend-name">' + d.name + '</span>' +
+                    '<span class="legend-value">' + Number(d.num).toLocaleString('en-US') + '</span>' +
+                    '<span class="legend-pct">' + d.percent + '%</span>' +
+                    '</div>'
+                ).join('');
+            }
+        })();
+    </script>
+</body>
+</html>

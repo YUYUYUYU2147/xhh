@@ -1,0 +1,41 @@
+*{box-sizing:border-box}
+body{margin:0;min-width:1000px;background:#eef1f6;color:#3b4252;
+  font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+.page{position:relative;width:1000px;padding:26px 30px 22px;background:#f7f9fc;
+  border-radius:0 0 18px 18px;overflow:hidden}
+
+.accent-bar{position:absolute;left:0;top:0;width:100%;height:5px}
+
+.head{display:flex;align-items:center;gap:14px;margin:6px 0 18px}
+.head-icon{width:54px;height:54px;border-radius:16px;background:#fff;border:1px solid #e4e8f0;
+  display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#1f2937;flex:none}
+.head-text h1{margin:0;font-size:27px;font-weight:900;letter-spacing:.5px;color:#1f2937}
+.head-text .sub{margin-top:5px;font-size:14px;color:#8a94a6}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:#fff;border:1px solid #e9edf3;border-radius:14px;padding:14px 16px 16px;
+  box-shadow:0 3px 10px rgba(31,41,55,.05)}
+.card-title{font-size:13px;color:#8a94a6;margin-bottom:8px}
+.card-num{font-size:26px;font-weight:900;letter-spacing:.5px;line-height:1.1}
+
+.panel{margin-top:16px;background:#fff;border:1px solid #e9edf3;border-radius:16px;padding:18px 20px;
+  box-shadow:0 3px 10px rgba(31,41,55,.05)}
+.panel-title{font-size:18px;font-weight:800;margin:0 0 14px;padding-left:11px;
+  border-left:4px solid #ff8a3d;color:#1f2937}
+
+.src-list{display:flex;flex-direction:column;gap:11px}
+.src-item{width:100%}
+.src-head{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:5px}
+.src-dot{width:10px;height:10px;border-radius:50%;flex:none}
+.src-name{flex:1;color:#3b4252;font-weight:600}
+.src-num{font-weight:800;color:#1f2937}
+.src-bar{width:100%;height:8px;border-radius:4px;background:#eef1f6;overflow:hidden}
+.src-bar i{display:block;height:100%;border-radius:4px}
+
+.src-total{margin-top:14px;padding-top:12px;border-top:1px dashed #e4e8f0;
+  font-size:14px;color:#8a94a6;text-align:right}
+.src-total::first-letter{color:#1f2937}
+
+.empty{font-size:14px;color:#a3adbd;padding:14px 0;text-align:center}
+
+footer{text-align:center;margin-top:18px;color:#a3adbd;font-size:13px}

@@ -6,6 +6,21 @@ import YAML from 'yaml';
 import { yaml, api, config } from '#xhh';
 
 class mhy {
+  // 服务器代码 → 中文名。getServerName() 用。
+  // 分两代：老代码是崩三/原神的 cn_gf01 / os_usa，
+  // 新代码是星铁和绝区零的 prod_gf_cn / prod_official_usa。
+  serverNameMap = {
+    // 原神 / 崩三
+    cn_gf01: '国服', cn_qd01: 'B服',
+    os_usa: '美服', os_asia: '亚服', os_euro: '欧服', os_cht: '港澳台服',
+    android01: '安卓官服', ios01: 'iOS服',
+    // 星铁 / 绝区零
+    prod_gf_cn: '国服', prod_qd_cn: 'B服',
+    prod_gf_us: '美服', prod_gf_eu: '欧服', prod_gf_jp: '日服', prod_gf_sg: '新加坡服',
+    prod_official_usa: '国际服', prod_official_asia: '亚服',
+    prod_official_eur: '欧服', prod_official_euro: '欧服', prod_official_cht: '港澳台服',
+  };
+
   constructor() {
     this.fp_url = 'https://public-data-api.mihoyo.com/device-fp/api/getFp';
     this.mysSalt = 'rtvTthKxEyreVXQCnhluFgLXPOFKPHlA'; //k2 2.71.1
@@ -302,6 +317,32 @@ class mhy {
     }
     // 崩三官服 uid 首位可能是 6/8/9，默认应返回 cn_gf01，而非原神/星铁的 prod_gf_cn
     return game === 'bh3' ? 'cn_gf01' : 'prod_gf_cn';
+  }
+
+  /**
+   * 服务器代码转中文名（给界面显示用）。
+   *
+   * getServer() 返回的是**接口用的服务器代码**（prod_gf_cn / cn_gf01 这种），
+   * 直接显示出来用户看到的是「服务器：prod_gf_cn」，不是「国服」。
+   *
+   * 代码分两代，老的是崩三/原神的 cn_gf01 / os_usa，
+   * 新的星铁和绝区零换成了 prod_gf_cn / prod_official_usa 这一套，两边都要认。
+   * 命名规律（实测代码里出现过的全集）：
+   *   prod_gf_{cn,us,jp,sg,eu}        国服/美服/日服/新加坡服/欧服
+   *   prod_qd_cn                       B服
+   *   prod_official_{usa,asia,eur,euro,cht}  国际服（official =  HoYoPlay/国际账号）
+   *   cn_gf01 / cn_qd01                国服 / B服（老代码）
+   *   os_{usa,asia,euro,cht}          美服 / 亚服 / 欧服 / 港澳台服
+   * 认不出来就原样返回，不给用户一个空字符串。
+   */
+  getServerName(code) {
+    const key = String(code || '').trim();
+    if (!key) return '';
+    if (this.serverNameMap[key]) return this.serverNameMap[key];
+    // 兜底：prod_official_xxx / prod_gf_xxx 后面那截基本就是地区
+    const guess = key.match(/^(?:prod_(?:gf|official)_|os_)([a-z]{2,4})$/)?.[1];
+    if (guess && this.serverNameMap[`os_${guess}`]) return this.serverNameMap[`os_${guess}`];
+    return key;
   }
 
 }

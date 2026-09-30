@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}currency_ledger/ledger.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page">
+  <div class="accent-bar" style="background:{{accent}}"></div>
+
+  <header class="head">
+    <div class="head-icon">{{gameName.slice(0, 1)}}</div>
+    <div class="head-text">
+      <h1>{{title}}</h1>
+      <div class="sub">{{label}} · UID {{uid}}</div>
+    </div>
+  </header>
+
+  <div class="cards">
+    {{each cards c}}
+    <div class="card" style="border-top:4px solid {{c.accent}}">
+      <div class="card-title">{{c.title}}</div>
+      <div class="card-num" style="color:{{c.accent}}">{{c.num}}</div>
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">收入来源</div>
+    {{if rows.length}}
+    <div class="src-list">
+      {{each rows r}}
+      <div class="src-item">
+        <div class="src-head">
+          <span class="src-dot" style="background:{{r.color}}"></span>
+          <span class="src-name">{{r.name}}</span>
+          <span class="src-num">{{r.num}}</span>
+        </div>
+        <div class="src-bar"><i style="width:{{base ? (r.num / rows[0].num * 100) : 0}}%;background:{{r.color}}"></i></div>
+      </div>
+      {{/each}}
+    </div>
+    <div class="src-total">合计 {{base}} {{unit}}</div>
+    {{else}}
+    <div class="empty">本月暂无来源明细</div>
+    {{/if}}
+  </div>
+
+  <footer>数据来自米游社账本接口 · {{dateStr}}</footer>
+</div>
+</body>
+</html>

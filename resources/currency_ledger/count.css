@@ -1,0 +1,333 @@
+/* 与崩三水晶统计（resources/bh3_ledger/ledger_count.css）保持同一套视觉语言：
+   暗色底 + 金色主题 + 960px 宽 + 白卡片。三个游戏没有各自的背景图，
+   这里用纯色渐变代替，内容层级、字号、圆角、图表样式都对齐。 */
+
+@font-face {
+    font-family: "Chinese";
+    src: url("../font/SR.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "CJKFallback";
+    src: url("../font/wqy-microhei.ttc") format("truetype");
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    width: 960px;
+    transform: scale(1);
+    transform-origin: 0 0;
+    font-family: "Chinese", "CJKFallback", sans-serif;
+    color: #28384d;
+    font-size: 20px;
+}
+
+.container {
+    width: 960px;
+    background-color: #1a1a2e;
+    background-image: linear-gradient(160deg, #2b2f52 0%, #1a1a2e 55%, #241f3d 100%);
+    padding: 30px 40px 40px 40px;
+}
+
+.content {
+    position: relative;
+}
+
+.content-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.bg-top {
+    position: absolute;
+    top: -20px;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(180deg, rgba(26, 26, 46, 0.85), rgba(26, 26, 46, 0));
+}
+
+.bg-mid {
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 26, 46, 0.35);
+}
+
+/* 右上角装饰图：当前卡池 UP 的立绘，取不到时用 .corner-badge 文字徽章 */
+.corner-splash {
+    position: absolute;
+    z-index: 5;
+    top: -6px;
+    right: 6px;
+    width: 190px;
+    max-height: 260px;
+    object-fit: contain;
+    object-position: top right;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+    pointer-events: none;
+}
+
+/* 角标：三个游戏没有现成 logo 资源时的文字兜底 */
+.corner-badge {
+    position: absolute;
+    z-index: 5;
+    top: 6px;
+    right: 8px;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: rgba(240, 206, 110, 0.32);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
+.titltle {
+    position: relative;
+    z-index: 2;
+    padding: 6px 4px 10px 4px;
+}
+
+.titltle-top {
+    font-size: 40px;
+    font-weight: 700;
+    color: #f0ce6e;
+    letter-spacing: 1px;
+}
+
+.titltle-top .top-month {
+    color: #f0ce6e;
+}
+
+.titltle-line {
+    height: 2px;
+    background: linear-gradient(90deg, rgba(240, 206, 110, 0.9), rgba(240, 206, 110, 0.05));
+    margin: 12px 0 10px 0;
+}
+
+.titltle-bottom {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.user-profile {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin: 18px 0 6px 0;
+}
+
+.avatar {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    border: 3px solid #f0ce6e;
+    background: #22283c;
+    object-fit: cover;
+}
+
+.user-name {
+    font-size: 30px;
+    font-weight: 700;
+    color: #f0ce6e;
+}
+
+.user-level {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 4px;
+}
+
+.block {
+    position: relative;
+    z-index: 2;
+    margin-top: 22px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 18px 20px 20px 20px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+.block-header {
+    display: inline-block;
+    font-size: 20px;
+    color: #28384d;
+    background: #f0ce6e;
+    border-radius: 8px 0 8px 0;
+    padding: 2px 12px;
+    margin-bottom: 16px;
+}
+
+/* 数据总览 */
+.overview {
+    display: flex;
+    gap: 16px;
+}
+
+.ov-card {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    padding: 16px 8px 12px 8px;
+    text-align: center;
+}
+
+.ov-num {
+    font-size: 34px;
+    font-weight: 700;
+    color: #28384d;
+    line-height: 1.2;
+    word-break: break-all;
+}
+
+.ov-label {
+    font-size: 18px;
+    color: #6b7688;
+    margin-top: 6px;
+}
+
+/* 柱状图 */
+.chart-wrap {
+    /* 不透明：半透明卡片会让坐标轴标签压在深色背景上读不清 */
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 14px 10px 6px 10px;
+}
+
+.legend-row {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 4px;
+    padding-left: 4px;
+}
+
+.legend-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+    color: #6b7688;
+}
+
+.swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.sw-cur {
+    background: linear-gradient(180deg, #7fa8e8, #5b7fc4);
+}
+
+canvas {
+    display: block;
+}
+
+/* 来源占比 */
+.breakdown-main {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.breakdown-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.breakdown-right {
+    flex: none;
+}
+
+.pie-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 19px;
+}
+
+.legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex: none;
+}
+
+.legend-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.legend-value {
+    margin-left: auto;
+    color: #f0ce6e;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.legend-pct {
+    min-width: 56px;
+    text-align: right;
+    color: rgba(255, 255, 255, 0.75);
+    font-variant-numeric: tabular-nums;
+}
+
+.legend-empty {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 20px 0;
+    text-align: center;
+}
+
+.pie-total {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.18);
+    font-size: 19px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: right;
+}
+
+.pie-total-num {
+    color: #f0ce6e;
+    font-weight: 700;
+    font-size: 22px;
+}
+
+.footer-subtitle {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    margin-top: 26px;
+    font-size: 26px;
+    letter-spacing: 6px;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.footer {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    margin-top: 4px;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.28);
+}
