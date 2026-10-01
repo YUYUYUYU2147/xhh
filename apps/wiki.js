@@ -320,7 +320,7 @@ export class Wiki extends plugin {
     const starPrefix = /^[＃#%]*\*/.test(e.msg);
     const isSr = starPrefix || e.msg.includes('星铁');
     const isZZZ = e.msg.includes('绝区零') || e.msg.includes('ZZZ');
-    const isBH3 = e.msg.includes('崩坏3') || e.msg.includes('崩坏三') || e.msg.includes('崩三') || e.msg.includes('BH3');
+    let isBH3 = e.msg.includes('崩坏3') || e.msg.includes('崩坏三') || e.msg.includes('崩三') || e.msg.includes('BH3');
     let name = e.msg
       .replace(/^[#%*]*/, '')
       // 插件前缀（xhh菲欧妮图鉴 / 小花火菲欧妮图鉴）不参与查询名
@@ -330,6 +330,10 @@ export class Wiki extends plugin {
     name = name.startsWith('图鉴') ? name.replace(/^图鉴/, '') : name.replace(/图鉴$/, '');
     name = name.replace(/^[:：\s]+|[:：\s]+$/g, '').trim();
     if (!name) return false;
+    // 「圣痕」是崩坏3独有的叫法：原神叫圣遗物、星铁叫遗器、绝区零叫驱动盘。
+    // 不带游戏前缀时按崩三处理 —— 以前 #圣痕图鉴 会落到原神分支，
+    // 列出的是原神圣遗物却标着「圣痕」，和 #崩三圣痕 完全不是一回事。
+    if (!isSr && !isZZZ && !isBH3 && /圣痕/.test(name)) isBH3 = true;
     // 怪物/BOSS 图鉴交给 monster 插件处理，通用图鉴规则直接让路，
     // 避免把「绝区零怪物图鉴」当成角色「怪物」去查然后回「没有找到」
     const skipName = name
@@ -394,6 +398,12 @@ export class Wiki extends plugin {
         if (await this[method](...args, false, true)) return true;
       }
       if (await this.bangboo(e, name)) return true;
+      // 崩三的圣痕名常带套装名（如「琪亚娜·乐运天降」是「来日亦然」套装的一件），
+      // 和原神/星铁/绝区零的名字不重样，但不带前缀时前面三个游戏都试过了，
+      // 只有走到这里才拉崩三数据，不会拖慢正常查询。
+      for (const { method, args } of checkTypes) {
+        if (await this[method](...args, false, false, true)) return true;
+      }
       if (await this.bh3_yq(e, name, true)) return true;
     }
     //最后查总列表
@@ -401,7 +411,10 @@ export class Wiki extends plugin {
     // 全部未命中时给出提示，避免静默无响应被当成插件故障
     if (config().debug) logger.mark(`[xhh] 图鉴未命中: name=「${name}」 isSr=${isSr} isZZZ=${isZZZ} isBH3=${isBH3}`);
     if (name.length >= 2) {
-      await e.reply(`没有找到「${name}」的图鉴数据。\n可尝试指定游戏：绝区零${name}图鉴 / *${name}图鉴 / #${name}图鉴，或检查名称是否正确。`);
+      // 以前这里写死建议「绝区零」，崩三的名字（如「乐运天降」）看到这条只会更困惑，
+      // 而且后半句「*X图鉴 / #X图鉴」就是把刚敲过的那条命令再抄一遍，没有信息量。
+      // 改成列出四个游戏真实的前缀写法。
+      await e.reply(`没有找到「${name}」的图鉴数据。\n可尝试在名字前加上游戏前缀：原神 / 星铁 / 绝区零 / 崩三，或检查名称是否正确。`);
       return true;
     }
     return false;
@@ -454,19 +467,72 @@ export class Wiki extends plugin {
 
     let condition = name.replace(/崩坏3|崩坏三|崩三|角色|武器|光锥|音擎|驱动盘|邦布|圣痕|人偶|协同者/g, '');
 
+    // 崩坏三圣痕有 700 条（五星 475、四星 204、三星 15、二星 6；其中五星套装 449），
+    // 「圣痕 全部 / 四星 / 三星 / 二星 / 单件」可以放开对应范围。
+    // 开关在 config.yaml 的 bh3_syw_full_list，置 true 则恢复全量。
+    //
+    // 套装在列表里是按件拆开的：一套三个部位就是 (上)(中)(下) 三条，
+    // 五星套装 449 条去重后只剩 208 套（120 套三件 + 87 套单件 + 1 套两件）。
+    // 列表只取每套的第一件代表，体积和浏览量都减半。
+    if (isBH3 && type === 'syw') {
+      const STAR_WORDS = { '五星': '五星', '5星': '五星', '四星': '四星', '4星': '四星', '三星': '三星', '3星': '三星', '二星': '二星', '2星': '二星' };
+      const starKey = STAR_WORDS[condition];
+      const onlyPiece = /^(单件|散件|单件圣痕)$/.test(condition);
+      const wantAll = !!config().bh3_syw_full_list || /^(全部|全量|所有)$/.test(condition);
+      if (wantAll) {
+        _name = condition ? `圣痕${condition}` : '圣痕';
+      } else if (starKey) {
+        data = data.filter(item => item.ji === starKey);
+        _name = `圣痕${condition}`;
+      } else if (onlyPiece) {
+        data = data.filter(item => item.isSet !== 'true');
+        _name = '圣痕单件';
+      } else {
+        data = data.filter(item => item.ji === '五星' && item.isSet === 'true');
+        _name = '五星圣痕';
+      }
+      // 套装按部位拆条，列表只留每套一件代表，并把代表身上的部位后缀去掉，
+      // 显示成「赫拉克利特」而不是「赫拉克利点(上)」——一条代表整套。
+      // 部位后缀在 bh3_data 里按列表原样保留，这里按同样的规则剥掉。
+      if (/^(全部|全量|所有)$/.test(condition) || !config().bh3_syw_full_list) {
+        const seen = new Set();
+        data = data
+          .filter(item => {
+            const key = String(item.name || '').replace(/[（(](上|中|下)[）)]|·(上|中|下)$|-(上|中|下)$/g, '');
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .map(item => ({
+            ...item,
+            name: String(item.name || '').replace(/[（(](上|中|下)[）)]|·(上|中|下)$|-(上|中|下)$/g, '')
+          }));
+        if (!wantAll) _name = `${_name}（${data.length} 套）`;
+      }
+    }
+
     if (!isSr && !isZZZ && !isBH3) {
       switch (condition) {
         case '五星':
         case '5星':
           data = data.filter(item => item.ji === '五星');
           _name = '五星角色';
-          if (type = 'wq') _name = '五星武器';
+          if (type === 'wq') _name = '五星武器';
+          if (type === 'syw') _name = '五星圣遗物';
           break;
         case '四星':
         case '4星':
           data = data.filter(item => item.ji === '四星');
           _name = '四星角色';
-          if (type = 'wq') _name = '四星武器';
+          if (type === 'wq') _name = '四星武器';
+          if (type === 'syw') _name = '四星圣遗物';
+          break;
+        case '三星':
+        case '3星':
+          data = data.filter(item => item.ji === '三星');
+          _name = '三星角色';
+          if (type === 'wq') _name = '三星武器';
+          if (type === 'syw') _name = '三星圣遗物';
           break;
         case '水系':
         case '水':
@@ -534,15 +600,22 @@ export class Wiki extends plugin {
         case '5星':
           data = data.filter(item => item.ji === '五星');
           _name = '五星角色';
-          if (type = 'wq') _name = '五星武器';
-          if (type = 'syw') _name = '五星圣痕';
+          if (type === 'wq') _name = '五星武器';
+          if (type === 'syw') _name = '五星圣痕';
           break;
         case '四星':
         case '4星':
           data = data.filter(item => item.ji === '四星');
           _name = '四星角色';
-          if (type = 'wq') _name = '四星武器';
-          if (type = 'syw') _name = '四星圣痕';
+          if (type === 'wq') _name = '四星武器';
+          if (type === 'syw') _name = '四星圣痕';
+          break;
+        case '三星':
+        case '3星':
+          data = data.filter(item => item.ji === '三星');
+          _name = '三星角色';
+          if (type === 'wq') _name = '三星武器';
+          if (type === 'syw') _name = '三星遗器';
           break;
         case '物理':
         case '物理系':
@@ -600,6 +673,110 @@ export class Wiki extends plugin {
           _name = '星尘角色';
           break;
       }
+    } else if (isSr) {
+      // 星铁此前完全没有分档分支，#光锥五星 / #遗器四星 一律返回全量列表。
+      // 属性按 shuxing 取（nanoka 角色 ext 给的是 属性/{damageType}），命途按 mingtu 取。
+      // 不是 yuanshu —— 星铁角色的 ext 里只有 命途/ 与 属性/、没有 元素/，
+      // 所以原先混在 BH3 分支里按 yuanshu 过滤的量子、虚数那几条是双重死代码：
+      // 分支进不去，字段也永远取不到值。那几条留在原处不动，避免动到既有分支。
+      const srNoun = type === 'gz' ? '光锥' : type === 'yq' ? '遗器' : '角色';
+      // 遗器套装在两个数据源里都没有星级标签：nanoka relicset.json 的 ext 只有套装效果，
+      // 官方 sr_wiki 频道 30 的 60 条也只有套装种类与套装效果，ji 恒为空。
+      // 这种列表不参与分档筛选，否则 #遗器五星 会从 64 条直接变成 0 条。
+      const srTierable = data.some(it => it.ji);
+      switch (condition) {
+        case '五星':
+        case '五星':
+          if (srTierable) data = data.filter(item => item.ji === '五星');
+          _name = `五星${srNoun}`;
+          break;
+        case '四星':
+        case '四星':
+          if (srTierable) data = data.filter(item => item.ji === '四星');
+          _name = `四星${srNoun}`;
+          break;
+        case '三星':
+        case '三星':
+          if (srTierable) data = data.filter(item => item.ji === '三星');
+          _name = `三星${srNoun}`;
+          break;
+        case '物理':
+          data = data.filter(item => item.shuxing === '物理');
+          _name = '物理角色';
+          break;
+        case '物理系':
+          data = data.filter(item => item.shuxing === '物理');
+          _name = '物理角色';
+          break;
+        case '火':
+          data = data.filter(item => item.shuxing === '火');
+          _name = '火角色';
+          break;
+        case '冰':
+          data = data.filter(item => item.shuxing === '冰');
+          _name = '冰角色';
+          break;
+        case '雷':
+          data = data.filter(item => item.shuxing === '雷');
+          _name = '雷角色';
+          break;
+        case '风':
+          data = data.filter(item => item.shuxing === '风');
+          _name = '风角色';
+          break;
+        case '虚数':
+          data = data.filter(item => item.shuxing === '虚数');
+          _name = '虚数角色';
+          break;
+        case '虚数系':
+          data = data.filter(item => item.shuxing === '虚数');
+          _name = '虚数角色';
+          break;
+        case '量子':
+          data = data.filter(item => item.shuxing === '量子');
+          _name = '量子角色';
+          break;
+        case '量子系':
+          data = data.filter(item => item.shuxing === '量子');
+          _name = '量子角色';
+          break;
+        case '存护':
+          data = data.filter(item => item.mingtu === '存护');
+          _name = '存护角色';
+          break;
+        case '巡猎':
+          data = data.filter(item => item.mingtu === '巡猎');
+          _name = '巡猎角色';
+          break;
+        case '智识':
+          data = data.filter(item => item.mingtu === '智识');
+          _name = '智识角色';
+          break;
+        case '虚无':
+          data = data.filter(item => item.mingtu === '虚无');
+          _name = '虚无角色';
+          break;
+        case '毁灭':
+          data = data.filter(item => item.mingtu === '毁灭');
+          _name = '毁灭角色';
+          break;
+        case '丰饶':
+          data = data.filter(item => item.mingtu === '丰饶');
+          _name = '丰饶角色';
+          break;
+        case '同谐':
+          data = data.filter(item => item.mingtu === '同谐');
+          _name = '同谐角色';
+          break;
+        case '记忆':
+          data = data.filter(item => item.mingtu === '记忆');
+          _name = '记忆角色';
+          break;
+        case '欢愉':
+          data = data.filter(item => item.mingtu === '欢愉');
+          _name = '欢愉角色';
+          break;
+      }
     }
     const ratingOrder = { 五星: 1, 'S级': 1, 四星: 2, 'A级': 2, 三星: 3, 'B级': 3, 二星: 4, 一星: 5 };
     // 重新排序：星级高的排顶部；绝区零同星级内按上线先后排列
@@ -608,15 +785,18 @@ export class Wiki extends plugin {
       const diff = (ratingOrder[a.ji] ?? 99) - (ratingOrder[b.ji] ?? 99);
       if (diff) return diff;
       if (isZZZ) {
-        // 降序：content_id 越大上线越晚，最新的排在前。
-        // 原神/星铁不用这段 —— 它们的 nanoka 列表已按 release 排好（content_id 与上线
-        // 顺序不对应：原神 薇斯纳 id=10000143 比 奥黛塔 id=10000150 小，却更晚上线），
-        // 这里再按 id 排会把预排的顺序打乱。Array.sort 是稳定的，不改也能保住预排结果。
-        const ai = Number(a.id), bi = Number(b.id);
-        if (Number.isFinite(ai) && Number.isFinite(bi) && ai !== bi) return bi - ai;
+        // 绝区零按 zzz_data 给的 _ord 排：未上线置顶 → 卡池首发日期新→旧 →
+        // 无记录的按 id 降序兜底。不能退回按 content_id 排，nanoka 的 id 与上线
+        // 顺序对不上（实测 12 处逆序，如 希格莉德 排在更晚的 蕾米埃尔 之前），
+        // 而且官方 Wiki 回退时 content_id 是另一套 id 空间，两种源会排出完全
+        // 不同的顺序（前 62 位只有 5 位相同）。原神/星铁不用这段，理由见上。
+        const ao = Number(a._ord), bo = Number(b._ord);
+        if (Number.isFinite(ao) && Number.isFinite(bo) && ao !== bo) return ao - bo;
       }
       return 0;
     });
+    // _ord 只是排序用的临时字段，别带进模板数据
+    if (isZZZ) data = data.map(({ _ord, ...rest }) => rest);
     //根据name去重（主角只需要显示一个）
     data = data.filter(
       (item, index, self) => index === self.findIndex(t => t.name === item.name)
@@ -630,7 +810,20 @@ export class Wiki extends plugin {
       ...item,
       rankClass: rankClassMap[item.ji] || 'r0',
       badges: (isBH3
-        ? [item.yuanshu, ...(Array.isArray(item.damage) ? item.damage : [item.damage]), item.starRingField, ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]), item.wuqi]
+        // 崩坏3的圣痕属性是多值的（bh3_data 的 attributes 数组），要展开；角色/武器那条走 yuanshu 标量。
+        // 圣痕属性常常有 6~8 个（实测 700 条里 617 条是多属性，最多的 7~8 个），
+        // 全列出来每张卡片要撑出七八个徽章，列表高度从 3423px 涨到 5097px。
+        // 合成单个「多属性」徽章，只有一个属性时仍显示具体名字（那才是有效信息），
+        // 完整属性列表在详情页看。damage / starRing 是另外的类别，不参与合并。
+        ? [
+            ...(Array.isArray(item.attributes)
+                ? (item.attributes.length > 1 ? ['多属性'] : item.attributes)
+                : [item.attributes || item.yuanshu].filter(Boolean)),
+            ...(Array.isArray(item.damage) ? item.damage : [item.damage]),
+            item.starRingField,
+            ...(Array.isArray(item.starRing) ? item.starRing : [item.starRing]),
+            item.wuqi
+        ]
         // 星铁的特性来自命途/属性，不是元素/武器，不接上这两个分支星铁就只剩一个星级徽章
         : isSr ? [item.ji, item.mingtu, item.shuxing]
         : [item.ji, item.yuanshu, item.wuqi])
@@ -640,6 +833,36 @@ export class Wiki extends plugin {
           return { text: v, icon, kind: icon ? 'icon-only' : '' };
         })
     }));
+    // 长列表改用紧凑多列排版，一张图出完。
+    // 崩坏三圣痕有 700 条，走 wiki/list 的竖排会直接崩：页面过高超出 Chromium
+    // 截图上限（120 条起报 Page is too large / Unable to capture screenshot）。
+    // 100 条虽能截出但已有 21437px 高、6.1MB，发到 QQ 被拒（rich media transfer
+    // failed，日志里那条 16.7MB 的图就是这么发不出去的）。
+    // 曾试过渲染器的 data.multiPage，但它只切截图，700 张远程图标仍会一次性
+    // 加载进同一页面，内存一样顶不住；分批渲染每批 60 条倒是能跑通，只是要发
+    // 8 到 12 张图，太吵。
+    // 改用 wiki/list_dense：8 列、图标 40px。实测五星圣痕 449 条
+    // 2895px 高、0.73MB（jpeg），全量 700 条同排版也在同一量级，一张图搞定。
+    // 紧凑排版只给崩坏三圣痕用，别的一律走 wiki/list。
+    //
+    // 圣痕需要特殊处理：米游社官方频道有 700 条（五星 475、四星 204、三星 15、
+    // 二星 6），走 wiki/list 的竖排会直接崩 —— 页面过高超出 Chromium 截图上限
+    // （120 条起报 Page is too large / Unable to capture screenshot）；100 条虽能
+    // 截出但已有 21437px 高、6.1MB，发到 QQ 被拒（rich media transfer failed，
+    // 日志里那条 16.7MB 的图就是这么发不出去的）。wiki/list_dense 用 8 列网格，
+    // 实测 700 条也只有 4751px、5.34MB，一张图装得下。
+    //
+    // 曾按「条目数 > 100」全局启用，结果原神角色（144）、崩三角色（111）也被切过去，
+    // 而 list_dense 只渲染图标和名字、不渲染 badges，星级/元素/命途/属性徽章全丢了。
+    // 四个游戏的角色图鉴、武器、遗器等列表保持 wiki/list 同一套 UI，
+    // 只有圣痕这一类条目特别多的用紧凑排版。
+    if (isBH3 && type === 'syw') {
+      return render('wiki/list_dense', {
+        name: _name,
+        total: data.length,
+        data,
+      }, { e, ret: true });
+    }
     data = {
       name: _name,
       data: data,
@@ -1002,21 +1225,24 @@ export class Wiki extends plugin {
 
   async zzz_syw_pictures(e, data) {
     const c = data.content || {};
-    const obcIcon = await this.getZzzObcIcon(c.name, 46);
+    // 单栏版式，和星铁 wiki/yiqi 一致：名称与图标左右两格、左对齐，共用 yq_syw.css。
+    // 之前试过原神 wiki/syw 那种 .pic_ 居中块，图标小、留白多，没采用。
+    // 更早之前这里错用角色卡模板 wiki/zzz_role，那是带 info-grid / stats-grid /
+    // skill-grid 的三栏布局，驱动盘只有两条套装效果，套上去又空又宽。
+    // 单独建 wiki/zzz_syw 而不直接用 wiki/yiqi：yiqi 的 {{t.value}} 会转义，
+    // zzzRichText 产出的 <span style="color:…"> 技能名高亮会变成字面量显示在页面上；
+    // zzz_syw 改用 {{@t.value}} 不转义，排版仍与 yiqi 一致。
+    // 官方 Wiki 回退时只有 name/summary，没有 desc2/desc4，套装效果会留空。
+    const icon = mys.zzzSuitIcon?.(c.icon) || '';
     const view = {
       name: c.name || '未知驱动盘',
-      avatar_img: obcIcon,
-      code_name: 'Drive Disc',
-      avatar_text: '盘',
-      tags: [{ text: '驱动盘', primary: true }, { text: '2件套' }, { text: '4件套' }],
-      profile: this.zzzCleanText(c.story || '', 220),
-      info: [
-        { key: '2件套', value: this.zzzCleanText(c.desc2, 120) },
-        { key: '4件套', value: this.zzzCleanText(c.desc4, 160) }
-      ],
-      stats: [], strategy: [], skills: [], talents: [], recommend: []
+      pic: icon ? [icon] : [],
+      table: [
+        { key: '2件套', value: this.zzzCleanText(c.desc2 || '', 120) },
+        { key: '4件套', value: this.zzzRichText(c.desc4 || '') }
+      ].filter(v => v.value)
     };
-    return render('wiki/zzz_role', view, { e, ret: true });
+    return render('wiki/zzz_syw', view, { e, ret: true });
   }
 
   async zzz_yq_pictures(e, data) {
@@ -1103,7 +1329,12 @@ export class Wiki extends plugin {
         break;
       }
     }
-    if (Object.keys(_name).includes(name)) {
+    // 本地 yaml 只做别名归一，不再当准入门槛。
+    // 以前用 Object.keys(_name).includes(name) 卡一道，结果是 yaml 里没有的套装
+    // 一律 return false —— 而 syw.yaml 只有 59 个、yiqi.yaml 只有 54 个，
+    // 都少于 nanoka 的 65 / 64 套，新出的套装就这么被挡在门外。
+    // 名字没在 yaml 里就保持原样，交给下面的列表匹配（mys.data 会按 title 精确匹配）。
+    {
       let data = await mys.data(name, isZZZ ? 'syw' : isBH3 ? 'syw' : isSr ? 'yq' : 'syw', isSr, isZZZ, isBH3);
       if (!data) return false;
       if (Array.isArray(data)) {

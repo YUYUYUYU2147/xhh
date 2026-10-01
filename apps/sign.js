@@ -5,6 +5,7 @@ import {
     BbsSign,
     BbsAutoSign,
     sendBbsAutoResult,
+    collapseMsgs,
     yaml,
     sleep,
     pluginPriority
@@ -126,11 +127,17 @@ export class Sign extends plugin {
     }
 
     async sign(e) {
-        if (!config().sign) return false;
+        // 手动签到不再看 zd_sign。那个开关字面写的是「自动签到：0关闭 1开启」，
+        // 只该管定时任务（scheduled_sign 内部会查），拿它挡手动指令等于
+        // 「关掉自动签到 → 手动也没法签」，实测很多人被这个静默返回坑住，
+        // 在群里表现为「发了 xhh签到 完全没反应」。手动是明确要求的动作，直接做。
+        // 「这个命令该让给别的插件」由 config.yaml 的 sign_priority 决定，
+        // 不在代码里硬写 return false —— 数字越大越晚处理，想让位就把它调大。
+        // sign 是群号到QQ列表的白名单映射，不是开关，不能拿它判断。
+        const signCfg = yaml.get('./plugins/xhh/config/sign.yaml') || {};
         if (signing) return e.reply('有签到任务进行中, 过会儿再试吧！');
         if (e.isGroup) {
-            const signData = yaml.get('./plugins/xhh/config/sign.yaml');
-            const wl = signData.sign_group || [];
+            const wl = signCfg.sign_group || [];
             if (wl.length > 0 && !wl.includes(String(e.group_id)) && !wl.includes(Number(e.group_id))) {
                 return e.reply(`本群不在游戏签到白名单里，已跳过（白名单：${wl.join('、')}）\n可在锅巴「签到设置 → 游戏签到白名单群」里增删，或清空表示不限制`, true, { recallMsg: 120 });
             }
@@ -218,17 +225,16 @@ export class Sign extends plugin {
     }
 
     async bbsSign(e) {
-        if (!config().sign) {
-            await e.reply('签到功能未开启，请在配置里把 sign 设为 true 后再试', true, { recallMsg: 60 });
-            return false;
-        }
+        // 同上：bbs_zd_sign 只管定时任务（scheduled_bbs_sign 内部会查），
+        // 不再挡手动指令；让位靠 config.yaml 的 sign_priority。
+        // sign 是群号到QQ列表的白名单映射，不是开关。
+        const bbsCfg = yaml.get('./plugins/xhh/config/sign.yaml') || {};
         if (signing || bbsSigning) {
             await e.reply('有签到任务进行中, 过会儿再试吧！');
             return false;
         }
         if (e.isGroup) {
-            const signData = yaml.get('./plugins/xhh/config/sign.yaml') || {};
-            const wl = signData.bbs_sign_group || [];
+            const wl = bbsCfg.bbs_sign_group || [];
             if (wl.length > 0 && !wl.includes(String(e.group_id)) && !wl.includes(Number(e.group_id))) {
                 // 之前这里直接静默返回，群里看起来就是「指令没反应」，补一句提示便于排查
                 return e.reply(`本群不在社区签到白名单里，已跳过（白名单：${wl.join('、')}）\n可在锅巴「签到设置 → 社区签到白名单群」里增删，或清空表示不限制`, true, { recallMsg: 120 });
@@ -265,8 +271,19 @@ export class Sign extends plugin {
                 groups = groups.filter(group => allow.has(String(group)));
             }
             for (const group of groups) {
-                const result = await BbsAutoSign(data.bbs_sign[group]);
-                await sendBbsAutoResult(group, result);
+                const result = await BbsAutoSign(data.bbs_sign[group], group);
+                // 与游戏自动签到一致：定时结果出图，渲染失败才退回文字
+                let img = '';
+                try {
+                    img = await render('sign/sign', {
+                        msgs: collapseMsgs(result.msgs || []),
+                        qq: '',
+                        xhhAvatar: true,
+                    }, { saveId: 'bbs_auto_sign' });
+                } catch (err) {
+                    logger.error(`[社区自动签到] 出图失败，退回文字: ${err.message}`);
+                }
+                await sendBbsAutoResult(group, result, img);
                 await sleep(1000);
             }
         } catch (error) {
@@ -281,7 +298,14 @@ export class Sign extends plugin {
         const data = yaml.get('./plugins/xhh/config/sign.yaml') || {};
         const isManual = !!this.e?.msg;
         if (!isManual && !isSignTime(data, 'sign_hour', 'sign_minute', 0, 0)) return false;
-        if (!data.zd_sign || !data.sign || typeof data.sign != 'object') return false;
+        if (!data.zd_sign) return false;
+        if (!data.sign || typeof data.sign != 'object' || !Object.keys(data.sign).length) {
+            // 开关开着却没有群记录时静默 return，表现为「自动签到开了却什么都不做」。
+            // 这个字典只有手动在群里签过一次才会写入，这里记一笔便于排查。
+            logger.mark('[游戏自动签到] 开关已开，但没有任何登记群，未执行。'
+                + '请在目标群里发「#加入自动签到」登记一次');
+            return false;
+        }
         signing = true;
         try {
 
@@ -390,7 +414,7 @@ function removeCommonElements(arr1, arr2) {
     return arr1.filter(item => !set2.has(item));
 }
 
-async function render(path, data_) {
+async function render(path, data_, cfg = {}) {
     let tplFile = process.cwd() + '/plugins/xhh/resources/' + path + '.html';
     const img = await new Runtime().render('小花火', path, data_, {
         retType: 'base64',
@@ -404,7 +428,8 @@ async function render(path, data_) {
                 ...data_,
                 ppath: '../../../../../plugins/xhh/resources/',
                 tplFile: tplFile,
-                saveId: path.split('/')[path.split('/').length - 1],
+                // sign/sign.html 被游戏签到和社区签到共用，saveId 撞了会命中对方的渲染缓存
+                saveId: cfg.saveId || path.split('/')[path.split('/').length - 1],
             };
         },
     });

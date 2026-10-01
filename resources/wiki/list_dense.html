@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content/html;charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}wiki/list_dense.css" />
+  </head>
+
+  <body {{sys.scale}}>
+    <div class="t">{{name}}<span class="c">{{total}} 条</span></div>
+    <div class="wrap">
+      {{each data s}}
+      <div class="c {{s.rankClass}}">
+        {{if s.icon}}
+        <img class="rank" src="{{s.icon}}" data-alt="{{s.iconFallback || ''}}" onerror="var a=(this.dataset.alt||'').split(',').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alt=a.join(',');}else{this.style.visibility='hidden'}" />
+        {{else}}
+        <div class="img-ph rank {{s.rankClass}}">{{s.name[0]}}</div>
+        {{/if}}
+        <span class="n">{{s.name}}</span>
+        {{if s.badges && s.badges.length}}
+        <div class="mini-badges">
+          {{each s.badges b}}<span class="mini-badge {{b.kind || ''}}">{{if b.icon}}<img src="{{if b.icon.startsWith('http')}}{{b.icon}}{{else}}{{ppath}}wiki/imgs/{{b.icon}}{{/if}}">{{/if}}{{b.text}}</span>{{/each}}
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </body>
+</html>

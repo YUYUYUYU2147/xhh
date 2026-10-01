@@ -14,6 +14,12 @@ import {
     BbsSign,
     BbsAutoSign,
     sendBbsAutoResult,
+    collapseMsgs,
+    gameOfEntry,
+    getGenshinCks,
+    probeCk,
+    bbsSignCks,
+    ttocrPoints,
 } from './sign.js';
 
 let isTrss = true
@@ -99,9 +105,17 @@ async function makeForwardMsg(e, msg = [], dec = '', Id = '', isGroup = true) {
         if (!message) {
             continue;
         }
-        const safeMessage = normalizeForwardMessage(message);
+        // 节点自带 user_id/nickname 的按各自归属发出（名单类转发需要，
+        // 否则每条都挂在 bot 名下）；字符串和普通消息段维持原样统一挂 bot
+        const own = (typeof message === 'object' && !Array.isArray(message)
+            && !message.type && 'user_id' in message && 'message' in message) ? message : null;
+        const safeMessage = normalizeForwardMessage(own ? own.message : message);
         if (!safeMessage) continue;
-        forwardMsg.push({
+        forwardMsg.push(own ? {
+            user_id: own.user_id,
+            nickname: own.nickname || String(own.user_id),
+            message: safeMessage,
+        } : {
             ...userInfo,
             message: safeMessage,
         });
@@ -247,4 +261,10 @@ export {
     BbsSign,
     BbsAutoSign,
     sendBbsAutoResult,
+    collapseMsgs,
+    gameOfEntry,
+    getGenshinCks,
+    probeCk,
+    bbsSignCks,
+    ttocrPoints,
 };

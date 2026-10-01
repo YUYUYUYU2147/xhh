@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}sign/list.css" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}sign/roster.css" />
+  </head>
+
+  <body {{sys.scale}}>
+    <div class="container" id="container">
+      <div class="tou">
+        <img src="{{ppath}}sign/xhh_avatar.png" />
+        <div class="t_box">
+          <p>小花火</p>
+        </div>
+        <img class="mianju" src="{{ppath}}sign/mianju.png" />
+      </div>
+      <div class="colorful-embossed">
+        <div class="title"></div>
+        <div class="content">
+          <div class="qd"><strong>{{title}}</strong></div>
+          <p class="sum">
+            共<span>{{total}}</span>人 ·
+            小花火侧<span>{{xh}}</span>人 · 逍遥侧<span>{{xy}}</span>人
+            {{if both}}· 其中<span>{{both}}</span>人两边都绑了{{/if}}
+          </p>
+          <div class="roster">
+            {{each people p}}
+            <div class="rp">
+              <img class="face" src="https://q1.qlogo.cn/g?b=qq&s=640&nk={{p.qq}}.jpg" />
+              <div class="info">
+                <div class="line1">
+                  <span class="qq">{{p.qq}}</span>
+                  <span class="src">{{p.src}}</span>
+                </div>
+                <div class="line2">账号 {{p.accounts}} · {{p.games}}</div>
+                <div class="line3">stuid {{p.stuids}}</div>
+                {{if p.groups}}
+                <div class="line4">签到名单：{{p.groups}}</div>
+                {{/if}}
+              </div>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+      </div>
+      <div class="logo">from 小花火</div>
+    </div>
+  </body>
+</html>

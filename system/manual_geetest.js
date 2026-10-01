@@ -3,7 +3,7 @@ import { URL } from 'node:url';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
-import { config, sleep } from '#xhh';
+import { sleep } from '#xhh';
 import { pickSentMsgId, scheduleGroupRecall } from './msgRecall.js';
 
 const tasks = new Map();
@@ -17,6 +17,10 @@ const registerHits = new Map();
 const MAX_BODY_SIZE = 256 * 1024;
 const REGISTER_WINDOW_MS = 60 * 1000;
 const REGISTER_LIMIT = 20;
+const MANUAL_GT_HOST = '127.0.0.1';
+const MANUAL_GT_PORT = 8080;
+const MANUAL_GT_PATH = '/xhh-gt';
+const MANUAL_GT_TIMEOUT = 120;
 
 // 后台隧道脚本（tools/manual_gt_tunnel.sh）会把实际地址写到文件里，插件读取它。
 // 路径可移植：环境变量 > 插件数据目录（默认，随仓库走）> /root/.xhh（兼容旧写法）。
@@ -59,27 +63,21 @@ async function waitTunnelUrlFile(timeoutMs = 20000) {
 }
 
 function getManualCfg() {
-  const cfg = config() || {};
   const envPublicUrl = process.env.XHH_MANUAL_GT_PUBLIC_URL || process.env.MANUAL_GT_PUBLIC_URL || '';
-  const configured = String(cfg.manual_gt_public_url || envPublicUrl).trim().replace(/\/+$/, '');
+  const configured = String(envPublicUrl).trim().replace(/\/+$/, '');
   // 配置里写的是 trycloudflare 临时域名（或留空）时，优先用后台隧道实际地址
   const isTempDomain = !configured || /trycloudflare\.com$/i.test(configured);
   const liveTunnel = tunnelUrl || readTunnelUrlFile();
   return {
-    enable: cfg.manual_gt_enable !== false,
-    // 手动验证码服务只监听本机，公网访问统一交给 Cloudflare Tunnel/反向代理。
-    host: cfg.manual_gt_host || '127.0.0.1',
-    port: Number(cfg.manual_gt_port || 3000),
+    enable: true,
+    host: MANUAL_GT_HOST,
+    port: MANUAL_GT_PORT,
     publicUrl: (isTempDomain && liveTunnel) || configured,
-    path: String(cfg.manual_gt_path || '/xhh-gt').replace(/\/+$/, ''),
-    timeout: Number(cfg.manual_gt_timeout || 120),
-    autoTunnel: cfg.manual_gt_auto_tunnel !== false,
-    // 自动签到/社区签到是定时任务，e.reply 被写成空壳（async () => false），
-    // 验证码链接必须主动发到群里，否则用户根本不知道要去过码，任务只能干等到超时重试。
-    notifyGroup: Number(cfg.manual_gt_notify_group || 0),
-    notifyAt: (Array.isArray(cfg.manual_gt_notify_at) ? cfg.manual_gt_notify_at : String(cfg.manual_gt_notify_at || '').split(','))
-      .map(v => String(v).trim())
-      .filter(v => /^\d{5,12}$/.test(v)),
+    path: MANUAL_GT_PATH,
+    timeout: MANUAL_GT_TIMEOUT,
+    autoTunnel: true,
+    notifyGroup: 0,
+    notifyAt: [],
   };
 }
 
@@ -128,7 +126,7 @@ function resolveCloudflared() {
     `[xhh][manual_gt] 未找到 cloudflared，已探测：${tried.join('、') || '(候选为空)'}\n` +
     '  · 安装：https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/\n' +
     '  · 或运行 tools/manual_gt_tunnel.sh（地址写入 plugins/xhh/data/manual_gt_url，插件自动读取）\n' +
-    '  · 或在 config.yaml 填 manual_gt_public_url，指向你自己的固定域名/反向代理',
+    '  · 或设置环境变量 XHH_MANUAL_GT_PUBLIC_URL，指向你自己的固定域名/反向代理',
   )
   return ''
 }
@@ -188,7 +186,7 @@ async function startQuickTunnel(port) {
     const bin = resolveCloudflared();
     if (!bin) {
       logger.warn(
-        '[xhh][manual_gt] 未找到可用的 cloudflared，公网访问请手动配置 manual_gt_public_url' +
+        '[xhh][manual_gt] 未找到可用的 cloudflared，公网访问请设置环境变量 XHH_MANUAL_GT_PUBLIC_URL' +
         '（或安装 cloudflared 后用 xhh/tools/manual_gt_tunnel.sh 起隧道）',
       );
       // 必须 finish：否则这个 Promise 永远不 resolve，调用方会一直等到 45s 超时定时器，
@@ -361,7 +359,7 @@ function ensureServer() {
     return sendJson(res, { status: 1, message: 'Not Found' }, 404);
   });
   server.on('error', err => {
-    logger.error(`[xhh][manual_gt] 服务启动失败: ${err.message}（端口 ${cfg.port} 可能被占用，可在 config.yaml 改 manual_gt_port）`);
+    logger.error(`[xhh][manual_gt] 服务启动失败: ${err.message}（端口 ${cfg.port} 可能被占用）`);
   });
   server.listen(cfg.port, cfg.host, () => logger.mark(`[xhh][manual_gt] 手动验证码服务启动: ${cfg.host}:${cfg.port}${cfg.path}`));
   startedPort = cfg.port;
@@ -399,7 +397,7 @@ async function notifyCaptcha(e, cfg, text) {
   }
   const gid = cfg.notifyGroup || (e?.isGroup ? Number(e.group_id) : 0);
   if (!gid) {
-    logger.warn('[xhh][manual_gt] 无可用通知渠道（e.reply 不可用且未配置 manual_gt_notify_group），验证码链接未送达');
+    logger.warn('[xhh][manual_gt] 无可用通知渠道，验证码链接未送达');
     return false;
   }
   // 优先 @ 本次失败账号的 QQ（定时任务构造的 e.user_id），再补上额外通知对象并去重
@@ -436,7 +434,7 @@ export async function manualGeetest(e, data = {}, title = '米游社签到') {
   const publicUrl = await waitForPublicUrl(cfg);
   if (cfg.autoTunnel && !publicUrl && !cfg.publicUrl) {
     logger.warn('[xhh][manual_gt] 没有可用公网地址，未发送无法访问的本机验证码链接');
-    await e.reply('手动验证码服务没有可用的公网地址，请配置 manual_gt_public_url，或安装并启动 cloudflared。', true);
+    await e.reply('手动验证码服务没有可用的公网地址，请安装 cloudflared，或设置环境变量 XHH_MANUAL_GT_PUBLIC_URL。', true);
     return false;
   }
   const task = makeTask(data, publicUrl);
@@ -463,7 +461,7 @@ export async function manualGeetest(e, data = {}, title = '米游社签到') {
 // 自测：造一个假任务发链接，用于验证服务监听、页面渲染、Geetest 静态资源是否可达
 export async function manualGeetestTest(e) {
   const cfg = getManualCfg();
-  if (!ensureServer()) return e.reply('手动验证服务未启用（config.yaml 里 manual_gt_enable: false）', true);
+  if (!ensureServer()) return e.reply('手动验证服务启动失败，请查看后台日志。', true);
   const publicUrl = await waitForPublicUrl(cfg);
   const key = crypto.randomBytes(4).toString('hex');
   const base = publicUrl || `http://127.0.0.1:${cfg.port}`;
@@ -479,7 +477,7 @@ export async function manualGeetestTest(e) {
     : '公网地址：未配置，且没读到隧道地址 → 下面的链接只能在服务器本机打开，手机上打不开';
   await e.reply(
     `手动验证完整流程模拟\n模拟接口返回：1034（验证码）\n本地监听：${cfg.host}:${cfg.port}\n${publicTip}\n测试链接：\n${link}\n\n打开链接后点击「模拟提交验证」，机器人会等待并模拟重试签到。${
-      cfg.publicUrl ? '' : '\n提示：手机/其他设备请用 xhh/tools/manual_gt_tunnel.sh 起隧道，或把固定域名填进 manual_gt_public_url。'
+      cfg.publicUrl ? '' : '\n提示：手机/其他设备请用 xhh/tools/manual_gt_tunnel.sh 起隧道，或设置环境变量 XHH_MANUAL_GT_PUBLIC_URL。'
     }`,
     true,
     { recallMsg: cfg.timeout },
@@ -503,7 +501,7 @@ export async function manualGeetestTest(e) {
 // gids=2 对应社区（bbs）通道，解除后对应接口即可正常访问。
 export async function mihoyoClearRisk(e, label = '米游社风控') {
   const cfg = getManualCfg();
-  if (!cfg.enable) return { ok: false, reason: '手动过码服务未启用（manual_gt_enable: false）' };
+  if (!cfg.enable) return { ok: false, reason: '手动过码服务未启用' };
   if (!ensureServer()) return { ok: false, reason: '本地验证服务启动失败' };
   const { default: api } = await import('./api.js');
   const { default: mhy } = await import('./mhy.js');
@@ -532,7 +530,7 @@ export async function mihoyoClearRisk(e, label = '米游社风控') {
   if (Number(verify?.retcode) !== 0) {
     return { ok: false, reason: `回交校验失败 retcode=${verify?.retcode} message=${verify?.message || '无'}` };
   }
-  return { ok: true, challenge: verified?.challenge };
+  return { ok: true, challenge: verify?.data?.challenge || '' };
 }
 
 export default { manualGeetest, ensureServer, startManualGeetest, manualGeetestTest, mihoyoClearRisk };

@@ -256,6 +256,40 @@ class mhy {
     return false;
   }
 
+  /**
+   * 「只有逍遥侧数据」的人第一次签到时，顺手把 xhh 侧文件补出来。
+   *
+   * 做的事就是 getSToken 的第二条路：从逍遥文件取出 stoken，调一次 GameRoles
+   * 列出各游戏 uid，写成 xhh 的 yaml。跟手动发「#刷新ck」走的是同一条路，
+   * 不需要扫码（两边都没数据才会扫码，那种情况这里不碰）。
+   *
+   * 与手动刷新的区别：这里只补文件，不换 cookie_token（签到时 ensureCookieToken
+   * 每次都会换），也不碰 e.reply —— refresh_cookies 会改写 e.reply/e.no_reply，
+   * 在定时任务的假 e 上那样做会把消息吞掉。
+   */
+  async ensureXhhFromXiaoyao(e) {
+    const qq = String(e?.user_id || '');
+    if (!/^\d{5,12}$/.test(qq)) return { ok: false, reason: 'qq 无效' };
+    if (!config().auto_backfill) return { ok: false, reason: '开关关闭' };
+    const xhPath = `./plugins/xhh/data/Stoken/${qq}.yaml`;
+    const xyPath = `./plugins/xiaoyao-cvs-plugin/data/yaml/${qq}.yaml`;
+    if (fs.existsSync(xhPath)) return { ok: true, skipped: '已有 xhh 文件' };
+    if (!fs.existsSync(xyPath)) return { ok: false, reason: '两个来源都没有' };
+    try {
+      const r = await this.getSToken(e);
+      // getSToken 补齐时返回 [stokenMap, 写出的数据]，文件已落盘
+      if (Array.isArray(r)) {
+        const n = Object.keys(r[1] || {}).length;
+        logger.mark(`[xhh][sign] 已从逍遥数据补齐 ${qq} 的 xhh 文件（${n} 条）`);
+        return { ok: true, filled: n };
+      }
+      return { ok: false, reason: 'getSToken 未补齐' };
+    } catch (err) {
+      logger.error(`[xhh][sign] 补齐 ${qq} 的 xhh 文件失败: ${err.message}`);
+      return { ok: false, reason: err.message };
+    }
+  }
+
   getDeviceGuid() {
     function S4() {
       return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
@@ -323,7 +357,7 @@ class mhy {
    * 服务器代码转中文名（给界面显示用）。
    *
    * getServer() 返回的是**接口用的服务器代码**（prod_gf_cn / cn_gf01 这种），
-   * 直接显示出来用户看到的是「服务器：prod_gf_cn」，不是「国服」。
+   * 直接显示出来看到的是「服务器：prod_gf_cn」，不是「国服」。
    *
    * 代码分两代，老的是崩三/原神的 cn_gf01 / os_usa，
    * 新的星铁和绝区零换成了 prod_gf_cn / prod_official_usa 这一套，两边都要认。
@@ -333,7 +367,7 @@ class mhy {
    *   prod_official_{usa,asia,eur,euro,cht}  国际服（official =  HoYoPlay/国际账号）
    *   cn_gf01 / cn_qd01                国服 / B服（老代码）
    *   os_{usa,asia,euro,cht}          美服 / 亚服 / 欧服 / 港澳台服
-   * 认不出来就原样返回，不给用户一个空字符串。
+   * 认不出来就原样返回，不给空字符串。
    */
   getServerName(code) {
     const key = String(code || '').trim();

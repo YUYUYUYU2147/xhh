@@ -1,0 +1,133 @@
+/* 长列表专用：一屏放下几百条，保持单图可发。
+   崩坏三圣痕五星套装 449 条，8 列时实测 2895px 高、0.73MB（jpeg），
+   远低于 Chromium 截图上限与 QQ 图片体积限制。 */
+
+@font-face {
+  font-family: 'yuan';
+  src: url('../font/yuan.ttf');
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'yuan', sans-serif;
+  width: 1000px;
+  background: #1f1f23;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.t {
+  color: #ffd479;
+  font-size: 22px;
+  padding: 2px 4px 10px;
+  letter-spacing: 1px;
+}
+
+.t .c {
+  color: #8b8b93;
+  font-size: 15px;
+  margin-left: 10px;
+}
+
+.wrap {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.c {
+  background: #2b2b31;
+  border-radius: 6px;
+  padding: 4px 5px;
+  /* 用 grid 而不是 flex：要让徽章独占第二行且名字不被压扁。
+     flex 里放一个 flex-basis:100% 的兄弟节点时，浏览器会先把同排其它项
+     的假想宽度算成接近 0 才换行，名字被压到 3~8 行（实测 55~129px 高）。 */
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.c img.rank,
+.c .img-ph.rank {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.c .img-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #fff;
+}
+
+/* 套装名最长 9 个字（幽兰黛尔·绿茵传奇、爱莉希雅·无瑕之人等），
+   8 列时每格文字只剩 64px，实测 208 条里 157 条被 ellipsis 截断。
+   改为 5 列 + 允许折行，208 条零截断，高度 2482px、0.72MB 仍在单图范围内。 */
+.c .n {
+  min-width: 0;
+  font-size: 16px;
+  color: #e8e8ea;
+  line-height: 1.15;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-all;
+}
+
+/* 星级描边配色：与 wiki/list 保持一致 */
+.r5 {
+  box-shadow: inset 0 0 0 2px #c8a44b;
+}
+
+.r4 {
+  box-shadow: inset 0 0 0 2px #8b6cb0;
+}
+
+.r3 {
+  box-shadow: inset 0 0 0 2px #5b87b8;
+}
+
+.r2 {
+  box-shadow: inset 0 0 0 2px #5f9e7a;
+}
+
+.r1 {
+  box-shadow: inset 0 0 0 2px #6b6b73;
+}
+
+.r0 {
+  box-shadow: inset 0 0 0 2px #4a4a52;
+}
+
+/* 徽章样式照抄 wiki/list.css。列表模板渲染 badges 时用到，
+   圣痕本身没有徽章，但别处若改用紧凑排版不至于丢信息。 */
+.mini-badge { display: inline-flex; width: 100%; min-width: 0; align-items: center; justify-content: center; gap: 1px; max-width: 100%; padding: 1px 0; border-radius: 999px; background: rgba(255,255,255,.68); color: #3f4a42; font-size: 9px; line-height: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 徽章容器：紧凑排版之前这里是 span 且没有任何规则，徽章按内容宽度走，
+   实测同一列出现 46 / 54 / 57px 三种宽度因而对不齐。改为 2 列等宽网格，
+   容器宽度锁到卡片内容区，与 list.html 的 .badge-row 同一套思路。
+   5 列时每格内容区约 164px，2 列各约 80px，容得下 5~6 个汉字。 */
+.mini-badges {
+  /* grid-column 1/-1 让徽章横跨两列独占第二行：名字宽度不再影响徽章区，
+     跨卡片必然等宽（之前实测 44 与 41 两种宽度）。 */
+  grid-column: 1 / -1;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+}
+.mini-badge img { width: 12px; height: 12px; object-fit: contain; flex: 0 0 12px; }
+.mini-badge.icon-only,
+.mini-badge:has(img) { width: 100%; max-width: 100%; padding: 1px; font-size: 0; }

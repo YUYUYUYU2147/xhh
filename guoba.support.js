@@ -339,6 +339,65 @@ export const supportGuoba = () => {
       },
       {
         component: 'SOFT_GROUP_BEGIN',
+        label: '过码（撞米游社风控 1034 时用）',
+      },
+      {
+        field: 'auto_backfill',
+        label: '自动补齐绑定',
+        helpMessage: '开=某人只有逍遥插件的数据时，第一次签到会自动补一份到本插件（不需要扫码）；关=只签不改文件',
+        component: 'RadioGroup',
+        componentProps: {
+          options: [
+            { label: '自动补齐', value: true },
+            { label: '只签不改', value: false },
+          ],
+        },
+      },
+      {
+        field: 'sign_list_private',
+        label: '签到名单只私聊',
+        helpMessage: '关=「#签到名单」在群里也发一份（默认，方便群主直接看）；开=只私聊主人。名单含全体成员 QQ 号',
+        component: 'RadioGroup',
+        componentProps: {
+          options: [
+            { label: '群里也发', value: false },
+            { label: '只私聊', value: true },
+          ],
+        },
+      },
+      {
+        field: 'auto_verify_addr',
+        label: '本机过码服务地址',
+        helpMessage: '留空表示不启用自动过码，只保留手动验证链接。改了要重载插件才生效',
+        component: 'Input',
+      },
+      {
+        field: 'mhy_proxy',
+        label: '米游社接口代理地址',
+        helpMessage: '留空=不启用。默认直连米游社，只有被风控拦了（返回的不是数据而是一整页「已阻断」）才自动改走这个代理。⚠️ 走代理的请求会把该账号的 Cookie 发给代理站，等于把账号交出去，介意就别填',
+        component: 'Input',
+      },
+      {
+        field: 'mhy_proxy_key',
+        label: '米游社接口代理密钥',
+        helpMessage: '配合上面的地址使用，会放进 x-mihoyo-api-token 请求头。留空视为未配置代理',
+        component: 'Input',
+      },
+      {
+        field: 'ttocr_appkey',
+        label: '打码平台密钥',
+        helpMessage: '可留空。本机服务解开时不会用到它，只有本机失败才调平台（滑块 5 点/次）。⚠️ 平台只提供 http 没有 https，这个密钥会以明文过网，介意就别填',
+        component: 'Input',
+      },
+      {
+        field: 'ttocr_itemid',
+        label: '打码平台项目类型',
+        helpMessage: '32=三代滑块（5 点，米游社用这个）；388=三代全类别（10 点，兼容更多题型）',
+        component: 'InputNumber',
+        componentProps: { min: 0, step: 1 },
+      },
+      {
+        component: 'SOFT_GROUP_BEGIN',
         label: '米游社',
       },
       {
@@ -1169,67 +1228,6 @@ export const supportGuoba = () => {
         helpMessage: '输出水晶查询/扫码绑定的详细日志',
         component: 'Switch',
       },
-      {
-        component: 'SOFT_GROUP_BEGIN',
-        label: '验证码',
-      },
-      {
-        field: 'manual_gt_enable',
-        label: '启用手动过码服务',
-        helpMessage: '签到遇到验证码时给链接，手动完成后自动重试；需能访问该地址',
-        component: 'Switch',
-      },
-      {
-        field: 'manual_gt_port',
-        label: '手动过码服务端口',
-        helpMessage: '本机监听端口，被占用会导致启动失败；修改后需重启',
-        component: 'InputNumber',
-        componentProps: { min: 1024, max: 65535, step: 1 },
-      },
-      {
-        field: 'manual_gt_path',
-        label: '手动过码服务路径',
-        helpMessage: '链接前缀，如 /xhh-gt；修改后需重启',
-        component: 'Input',
-      },
-      {
-        field: 'manual_gt_public_url',
-        label: '手动过码公网地址',
-        helpMessage: '浏览器能访问到的地址，如 Cloudflare Tunnel/反向代理地址；留空只能本机访问，也可用环境变量 XHH_MANUAL_GT_PUBLIC_URL',
-        component: 'Input',
-      },
-      {
-        field: 'manual_gt_auto_tunnel',
-        label: '自动启动临时 Tunnel',
-        helpMessage: '公网地址留空时尝试启动 cloudflared 临时隧道；生产环境建议填写固定公网地址',
-        component: 'Switch',
-      },
-      {
-        field: 'manual_gt_timeout',
-        label: '手动过码有效期（秒）',
-        helpMessage: '链接与等待重试的有效时长，默认 120 秒',
-        component: 'InputNumber',
-        componentProps: { min: 30, max: 600, step: 10 },
-      },
-      {
-        field: 'manual_gt_notify_group',
-        label: '过码通知群',
-        helpMessage: '自动签到/社区签到是定时任务，无法在群里回复指令，所以撞到验证码时把链接发到这个群；留空则不推送',
-        component: 'Select',
-        componentProps: {
-          mode: 'multiple',
-          allowAdd: true,
-          allowDel: true,
-          options: groupList,
-        },
-      },
-      {
-        field: 'manual_gt_notify_at',
-        label: '过码通知额外@谁',
-        helpMessage: '发链接时已经会自动 @ 本次签到失败的那个成员；只有还想额外提醒别人时才填这里',
-        component: 'Select',
-        componentProps: { mode: 'tags', allowClear: true },
-      },
     ],
     getConfigData() {
       const cfg = getCfg()
@@ -1267,6 +1265,15 @@ export const supportGuoba = () => {
         bbs_sign_group: (sign.bbs_sign_group || []).map(String),
         sign_users: formatSignUsers(sign.sign || {}),
         bbs_sign_users: formatSignUsers(sign.bbs_sign || {}),
+        auto_backfill: cfg.auto_backfill !== false,
+        sign_list_private: cfg.sign_list_private === true,
+        // 过码相关。回读时给默认值，避免面板空白看着像没配
+        auto_verify_addr: cfg.auto_verify_addr ?? 'http://127.0.0.1:2149/solve',
+        // 米游社接口代理。默认空 = 不启用，只有被风控拦了才走它
+        mhy_proxy: cfg.mhy_proxy ?? '',
+        mhy_proxy_key: cfg.mhy_proxy_key ?? '',
+        ttocr_appkey: cfg.ttocr_appkey ?? '',
+        ttocr_itemid: Number(cfg.ttocr_itemid) || 32,
         bh3_remind_groups: parseMultiList(bh3Remind.groups),
         bh3_all_note_groups: parseMultiList(bh3Remind.all_note_groups),
         groups: parseMultiList(cfg.groups),
@@ -1301,16 +1308,6 @@ export const supportGuoba = () => {
         Tl: !!cfg.Tl,
         hbxx: !!cfg.hbxx,
         debug: !!cfg.debug,
-        manual_gt_enable: cfg.manual_gt_enable !== false,
-        manual_gt_port: Number(cfg.manual_gt_port || 3000),
-        manual_gt_path: String(cfg.manual_gt_path || '/xhh-gt'),
-        manual_gt_public_url: String(cfg.manual_gt_public_url || ''),
-        manual_gt_auto_tunnel: cfg.manual_gt_auto_tunnel !== false,
-        manual_gt_timeout: Number(cfg.manual_gt_timeout || 120),
-        manual_gt_notify_group: cfg.manual_gt_notify_group ? [Number(cfg.manual_gt_notify_group)] : [],
-        manual_gt_notify_at: Array.isArray(cfg.manual_gt_notify_at)
-          ? cfg.manual_gt_notify_at.map(String)
-          : String(cfg.manual_gt_notify_at || '').split(',').map(v => v.trim()).filter(Boolean),
         gacha_art_source: cfg.gacha_art_source || 'custom',
         gacha_header_art_source: cfg.gacha_header_art_source || cfg.gacha_art_source || 'custom',
         gacha_up_icon_source: cfg.gacha_up_icon_source || cfg.gacha_art_source || 'custom',
@@ -1506,34 +1503,46 @@ export const supportGuoba = () => {
       yaml.set(_path + 'sign.yaml', 'sign_group', signGroups)
       const bbsSignGroups = parseMultiList(data.bbs_sign_group)
       yaml.set(_path + 'sign.yaml', 'bbs_sign_group', bbsSignGroups)
-      yaml.set(_path + 'sign.yaml', 'sign', parseSignUsers(data.sign_users))
-      yaml.set(_path + 'sign.yaml', 'bbs_sign', parseSignUsers(data.bbs_sign_users))
+      // 白名单只有在字段真的出现在这次提交里才写。
+      // 无条件写的话，只要表单是旧版本缓存的、或这个字段被临时去掉，
+      // parseSignUsers(undefined) 会得到 {}，一键把整份白名单清空 —— 而界面上看不出来。
+      if (has(data, 'sign_users')) {
+        yaml.set(_path + 'sign.yaml', 'sign', parseSignUsers(data.sign_users))
+      }
+      if (has(data, 'bbs_sign_users')) {
+        yaml.set(_path + 'sign.yaml', 'bbs_sign', parseSignUsers(data.bbs_sign_users))
+      }
+      // 过码配置同理：字段缺失就保持原样，绝不用默认值去覆盖。
+      // auto_verify_addr 允许显式清空（那是「关掉自动过码」的意思），所以判空字符串也算提交。
+      if (has(data, 'auto_backfill')) {
+        yaml.set(_path + 'config.yaml', 'auto_backfill', data.auto_backfill === true)
+      }
+      if (has(data, 'sign_list_private')) {
+        yaml.set(_path + 'config.yaml', 'sign_list_private', data.sign_list_private === true)
+      }
+      if (has(data, 'auto_verify_addr')) {
+        yaml.set(_path + 'config.yaml', 'auto_verify_addr', String(data.auto_verify_addr || '').trim())
+      }
+      // 代理两项都允许显式清空 —— 那是「关掉代理、只走直连」的意思
+      if (has(data, 'mhy_proxy')) {
+        yaml.set(_path + 'config.yaml', 'mhy_proxy', String(data.mhy_proxy || '').trim())
+      }
+      if (has(data, 'mhy_proxy_key')) {
+        yaml.set(_path + 'config.yaml', 'mhy_proxy_key', String(data.mhy_proxy_key || '').trim())
+      }
+      if (has(data, 'ttocr_appkey')) {
+        yaml.set(_path + 'config.yaml', 'ttocr_appkey', String(data.ttocr_appkey || '').trim())
+      }
+      if (has(data, 'ttocr_itemid')) {
+        const itid = Number(data.ttocr_itemid)
+        if (Number.isFinite(itid) && itid > 0) {
+          yaml.set(_path + 'config.yaml', 'ttocr_itemid', Math.trunc(itid))
+        }
+      }
       const broadcastGroups = parseMultiList(data.groups)
         .map(v => Number(v))
         .filter(v => Number.isSafeInteger(v) && v > 0)
       yaml.set(_path + 'config.yaml', 'groups', broadcastGroups)
-      // 手动验证码相关
-      yaml.set(_path + 'config.yaml', 'manual_gt_enable', !!data.manual_gt_enable)
-      const gtPort = Number(data.manual_gt_port)
-      yaml.set(_path + 'config.yaml', 'manual_gt_port', Number.isFinite(gtPort) ? Math.max(1024, Math.min(65535, Math.trunc(gtPort))) : 3000)
-      const gtPath = String(data.manual_gt_path || '').trim()
-      yaml.set(_path + 'config.yaml', 'manual_gt_path', gtPath ? (gtPath.startsWith('/') ? gtPath : `/${gtPath}`).replace(/\/+$/, '') || '/xhh-gt' : '/xhh-gt')
-      yaml.set(_path + 'config.yaml', 'manual_gt_public_url', String(data.manual_gt_public_url || '').trim().replace(/\/+$/, ''))
-      yaml.set(_path + 'config.yaml', 'manual_gt_auto_tunnel', data.manual_gt_auto_tunnel !== false)
-      const gtTimeout = Number(data.manual_gt_timeout)
-        yaml.set(_path + 'config.yaml', 'manual_gt_timeout', Number.isFinite(gtTimeout) ? Math.max(30, Math.min(600, Math.trunc(gtTimeout))) : 120)
-        // 过码通知：定时任务无法在群里回复指令，撞风控时把链接发到指定群并 @ 指定 QQ
-        const toGid = v => {
-          const n = Number(String(v).trim())
-          return Number.isSafeInteger(n) && n > 0 ? n : 0
-        }
-        const gid = Array.isArray(data.manual_gt_notify_group) ? data.manual_gt_notify_group[0] : data.manual_gt_notify_group
-        yaml.set(_path + 'config.yaml', 'manual_gt_notify_group', toGid(gid))
-        const atList = (Array.isArray(data.manual_gt_notify_at)
-          ? data.manual_gt_notify_at
-          : String(data.manual_gt_notify_at || '').split(/[,\s]+/)
-        ).map(v => String(v).trim()).filter(v => /^\d{5,12}$/.test(v))
-        yaml.set(_path + 'config.yaml', 'manual_gt_notify_at', atList.length ? atList : [])
       yaml.set(_path + 'other.yaml', 'group_config', parseGroupConfig(data.group_config))
 
       const currentBh3Remind = getBh3Remind()
@@ -1643,6 +1652,11 @@ function parseMultiList(value) {
   if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean)
   return parseList(value)
 }
+
+// 判断这次提交里到底有没有这个字段。
+// 面板可能带着旧版本的表单缓存过来，也可能某次提交漏了字段 ——
+// 这种情况下宁可什么都不写，也不能拿默认值把已有配置覆盖掉。
+const has = (obj, key) => !!obj && Object.prototype.hasOwnProperty.call(obj, key)
 
 function formatSignUsers(users = {}) {
   if (!users || typeof users !== 'object') return ''

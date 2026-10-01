@@ -5,6 +5,7 @@ import {
 import {
     user
 } from '../apps/user.js';
+import { mhyFetch } from './mhy_fetch.js';
 
 async function api(e, data = {}) {
     let signActId = {
@@ -247,7 +248,7 @@ async function api(e, data = {}) {
     try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 15000);
-        const resp = await fetch(url, { ...obj, signal: controller.signal });
+        const resp = await mhyFetch(url, { ...obj, signal: controller.signal });
         clearTimeout(timer);
         const text = await resp.text();
         try {
@@ -271,7 +272,7 @@ async function api(e, data = {}) {
         else if (res.retcode == 1034 || res.retcode == 10035) {
             const yz = await new user().yz(e, game, data.headers)
             if (yz) {
-                res = await fetch(url, obj).then(res => res.json())
+                res = await mhyFetch(url, obj).then(res => res.json())
                 if (res.retcode == 1034 || res.retcode == 10035) e.reply(_err)
                 else return res
             } else e.reply(_err)

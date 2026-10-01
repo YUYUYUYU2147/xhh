@@ -134,6 +134,42 @@ const GS_EXP_MATS = [
 const srItemIcon = id => (id ? `https://static.nanoka.cc/assets/hsr/itemfigures/${id}.webp` : '');
 const srLcIcon = id => (id ? `https://static.nanoka.cc/assets/hsr/lightconemaxfigures/${id}.webp` : '');
 
+// 星铁遗器部位图标。nanoka 只发布了 4 个部位（实测 relicfigures 目录）：
+// Body / Head / Foot / Neck 对应衣身、头部、鞋履、颈部，
+// 位面球（OBJECT）与连绳（LINK）没有图，返回空串由模板跳过。
+// 图是 64×64 的半透明 PNG（alpha 0~255），底色浅时会发虚，故配浅底 chip。
+const SR_RELIC_SLOT_ICON = {
+    BODY: 'IconRelicBody',
+    HEAD: 'IconRelicHead',
+    FOOT: 'IconRelicFoot',
+    NECK: 'IconRelicNeck'
+};
+const srRelicSlotIcon = type => {
+    const key = SR_RELIC_SLOT_ICON[String(type || '').toUpperCase()];
+    return key ? `https://static.nanoka.cc/assets/hsr/relicfigures/${key}.webp` : '';
+};
+
+// 星铁遗器套装图标：从 SpriteOutput/ItemIcon/71060.png 这类资源路径里取尾部数字，
+// 拼 assets/hsr/itemfigures/{数字}.webp。与 system/mys.js 的同名规则一致。
+const srRelicIcon = raw => {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    if (/^https?:/i.test(s)) return s;
+    const num = (s.match(/(\d+)\.[a-z0-9]+$/i) || [])[1] || '';
+    return num ? `https://static.nanoka.cc/assets/hsr/itemfigures/${num}.webp` : '';
+};
+
+// 星铁命途 / 属性徽章文件名。取自 apps/wiki.js 的 srIconMap，两边保持一致；
+// 列表页由 getWikiIcon 解析，详情页在这里解析，模板统一按 wiki/imgs/{文件名} 取图。
+const SR_BADGE_ICON = {
+    '毁灭': '毁灭.png', '巡猎': '巡猎.png', '智识': '智识.png', '同谐': '同谐.png',
+    '虚无': '虚无.png', '存护': '存护.png', '丰饶': '丰饶.png', '记忆': '记忆.png',
+    '欢愉': '欢愉.png',
+    '物理': 'sr_物理.png', '火': 'sr_火.png', '冰': 'sr_冰.png', '雷': 'sr_雷.png',
+    '风': 'sr_风.png', '量子': 'sr_量子.png', '虚数': 'sr_虚数.png'
+};
+const srBadgeIcon = zh => SR_BADGE_ICON[String(zh || '')] || '';
+
 // 星铁命途 / 属性。nanoka 给的是内部名（Elation / Quantum），详情页头部直接
 // 渲染就会显示英文。这两张表与 system/mys.js 中的同名表保持一致。
 const SR_PATH_CN = {
@@ -304,9 +340,16 @@ function srRoleView(detail, id) {
         name: d.lightconeMap?.[lcId]?.zh || String(lcId),
         icon: srLcIcon(lcId),
     }));
-    const relicSets = list => (list || []).map(id => ({ name: d.relicsetMap?.[id]?.zh || String(id) }));
+    // 推荐遗器：nanoka 的 relicset.json 里 icon 字段是 SpriteOutput/ItemIcon/71060.png
+    // 这种游戏内资源路径，拼整条在 assets 下取不到（实测 404），但尾部数字发布成了
+    // assets/hsr/itemfigures/{数字}.webp（实测 64 套全 200）。按数字拼即可。
+    const relicSets = list => (list || []).map(id => ({
+        name: d.relicsetMap?.[id]?.zh || String(id),
+        icon: srRelicIcon(d.relicsetMap?.[id]?.icon),
+    }));
     const mainStats = (d.relics?.property_list || []).map(r => ({
         slot: SR_RELIC_SLOT_CN[r.relic_type] || r.relic_type,
+        icon: srRelicSlotIcon(r.relic_type),
         stat: SR_STAT_CN[r.property_type] || r.property_type,
     }));
     const subStats = (d.relics?.sub_affix_property_list || []).map(k => SR_STAT_CN[k] || k);
@@ -316,7 +359,9 @@ function srRoleView(detail, id) {
         name: d.name || '',
         rarity: RARITY_CN[Number(/(\d+)\s*$/.exec(String(d.rarity || ''))?.[1])] || '',
         path: SR_PATH_CN[d.base_type] || d.base_type || '',
+        pathIcon: srBadgeIcon(SR_PATH_CN[d.base_type] || d.base_type),
         damage: SR_DAMAGE_CN[d.damage_type] || d.damage_type || '',
+        damageIcon: srBadgeIcon(SR_DAMAGE_CN[d.damage_type] || d.damage_type),
         camp: info.camp || '',
         spNeed: d.sp_need,
         desc: stripTags(d.desc),

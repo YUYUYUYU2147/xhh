@@ -295,7 +295,7 @@ export class stamina_remind extends plugin {
     }
 
     if (!members.length) {
-      // 群成员接口不是所有 OneBot 连接器都支持；参考 ji-plugin，绑定数据本身可以作为候选用户来源。
+      // 群成员接口不是所有 OneBot 连接器都支持；读取失败时用绑定数据本身作为候选用户来源。
       const enabledUsers = [];
       for (const qq of bound) {
         if ((await getEnabledGames(groupId, qq)).length) enabledUsers.push(qq);

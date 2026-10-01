@@ -16,6 +16,9 @@ body{margin:0;min-width:1000px;background:#eef1f6;color:#3b4252;
 .tags{margin-top:8px;display:flex;gap:7px;flex-wrap:wrap}
 .tag{font-size:12.5px;padding:3px 10px;border-radius:8px;background:#fff;
   border:1px solid #e2e7ef;color:#5a6478}
+/* 命途/属性徽章图标，与列表页的 mini-badge 同一套 wiki/imgs 资源 */
+.tag-ic{width:15px;height:15px;object-fit:contain;margin-right:4px;
+  vertical-align:-2px;flex-shrink:0}
 
 .panel{background:#fff;border:1px solid #e9edf3;border-radius:15px;padding:15px 18px 17px;
   margin-bottom:12px;box-shadow:0 3px 10px rgba(31,41,55,.05)}
@@ -59,3 +62,10 @@ footer{text-align:center;margin-top:12px;color:#a3adbd;font-size:12.5px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{font-size:12.5px;padding:5px 10px;border-radius:8px;background:#f2f4f8;
   border:1px solid #e2e7f0;color:#4a5468}
+.chip-ic{width:18px;height:18px;border-radius:4px;object-fit:cover;
+  margin-right:4px;vertical-align:-4px;flex-shrink:0}
+
+/* 部位图标是 64×64 半透明 PNG（alpha 0~255），压在浅色 chip 上会发虚，
+   补一层白底并让图标不参与行高对齐 */
+.chip-slot{background:#fff;align-items:center;display:inline-flex}
+.chip-slot .chip-ic{background:#eef1f6;border-radius:4px}

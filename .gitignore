@@ -5,3 +5,7 @@ temp/
 resources/srstrategy/
 # 卡池库写盘备份（由 safeWritePoolYaml 自动生成）
 system/default/*.yaml.bak
+# 过码服务的 Python 虚拟环境与字节码，由 #过码部署 自动生成，不入库
+service/geetest/.venv/
+service/geetest/__pycache__/
+*.pyc

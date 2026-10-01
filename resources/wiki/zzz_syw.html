@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content/html;charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{ppath}}wiki/yq_syw.css" />
+  </head>
+
+  <body {{sys.scale}}>
+    <div class="container" id="container">
+      <div class="box">
+        <table>
+          <tr>
+            <!-- 名称与图标左右两格、左对齐，和星铁 wiki/yiqi 完全一致
+                 （.name 是 text-align:center 的窄列，.pic 是 flex）。
+                 原神 wiki/syw 那种 .pic_ 居中块图标偏小、留白多，没采用。 -->
+            <td class="name">{{name}}</td>
+            <td class="pic">{{each pic p}}<img src="{{p}}" />{{/each}}</td>
+          </tr>
+          {{each table t}}
+          <tr>
+            <td class="key">{{t.key}}</td>
+            <!-- 值这一格用 @ 前缀的不转义输出。驱动盘套装效果里的 [普通攻击]、
+                 [强化特殊技] 这些技能名要保留颜色标记，得走 zzzRichText 产出的
+                 span 标签；写成普通双花括号会被转义，页面上直接显示标签源码。 -->
+            <td>{{@t.value}}</td>
+          </tr>
+          {{/each}}
+        </table>
+      </div>
+      <div class="logo">from 小花火</div>
+    </div>
+  </body>
+</html>

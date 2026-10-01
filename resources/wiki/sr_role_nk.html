@@ -13,8 +13,8 @@
     <div class="hero-txt">
       <h1>{{name}} <span class="rarity">{{rarity}}</span></h1>
       <div class="tags">
-        <span class="tag">{{path}}</span>
-        <span class="tag">{{damage}}</span>
+        <span class="tag">{{if pathIcon}}<img class="tag-ic" src="{{ppath}}wiki/imgs/{{pathIcon}}" />{{/if}}{{path}}</span>
+        <span class="tag">{{if damageIcon}}<img class="tag-ic" src="{{ppath}}wiki/imgs/{{damageIcon}}" />{{/if}}{{damage}}</span>
         {{if camp}}<span class="tag">{{camp}}</span>{{/if}}
         {{if spNeed}}<span class="tag">能量 {{spNeed}}</span>{{/if}}
       </div>
@@ -108,19 +108,19 @@
     {{if relicSets4.length}}
     <div class="mat-label">四件套</div>
     <div class="chips">
-      {{each relicSets4 r}}<span class="chip">{{r.name}}</span>{{/each}}
+      {{each relicSets4 r}}<span class="chip">{{if r.icon}}<img class="chip-ic" src="{{r.icon}}" />{{/if}}{{r.name}}</span>{{/each}}
     </div>
     {{/if}}
     {{if relicSets2.length}}
     <div class="mat-label">二件套</div>
     <div class="chips">
-      {{each relicSets2 r}}<span class="chip">{{r.name}}</span>{{/each}}
+      {{each relicSets2 r}}<span class="chip">{{if r.icon}}<img class="chip-ic" src="{{r.icon}}" />{{/if}}{{r.name}}</span>{{/each}}
     </div>
     {{/if}}
     {{if mainStats.length}}
     <div class="mat-label">主词条</div>
     <div class="chips">
-      {{each mainStats s}}<span class="chip">{{s.slot}} · {{s.stat}}</span>{{/each}}
+      {{each mainStats s}}<span class="chip chip-slot">{{if s.icon}}<img class="chip-ic" src="{{s.icon}}" />{{/if}}{{s.slot}} · {{s.stat}}</span>{{/each}}
     </div>
     {{/if}}
     {{if subStats.length}}
