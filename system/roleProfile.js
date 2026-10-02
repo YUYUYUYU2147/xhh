@@ -26,7 +26,7 @@
  */
 
 import MysInfo from '../../genshin/model/mys/mysInfo.js';
-import { mhy } from '#xhh';
+import { api, mhy } from '#xhh';
 
 // 服务器代码 → 中文名
 const SERVER_CN = {
@@ -96,9 +96,10 @@ function findNickname(d) {
  * @param {object} e 事件对象（会被临时改写 e.game，取完还原）
  * @param {string|number} uid 该游戏的 uid（必须是当前游戏自己的，不能混用）
  * @param {string} game gs | sr | zzz | bh3
+ * @param {object} auth 取崩三资料时必填：{ headers, server }
  * @returns {Promise<{nickname:string, avatar:string, serverName:string, userLevel:number}>}
  */
-export async function getRoleProfile(e, uid, game) {
+export async function getRoleProfile(e, uid, game, auth = {}) {
     const out = { nickname: '', avatar: '', serverName: '', userLevel: 0 };
     if (!uid) return out;
     out.serverName = serverName(mhy.getServer(String(uid), game));
@@ -106,7 +107,26 @@ export async function getRoleProfile(e, uid, game) {
     const oldGame = e.game;
     e.game = game;
     try {
-        const res = await MysInfo.get(e, 'index', {}, { log: false, game });
+        let res;
+        if (game === 'bh3') {
+            // 崩三改走小花火自己的 api()。
+            // genshin 的 MysApi 打 api-takumi-record 的 honkai3rd/index 会被米游社
+            // 403，且那个域名没被 WAF 拦、响应体不是拦截页，代理兜底不会被触发。
+            // 小花火的 api() 本就带 DS 签名并走 mhyFetch，
+            // 且 api.js 里 bh3_index 与该URL 完全一致（bh3_abyss_boss 已在用）。
+            res = auth.headers
+                ? await api(e, {
+                    type: 'bh3_index',
+                    uid,
+                    headers: auth.headers,
+                    game: 'bh3',
+                    server: auth.server || mhy.getServer(String(uid), 'bh3'),
+                    silent: true,
+                })
+                : null;
+        } else {
+            res = await MysInfo.get(e, 'index', {}, { log: false, game });
+        }
         if (!res || res.retcode !== 0 || !res.data) return out;
         const d = res.data;
         out.nickname = findNickname(d);

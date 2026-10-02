@@ -1,4 +1,5 @@
 import { api, mhy, yaml, config, pluginPriority } from '#xhh';
+import { mhyFetch } from '../system/mhy_fetch.js';
 import puppeteer from '../../../lib/puppeteer/puppeteer.js';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
 import { getRoleProfile } from '../system/roleProfile.js';
@@ -159,18 +160,21 @@ export class bh3_ledger extends plugin {
     async getHandbookSupplyCardCount(uid, headers, region, isLastMonth = false) {
         const queryStr = `game_biz=bh3_cn&bind_uid=${uid}&bind_region=${region}`;
         const url = `https://api-takumi.mihoyo.com/event/handbook/${isLastMonth ? 'last_month_count' : 'current_month_count'}?${queryStr}`;
-        try {
-            const res = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    Cookie: headers.Cookie,
-                    origin: 'https://webstatic.mihoyo.com',
-                    referer: 'https://webstatic.mihoyo.com/',
-                    'x-rpc-client_type': '5',
-                    'x-rpc-app_version': '2.73.1',
-                    'User-Agent': 'Mozilla/5.0 (Linux; Android 12; XQ-AT52 Build/58.2.A.7.93; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/100.0.4896.88 Mobile Safari/537.36 miHoYoBBS/2.73.1',
-                },
-            }).then(r => r.json());
+        // 走 mhyFetch：默认直连，被米游社风控拦了才切代理。
+            // 之前这里是裸 fetch，本机 IP 被拦时拿到的是 405 加 HTML 阻断页，
+            // .json() 直接抛 SyntaxError，handbook 数量静默变null。
+            try {
+                const res = await mhyFetch(url, {
+                    method: 'GET',
+                    headers: {
+                        Cookie: headers.Cookie,
+                        origin: 'https://webstatic.mihoyo.com',
+                        referer: 'https://webstatic.mihoyo.com/',
+                        'x-rpc-client_type': '5',
+                        'x-rpc-app_version': '2.73.1',
+                        'User-Agent': 'Mozilla/5.0 (Linux; Android 12; XQ-AT52 Build/58.2.A.7.93; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/100.0.4896.88 Mobile Safari/537.36 miHoYoBBS/2.73.1',
+                    },
+                }).then(r => r.json());
             debugLog(`[水晶] handbook ${isLastMonth ? 'last' : 'current'} count response:`, JSON.stringify(res));
             if (res?.retcode === 0 && res.data && Number.isFinite(Number(res.data.count))) {
                 return Number(res.data.count) || 0;
@@ -591,7 +595,7 @@ export class bh3_ledger extends plugin {
      * （崩三 index 的 role.AvatarUrl 偶尔是空的，实测遇到过）。
      */
     async getUserInfo(e, headers, uid, server) {
-        const info = await getRoleProfile(e, uid, 'bh3');
+        const info = await getRoleProfile(e, uid, 'bh3', { headers, server });
         let avatarUrl = info.avatar || "";
         const nickname = info.nickname || "";
         const userLevel = info.userLevel || 0;
