@@ -110,7 +110,8 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 
 ### 米游社签到与推送
 游戏签到（多账号）+ 社区签到与米游币每日任务，可按群白名单、按时段自动执行，失败自动 @。
-撞上米游社风控（`retcode 1034`）时会给你一个验证链接，**在浏览器过一下滑块就自动重试**，不需要任何第三方服务。
+撞上米游社风控（`retcode 1034`）时按「本机过码服务 → 打码平台 → 浏览器手动画滑块」三级依次尝试，前一级解开就不往下走；都解不开时给你一个验证链接，**在浏览器过一下滑块就自动重试**。
+> 用本机过码服务需要先发一次 `#过码部署`（免费、不需要付费接口）。若这台机器的 IP 正被米游社风控挡着、请求出不去，插件会改走一个接口代理兜底 —— 详见[重要说明](#重要说明)，介意可在锅巴里关掉。
 `#小花火签到` `#米游社全部签到` `#开启自动米游币` `#原神体力推送 130`
 
 ### 图鉴 / 攻略 / 角色语音
@@ -141,7 +142,8 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 
 ## 重要说明
 
-- **不依赖任何第三方服务、不需要付费接口**：验证码走本插件自带的本地验证页（可选 cloudflared 临时隧道把链接暴露到公网，见[手动过码](#手动过码米游社风控-1034)）。
+- **验证码默认走本机服务，不需要付费接口**：三级依次是「本机过码服务 → 打码平台 → 手动验证」，前一级解开就不往下走。本机服务用 `#过码部署` 一次装好，之后撞风控自动解开，不用自己划滑块；解不开时会给验证链接手动过。⚠️ 本机服务依赖 Python 原生 wheel，**ARM / proot / Termux / 精简容器 / 低内存环境可能装不上，不建议在这类环境自动部署**；`pip` 源码编译失败就换正常 Linux/Windows，或改走打码平台与手动过码。详见[过码章节](#过码米游社风控-1034)。
+- **但有一个例外要说清楚**：米游社对单个 IP 有频次风控，触发后接口会返回一整页「已阻断」而不是数据（表现为 HTTP 405），这时过码请求出不去、自动过码自然也解不开。默认配置里带了一个接口代理专门兜这种情况 —— **只有被风控拦了、且这次请求本来就要发出去时才会用到它**，平时全部直连、Cookie 不离开本机。介意的话在锅巴「接口设置」里把「米游社接口代理地址」和「密钥」清空即可（清空后仍是纯直连，风控恢复前签到可能受影响）。自建或不用代理也完全不影响手动过码。
 - **数据来源**：米游社官方公告（需你自己的 CK）、BWiki 静态页、官方 WIKI、nanoka.cc（原神与星铁的角色 / 武器图鉴与角色详情）。插件只做解析与出图，不破解任何接口。
 - **分支约定**：`v2` 为 TRSS-Yunzai / OneBot 适配分支；上游原作者 README 保留在文末，便于追溯。
 
@@ -264,11 +266,9 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 | `meme` / `meme_reply` | `true` / `false` | 表情包与自动回复 |
 | `huobi_num` | `3` | 货币战争参与人数 |
 | `bili_ck` | - | B 站 cookie，用于视频/直播解析 |
-| `manual_gt_enable` | `true` | 手动过验证码（米游社风控）服务，本插件**唯一**的过码方式 |
-| `manual_gt_host` / `manual_gt_port` / `manual_gt_path` | `127.0.0.1` / `3000` / `/xhh-gt` | 手动过码服务的本机监听地址、端口与链接前缀（重启生效） |
-| `manual_gt_public_url` | `''` | 浏览器能访问的公网地址；留空则由插件自动拉临时隧道。仓库不内置任何个人域名 |
-| `manual_gt_auto_tunnel` | `true` | 无公网地址时是否自动拉 cloudflared 隧道 |
-| `manual_gt_timeout` | `120` | 手动验证码链接有效期与等待时间，单位秒 |
+| `auto_verify_addr` | `http://127.0.0.1:2149/solve` | 本机过码服务地址，发 `#过码部署` 后自动写入；显式清空则视为「没装」，自动过码整段跳过 |
+| `mhy_proxy` / `mhy_proxy_key` | 见[重要说明](#重要说明) | 米游社接口代理，**只在本机被风控拦了时才用**；清空即关闭 |
+| `ttocr_appkey` | `''` | 打码平台密钥，第二级过码（滑块 5 点/次）。留空不启用；⚠️ 平台只提供 http，密钥会以明文过网，介意就别填 |
 | `gacha_art_source` | `official` | 卡池立绘来源（official / custom） |
 
 > 手动过码的完整用法（工作方式、四种部署方式、自测与排错）见下文「手动过码（米游社风控 1034）」。
@@ -276,6 +276,12 @@ git fetch origin && git checkout -B v2 origin/v2 && git pull && pnpm i
 优先级类配置（`*_priority`）见 `config.yaml` 末尾，默认值见同文件注释。
 
 ## 过码（米游社风控 1034）
+
+> [!WARNING]
+> **环境要求**：本机过码服务依赖 Python 原生 wheel（有编译型依赖）。
+> **ARM / proot / Termux / 精简容器 / 低内存环境可能无法安装，不建议在这类环境自动部署。**
+> 若 `pip` 需要源码编译并失败，请换到正常 Linux / Windows 环境，或直接用打码平台／手动过码这两条路，不必强求本机服务。
+> 部署失败不会影响插件其它功能，只是自动过码这一级不可用。
 
 米游社返回 `retcode 1034 / 10035` 时，有两条路可以走，插件会按顺序自动尝试：
 
@@ -308,7 +314,7 @@ curl -s http://127.0.0.1:2149/health            # 探活，返回 {"ok":true,...
 端口默认 `2149`（可用 `GT_PORT` 改），刻意不与其它插件的过码服务端口重合 —— 同机两份服务撞端口时，
 会出现「一份进程的应答被另一份当成自己的」，那种错极难定位。
 
-若 `#过码服务状态` 提示「服务在跑但不在本插件进程表里」，说明是旧版本部署或手工 nohup 留下的进程：
+若 `#过码服务状态` 提示「服务在跑但不在本插件进程表里」，说明是旧版本部署或手工起（nohup / start /b）留下的进程：
 执行 `pm2 delete xhh-geetest-solver` 后重发 `#过码部署` 即可接管。
 
 完整说明见 [`service/geetest/README.md`](service/geetest/README.md)。
@@ -344,23 +350,22 @@ curl -s http://127.0.0.1:2149/health            # 探活，返回 {"ok":true,...
 ```
 
 要点：
-- **不依赖任何第三方过码服务**，不外发你的 cookie，验证页由插件自己提供
-- 链接有效期 `manual_gt_timeout` 秒（默认 120），超时自动作废
+- **验证页由插件自己提供**，不经过第三方打码平台
+- 链接有效期 120 秒（写在代码里 `MANUAL_GT_TIMEOUT`），超时自动作废
 - 同时只会有一条任务在等，重复撞码共用同一个 key
-- 链接形如 `<公网地址><manual_gt_path>/<8位随机码>`，例如 `https://xxx.trycloudflare.com/xhh-gt/b1ef510e`
+- 链接形如 `<公网地址>/xhh-gt/<8位随机码>`，例如 `https://xxx.trycloudflare.com/xhh-gt/b1ef510e`
 - 验证页默认每 120 秒自动清理一次（每天 4:20 定时），不会堆积
 
 ### 配置项
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |
-| `manual_gt_enable` | `true` | 总开关，关掉后不再提供验证页 |
-| `manual_gt_host` | `127.0.0.1` | 本地监听地址，保持 `127.0.0.1` 即可，不要改成 `0.0.0.0` 对外暴露 |
-| `manual_gt_port` | `3000` | 本地监听端口，需与你的反代/隧道端口一致 |
-| `manual_gt_path` | `/xhh-gt` | 链接前缀 |
-| `manual_gt_public_url` | `''` | 公网访问地址；留空则由插件拉临时隧道自动获取 |
-| `manual_gt_auto_tunnel` | `true` | 无公网地址时是否自动拉 cloudflared 隧道 |
-| `manual_gt_timeout` | `120` | 链接有效期与等待时间（秒，30~600） |
+| `XHH_MANUAL_GT_PUBLIC_URL` 环境变量 | `''` | 公网访问地址；留空则由插件拉 cloudflared 临时隧道自动获取 |
+
+监听地址、端口、路径前缀、链接有效期这几项目前**写死在 `system/manual_geetest.js` 里**，
+没有对应的配置项：`127.0.0.1` / `8080` / `/xhh-gt` / 120 秒。
+要改的话直接改那几行常量后重载插件。监听地址请保持 `127.0.0.1`，
+改成 `0.0.0.0` 会把验证页暴露到公网。
 
 也可以用环境变量覆盖公网地址（适合容器部署）：
 ```bash
@@ -444,18 +449,16 @@ docker run -v /usr/local/bin/cloudflared:/usr/local/bin/cloudflared:ro ...
 ```
 </details>
 
-第 2 步：确认配置
-```yaml
-manual_gt_auto_tunnel: true     # 默认就是 true
-manual_gt_public_url: ''        # 留空，交给插件自动处理
-```
+第 2 步：确认无需配置
+隧道默认就是自动的（没配公网地址就自动拉），不用写任何配置项。
+想指定固定域名，用环境变量 `XHH_MANUAL_GT_PUBLIC_URL`。
 
 第 3 步：**不用做任何事**。隧道是「真的撞码、要发链接时」才拉，不是启动就拉。
 
 日志会依次出现：
 ```
 [xhh][manual_gt] 使用 cloudflared：/usr/local/bin/cloudflared
-[xhh][manual_gt] 已拉起 cloudflared（pid=xxxx，端口 3000）
+[xhh][manual_gt] 已拉起 cloudflared（pid=xxxx，端口见日志）
 [xhh][manual_gt] 临时公网地址：https://xxx.trycloudflare.com（重启后地址会变）
 ```
 地址会缓存复用，直到云崽重启。适合个人使用、撞码不频繁的场景。
@@ -468,14 +471,14 @@ REPO=/path/to/TRSS-Yunzai                  # 换成你的云崽根目录
 sudo cp $REPO/plugins/xhh/tools/manual_gt_tunnel.sh /usr/local/bin/
 sudo chmod +x /usr/local/bin/manual_gt_tunnel.sh
 sudo cp $REPO/plugins/xhh/tools/xhh-gt-tunnel.service /etc/systemd/system/
-# 记得把 service 里 ExecStart 的端口改成你的 manual_gt_port
+# 记得把 service 里 ExecStart 的端口改成手动过码实际监听的端口（默认 8080）
 sudo systemctl daemon-reload
 sudo systemctl enable --now xhh-gt-tunnel
 ```
 - 隧道常驻（占用约 24MB 内存），`Restart=always` 掉线自动重连
 - 实际地址写入 `<仓库>/plugins/xhh/data/manual_gt_url`（可用 `URL_FILE` 环境变量改路径），插件自动读取
 - **不需要把临时域名写进配置**
-- 用了这个方案就把 `manual_gt_auto_tunnel` 设成 `false`，避免插件再拉第二条隧道
+- 用了这个方案就设 `XHH_MANUAL_GT_PUBLIC_URL`，避免插件再拉第二条隧道
 
 常用命令：
 ```bash
@@ -485,9 +488,9 @@ cat <仓库>/plugins/xhh/data/manual_gt_url
 ```
 
 **D. 固定地址（最稳定，强烈建议生产用）**
-自建 Cloudflare Named Tunnel / frp / Nginx 反代 / VPS，然后把固定域名填进 `manual_gt_public_url`：
-```yaml
-manual_gt_public_url: 'https://xhh-gt.你的域名'
+自建 Cloudflare Named Tunnel / frp / Nginx 反代 / VPS，然后把固定域名填进环境变量：
+```bash
+export XHH_MANUAL_GT_PUBLIC_URL='https://xhh-gt.你的域名'
 ```
 插件会优先用它，且**不会**再自动拉隧道，也没有地址变动问题。
 
@@ -511,9 +514,9 @@ manual_gt_public_url: 'https://xhh-gt.你的域名'
 | 链接打不开（530） | trycloudflare 是临时域名，隧道进程挂了域名就失效。方案 C 用 `systemctl restart xhh-gt-tunnel` 换地址；方案 D 不受影响 |
 | 日志「未找到 cloudflared」 | 当前环境没有该二进制（常见于容器/沙箱/精简系统）。装一个，或改用方案 C/D |
 | 手机打不开、只有本机能开 | 还没有公网地址。执行方案 B / C / D 任一即可 |
-| 容器部署不生效 | `systemctl` 在宿主、云崽在容器，两者不通。`tools/manual_gt_tunnel.sh` 要在**云崽所在环境**里跑，且要能访问到 `manual_gt_host:manual_gt_port` |
-| 提示「没有可用公网地址」 | 既没配 `manual_gt_public_url`，也没装 cloudflared，见上文方案 |
-| 撞码了但没收到链接 | 检查 `manual_gt_enable` 是否为 true，以及签到群是否在 `bbs_sign_group` 白名单内 |
+| 容器部署不生效 | `systemctl` 在宿主、云崽在容器，两者不通。`tools/manual_gt_tunnel.sh` 要在**云崽所在环境**里跑，且要能访问到 `127.0.0.1:8080` |
+| 提示「没有可用公网地址」 | 既没设 `XHH_MANUAL_GT_PUBLIC_URL`，也没装 cloudflared，见上文方案 |
+| 撞码了但没收到链接 | 确认手动过码那级没被跳过（本插件自带，无需开关），以及签到群是否在 `bbs_sign_group` 白名单内 |
 
 
 ### 语音列表发出后回复数字没反应
@@ -537,7 +540,7 @@ manual_gt_public_url: 'https://xhh-gt.你的域名'
 ### 查询报 `param error` / `retcode 1034`
 
 - `retcode -1 param error`：多 UID 聚合查询时，附加小号在 `data/Stoken/<QQ>.yaml` 里存的 `region` 与实际区服不符（例如原神用了 `prod_gf_cn`）。改为正确区服（国服 `cn_gf01` / 星铁 `prod_gf_cn`）或删掉该小号后重新扫码绑定。
-- `retcode 1034`：米游社风控验证码。插件只保留手动过码：开启 `manual_gt_enable` 后，签到/查询遇到验证码会给出链接，浏览器完成验证后自动重试；也可让用户发送 `#设备帮助` 绑定常用设备降低风控概率。
+- `retcode 1034`：米游社风控验证码。插件按「本机服务 → 打码平台 → 手动验证」三级依次尝试：前一级解开就不往下走；都解不开时给出验证链接，浏览器完成验证后自动重试。也可让用户发送 `#设备帮助` 绑定常用设备降低风控概率。
 - 附加小号查询失败不影响主号，主号卡片照常出图，失败的小号会在末尾以「以下UID获取失败」提示。
 
 

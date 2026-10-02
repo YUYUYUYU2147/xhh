@@ -24,6 +24,23 @@ function isBh3Role(entry = {}) {
     return BH3_LEGACY_REGIONS.includes(entry.region || '');
 }
 
+async function fetchJson(url, options = {}, label = '米游社接口') {
+    const resp = await fetch(url, options);
+    const text = await resp.text();
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        const head = String(text || '').trim().slice(0, 80);
+        logger.mark(`[xhh][sm] ${label} 返回非 JSON，status=${resp.status} body=${head}`);
+        return {
+            retcode: -1,
+            message: head.startsWith('<') ? '米游社返回拦截页，请稍后重试' : '米游社接口返回异常',
+            _html: head.startsWith('<'),
+            _status: resp.status,
+        };
+    }
+}
+
 export class user extends plugin {
     constructor(e) {
         super({
@@ -156,11 +173,15 @@ export class user extends plugin {
             // app_id: app_id,
             // device: headers['x-rpc-device_id'],
         };
-        let res = await fetch(url, {
+        let res = await fetchJson(url, {
             method: 'POST',
             headers,
             body: JSON.stringify(body),
-        }).then(res => res.json());
+        }, '创建扫码二维码');
+
+        if (!res?.data?.url || !res?.data?.ticket) {
+            return e.reply(`创建二维码失败：${res?.message || '接口返回异常，请稍后重试'}`, true);
+        }
 
         const sm_url = res.data.url;
         let ticket = res.data.ticket
@@ -196,14 +217,14 @@ export class user extends plugin {
       
         for (var n = 1; n < 150; n++) {
             await sleep(1000);
-            res = await fetch(url, {
+            res = await fetchJson(url, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(body),
-            }).then(res => res.json());
+            }, '查询扫码状态');
             
                             
-            if (res.retcode != 0) return e.reply('二维码已过期~', true);
+            if (res.retcode != 0) return e.reply(res?._html ? '米游社返回拦截页，扫码绑定失败。请稍后重试或换网络环境。' : '二维码已过期~', true);
             if (res.data.status == 'Init') continue;
             if (res.data.status == 'Scanned' && !zt) {
                 zt = true;
@@ -223,6 +244,11 @@ export class user extends plugin {
                 const stuid = res.data.user_info.aid || res.data.user_info.uid || res.data.user_info.account_id
                 //mid
                 const mid = res.data.user_info.mid;
+                //扫码响应里若直接带了 v2 token，就原样透传给 genshin。
+                //没有就是没有——getCookieAccountInfoBySToken 换来的仍是 v1 字段，
+                //把 cookie_token 改名成 cookie_token_v2 只会让 genshin 走 flagV2
+                //分支拿 v1 的值去校验，比走老格式失败得更快。
+                const tk = n => res.data.tokens.find(i => i.name === n)?.token;
                 
                 //用SToken获取cookie
                 const ck = `stuid=${stuid};stoken=${SToken};mid=${mid};`;
@@ -231,12 +257,12 @@ export class user extends plugin {
                 const {
                     sendMsg,
                     ltoken
-                } = await mhy.refresh_cookies(
-                    e,
-                    headers,
-                    SToken,
-                    stuid
-                );
+                } = await mhy.refresh_cookies(e, headers, SToken, stuid, {
+                    bindGenshinCookie: true,
+                    mid,
+                    cookieTokenV2: tk("cookie_token_v2"),
+                    ltokenV2: tk("ltoken_v2")
+                });
                 if (SToken && stuid && mid && ltoken) {
                     res = await api(e, {
                         type: 'GameRoles',
@@ -324,15 +350,15 @@ export class user extends plugin {
         for (let k in data_) {
             const [SToken, ck] = data_[k];
             const headers = mhy.getHeaders(e, ck);
+            //ck_stoken 里带 mid，有它 genshin 才能走 v2 分支
+            const mid = String(ck || '').match(/mid=([^;]+)/)?.[1] || '';
             const {
                 sendMsg,
                 ltoken
-            } = await mhy.refresh_cookies(
-                e,
-                headers,
-                SToken,
-                k
-            );
+            } = await mhy.refresh_cookies(e, headers, SToken, k, {
+                bindGenshinCookie: true,
+                mid
+            });
             if (ltoken && data) {
                 for (let m in data) {
                     if (data[m].stoken == SToken) {

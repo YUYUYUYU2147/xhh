@@ -59,16 +59,26 @@ httpx>=0.27                     # HTTP 请求
 ```
 
 它会自动建 venv、装依赖（自动挑最快的 pip 源）、用 pm2 托管、然后验活。
-装完发 `#过码服务状态` 看累计成功率。本机没有 pm2 时会退回 nohup（重启后需重新部署）。
+装完发 `#过码服务状态` 看累计成功率。本机没有 pm2 时会退回后台运行（重启后需重新部署）。
 
-手动装：
+前置：Linux 需要 `python3` 与 venv 模块（Debian/Ubuntu 装 `python3-venv`）；
+Windows 需要 Python，安装时勾选「Add to PATH」和 venv 组件。
+`#过码部署` 会自己找可用的解释器（`python3` → `python`，Windows 再加 `py -3`）。
+
+手动装（在 TRSS-Yunzai 根目录执行）：
 
 ```bash
-cd service/geetest
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+cd plugins/xhh/service/geetest
+python3 -m venv .venv                              # Windows 用 python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt  # Windows 用 .venv\Scripts\python -m pip
 pm2 start .venv/bin/python --name xhh-geetest-solver -- server.py
 ```
+
+> 如果已经在 `plugins/xhh` 目录里，则第一行改成 `cd service/geetest`。其余内容不变。
+
+> glibc 低于 2.31 装不上 `bili-ticket-gt-python`（它只有 manylinux_2_31 的 wheel）。
+> `#过码部署` 会提前检查并说清原因，不会让你对着一堆 pip 报错发懵。
+> Windows 没有这个问题。
 
 ## 日常查看与管理（pm2）
 

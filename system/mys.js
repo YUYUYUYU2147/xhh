@@ -324,6 +324,22 @@ let gsDebutCache = null;
 //   2. 同一版本上下半的 timer 可能完全相同（克拉蕾与洛克茜都是 2026-09-30），
 //      日期只能定到版本粒度，同一天的角色之间仍靠 id 兜底。
 const ZZZ_GACHA_YAML = './plugins/xhh/system/default/zzz_gacha_pool_history.yaml';
+// 星铁光锥的上线时间，来源是 system/default/sr_logs.yaml 的 gz_five 卡池记录，
+// 做法与上面原神武器、绝区零一致：按时间升序取每个名字的首次出现。
+//
+// 为什么不能按 lightcone 的 id 降序：lightcone.json 里只有
+// rank/baseType/en/atk/desc/ko/zh/ja，确实一个时间字段都没有（172 个全查过），
+// 但「数据源没有时间」不等于「上线顺序拿不到」—— 卡池记录里有。
+// 之前在 manual_overrides.yaml 里记的是「只能按 id 降序」，那是错的。
+//
+// id 顺序和上线顺序实测对不上，例如 23055 献给明日的色彩（4.6 上半首发）
+// 的 id 小于 23064 向浪花掷下盛夏（4.5 下半首发），按 id 降序会把旧的排到新的前面。
+//
+// 必须取「首次出现」而不是「最近一次出现」：58 个能查到记录的光锥里有 49 个是重跑池，
+// 例如 灼尽炼狱的新骸 在 4.6 下半和 4.3 上半都出现过。按最近一次算，它会被当成
+// 4.6 的新光锥排到很前面，而它真正的首发是 4.3 上半。重跑必须跳过。
+const SR_LOGS_YAML = './plugins/xhh/system/default/sr_logs.yaml';
+let srDebutCache = null;
 // 崩坏3图鉴数据缓存。bh3_tujian() 每次调用都并发拉 5 个频道，
 // 而一次查询里 role / weapon / syw_yiqi 会各调一次，无前缀兜底再加上
 // 人偶、协同者就是 5 次。同一批数据几分钟内不会变，缓存 5 分钟。
@@ -467,6 +483,46 @@ function getGsDebut() {
     return map;
 }
 
+/** 星铁光锥中文名 → 首发时间戳(ms)。读不到返回空 Map，退化成 id 降序。 */
+function getSrDebut() {
+    if (srDebutCache) return srDebutCache;
+    const map = new Map();
+    try {
+        const rows = YAML.parse(fs.readFileSync(SR_LOGS_YAML, 'utf-8'));
+        const dated = (Array.isArray(rows) ? rows : [])
+            .map(r => {
+                // time 字段是 '2026/09/12 12:00 ~ 2026/09/28 03:59' 这样的区间，
+                // 也可能是 '4.6版本更新后 ~ 2026/11/10 15:00' / '2025/07/11 12:00 ~ 长期'
+                // —— 起始处没有日期的（版本上线那天才开池）就取结束日期。
+                // 同一版本上下半的结束日期可能相同，那种情况日期只能定到版本粒度，
+                // 版本内仍靠 id 兜底，与绝区零那边的情况一样。
+                const dates = String(r?.time || '').match(/\d{4}\/\d{1,2}\/\d{1,2}/g);
+                if (!dates?.length) return null;
+                const [y, mo, d] = dates[0].split('/').map(Number);
+                const t = Date.UTC(y, mo - 1, d);
+                const names = (Array.isArray(r?.gz_five) ? r.gz_five : [])
+                    .map(v => String(v || '').trim()).filter(Boolean);
+                return names.length ? { t, names } : null;
+            })
+            .filter(Boolean)
+            // 文件顺序不等于时间顺序，必须按日期显式升序
+            .sort((a, b) => a.t - b.t);
+        for (const v of dated) {
+            for (const name of v.names) if (!map.has(name)) map.set(name, v.t);
+        }
+    } catch (err) {
+        logger.debug?.('[xhh][图鉴] 读 sr_logs.yaml 失败，光锥退回 id 降序:', err?.message || err);
+    }
+    srDebutCache = map;
+    return map;
+}
+
+// 星铁光锥是否 5★。lightcone.json 的 rank 形如 CombatPowerLightconeRarity5。
+// 之前 5★/4★ 靠 id 段顺带分开（4★ 是 21xxx~22xxx，5★ 是 23xxx~24xxx），
+// 排序里没有显式判过星级；加了未上线置顶后必须显式分，否则未上线的 4★
+// 会插到 5★ 段前面去。
+const isSrFiveStar = ([, w]) => /Rarity5$/.test(String(w?.rank || ''));
+
 function sortWeaponEntries(weapons, isSr = false, isGs = false, newIds = null) {
     const entries = Object.entries(weapons || {}).filter(([, w]) => w?.zh);
     // 原神分四段，规则和角色那边一致（未上线置顶，其余按上线时间新→旧）：
@@ -474,13 +530,25 @@ function sortWeaponEntries(weapons, isSr = false, isGs = false, newIds = null) {
     //    1 「真化」皮肤：本体是 4★，gslogs 只记 5★ up，拿不到日期
     //    2 完全没有卡池记录的开服期常驻武器
     const gsDebut = isGs ? getGsDebut() : null;
+    // 星铁光锥同样按卡池首发日期新→old 排，规则与原神武器一致。
+    // 排不到日期的（开服期常驻、只有 4★ 记录等）落到最后一段，再按 id 降序。
+    const srDebut = isSr ? getSrDebut() : null;
     const gsGroup = ([, w]) => {
         if (gsDebut.has(w.zh)) return 0;
         return /_\{0\}$/.test(String(w.icon || '')) ? 1 : 2;
     };
     return entries.sort((a, b) => {
+        // 星铁先按星级分段，5★ 整段在前、4★ 整段在后，段内各自再排。
+        // 这一层必须在未上线置顶之前：否则未上线的 4★ 会被顶到 5★ 前面
+        // （22009 在世界尽头相会吧！就是这么插到阿哈专武下面的）。
+        // 未上线置顶只在同星级内生效 —— 5★ 置顶 5★，4★ 置顶 4★。
+        if (isSr) {
+            const ga = isSrFiveStar(a) ? 0 : 1;
+            const gb = isSrFiveStar(b) ? 0 : 1;
+            if (ga !== gb) return ga - gb;
+        }
         // 未上线（测试服）置顶：manifest.json 的 new.weapon / new.lightcone。
-        // 原神和星铁同一套规则，在常驻/首发日期/皮肤分组之前先判。
+        // 原神同一套规则，在常驻/首发日期/皮肤分组之前先判。
         if (newIds) {
             const ua = newIds.has(String(a[0])) ? 0 : 1;
             const ub = newIds.has(String(b[0])) ? 0 : 1;
@@ -501,6 +569,15 @@ function sortWeaponEntries(weapons, isSr = false, isGs = false, newIds = null) {
                 const d = gsDebut.get(b[1].zh) - gsDebut.get(a[1].zh);
                 if (d) return d;
             }
+        }
+        if (srDebut) {
+            // 有首发日期的排前面并按新→旧；两把都没有日期时不算同一段，
+            // 交给后面的 id 降序，所以这里只在「恰好一把查得到」时返回。
+            const da = srDebut.get(a[1].zh), db = srDebut.get(b[1].zh);
+            if (da !== undefined && db !== undefined) {
+                if (da !== db) return db - da;
+            } else if (da !== undefined) return -1;
+            else if (db !== undefined) return 1;
         }
         return numId(b[0]) - numId(a[0]);
     });

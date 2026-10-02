@@ -4,6 +4,26 @@ import lodash from 'lodash';
 import fs from 'fs';
 import YAML from 'yaml';
 import { yaml, api, config } from '#xhh';
+import { mhyFetch } from './mhy_fetch.js';
+
+  // 走 mhyFetch 出口：默认直连，被米游社风控拦了才切代理。
+  // 用裸 fetch 的话 IP 一被拦就直接失败，代理兜底等于没接。
+  async function fetchJson(url, options = {}, label = '米游社接口') {
+    const resp = await mhyFetch(url, options);
+    const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    const head = String(text || '').trim().slice(0, 80);
+    logger.mark(`[xhh][mhy] ${label} 返回非 JSON，status=${resp.status} body=${head}`);
+    return {
+      retcode: -1,
+      message: head.startsWith('<') ? '米游社返回拦截页，请稍后重试' : '米游社接口返回异常',
+      _html: head.startsWith('<'),
+      _status: resp.status,
+    };
+  }
+}
 
 class mhy {
   // 服务器代码 → 中文名。getServerName() 用。
@@ -147,7 +167,13 @@ class mhy {
   }
 
   //刷新ck
-  async refresh_cookies(e, headers, SToken, id) {
+  //opts.bindGenshinCookie —— 是否额外调用 genshin 的老 CK 绑定器，默认不调用。
+  //由 v2 stoken 换出的 ltoken/ltuid/cookie_token 属于老格式，米游社对它的校验
+  //不一定认。genshin 内部用 reqMysUid() 校验，失败后会把「Cookie错误」推进
+  //sendMsg，显示成「绑定Cookie失败」——但此刻 xhh 的 stoken 数据其实早已存好，
+  //真正失败的只是这步额外的兼容动作。社区签到、角色查询、抽卡记录、水晶都只
+  //依赖 stoken 那一侧，故默认不再强依赖它；确有需要时由调用方显式打开。
+  async refresh_cookies(e, headers, SToken, id, opts = {}) {
     if (config().debug) logger.mark('[refresh_cookies] refreshing for id:', id);
     let urls = [
       `https://api-takumi.mihoyo.com/auth/api/getCookieAccountInfoBySToken?stoken=${SToken}&uid=${id}`,
@@ -155,9 +181,7 @@ class mhy {
     ];
     let res, Cookie, ltoken;
     for (let url of urls) {
-      res = await fetch(url, { method: 'GET', headers }).then(res =>
-        res.json()
-      );
+      res = await fetchJson(url, { method: 'GET', headers }, '刷新 Cookie');
       if (res.data?.cookie_token) Cookie = res.data?.cookie_token;
       if (res.data?.ltoken) ltoken = res.data?.ltoken;
     }
@@ -165,7 +189,10 @@ class mhy {
     if (!e.no_reply) e.no_reply = e.reply;
     let sendMsg = [];
     e.reply = msg => {
-      if (Array.isArray(msg)) sendMsg.push(...msg);
+      // genshin 会把「绑定Cookie成功\n」「角色列表」「\n使用命令说明」这样
+      // 一次性传过来，换行符就写在元素里，等的就是被原样拼成一条。
+      // 直接摊平会让 TRSS 按数组发成三条独立消息。
+      if (Array.isArray(msg)) sendMsg.push(msg.join(''));
       else sendMsg.push(msg);
     };
     if (!Cookie || !ltoken) {
@@ -174,13 +201,54 @@ class mhy {
       return { sendMsg };
     }
     e.msg = `ltoken=${ltoken};ltuid=${id};cookie_token=${Cookie}`;
-    let userck = (
-      await import(`file://${process.cwd()}/plugins/genshin/model/user.js`)
-    ).default;
-    e.ck = e.msg;
-    await new userck(e).bing();
+    if (!opts.bindGenshinCookie) {
+      if (config().debug) logger.mark('[refresh_cookies] 已跳过 genshin CK 绑定, id:', id);
+      return { sendMsg, ltoken, ck: e.msg };
+    }
+    let bound = { ok: false, msgs: [] };
+    if (opts.mid && opts.cookieTokenV2 && opts.ltokenV2) {
+      const v2Ck =
+        `ltuid=${id};account_mid_v2=${opts.mid};` +
+        `cookie_token_v2=${opts.cookieTokenV2};ltoken_v2=${opts.ltokenV2};ltmid_v2=${opts.mid};`;
+      bound = await this.tryBindGenshinCookie(e, v2Ck);
+      if (config().debug) logger.mark('[refresh_cookies] v2 CK 结果:', bound.ok, 'id:', id);
+    }
+    if (!bound.ok) bound = await this.tryBindGenshinCookie(e, e.msg);
+    if (bound.ok) sendMsg.push(...bound.msgs);
+    else if (config().debug)
+      logger.mark('[refresh_cookies] genshin CK 未绑定成功，不影响 xhh 自身数据, id:', id);
     if (config().hbxx) sendMsg = sendMsg.filter(m => typeof m === 'string' && m);
     return { sendMsg, ltoken, ck: e.msg };
+  }
+
+  //试一次 genshin 的 CK 绑定，并把回复收下来自己判断成败。
+  //genshin 内部直接往 e.reply 抛消息，校验不过时是「Cookie错误」之类。
+  //这里临时接管 e.reply 只为收集，不再让它混进 refresh_cookies 的 sendMsg——
+  //此刻 xhh 的 stoken 早已落盘，genshin 绑定失败不该显示成扫码绑定失败。
+  async tryBindGenshinCookie(e, ck) {
+    const oldReply = e.reply;
+    const msgs = [];
+    e.reply = msg => {
+      // 全是纯文本才拼接：混着 segment（按钮、合并转发）时 join 会把它们
+      // 压成 [object Object]，这种情况保持原样交给框架处理
+      if (Array.isArray(msg) && msg.every(x => typeof x === 'string')) msgs.push(msg.join(''));
+      else if (Array.isArray(msg)) msgs.push(...msg);
+      else msgs.push(msg);
+    };
+    e.msg = ck;
+    e.ck = ck;
+    try {
+      const userck = (
+        await import(`file://${process.cwd()}/plugins/genshin/model/user.js`)
+      ).default;
+      await new userck(e).bing();
+    } catch (err) {
+      msgs.push(String(err));
+    } finally {
+      e.reply = oldReply;
+    }
+    const text = msgs.map(m => String(Array.isArray(m) ? m.join('\n') : m)).join('\n');
+    return { ok: !/Cookie错误|绑定Cookie失败|环境触发|数据错误/.test(text), msgs };
   }
 
   //通过uid获取stoken

@@ -1,5 +1,7 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import fs from 'node:fs';
+import path from 'node:path';
 import { config, yaml, sleep, pluginPriority, ttocrPoints } from '#xhh';
 
 const execAsync = promisify(exec);
@@ -7,8 +9,67 @@ const execAsync = promisify(exec);
 // service/geetest 由 #过码部署 装在本机，只监听 127.0.0.1
 const SERVICE_DIR = './plugins/xhh/service/geetest';
 const VENV_DIR = `${SERVICE_DIR}/.venv`;
-const VENV_PY = `${VENV_DIR}/bin/python`;
 const PM2_NAME = 'xhh-geetest-solver';
+
+const IS_WIN = process.platform === 'win32';
+
+/**
+ * venv 里的解释器路径。
+ *
+ * 别按平台硬判断 —— WSL、Git Bash、Cygwin 这些环境下 process.platform 可能仍是
+ * win32 或 linux，但 venv 是按「谁建的」决定目录结构的。直接按候选列表逐个探测，
+ * 哪个存在用哪个，跨平台、半平台都能覆盖。
+ *
+ * 找不到返回空串，由调用方据此判断「还没建 venv」。
+ */
+function venvPython() {
+    const candidates = IS_WIN
+        ? [
+              ['Scripts', 'python.exe'],
+              ['Scripts', 'python'],
+              ['bin', 'python'],
+          ]
+        : [
+              ['bin', 'python3'],
+              ['bin', 'python'],
+              ['Scripts', 'python.exe'],
+          ];
+    for (const rel of candidates) {
+        const p = path.join(VENV_DIR, ...rel);
+        if (fs.existsSync(p)) return p;
+    }
+    return '';
+}
+
+/**
+ * 建 venv 要用哪个命令。Windows 上通常没有 python3，只有 python 或 py。
+ * 依次试哪个行用哪个 —— 光判 platform 会在装了 py 启动器的机器上判错。
+ */
+async function resolvePythonCmd() {
+    const tries = IS_WIN
+        ? [
+              ['py', ['-3']],
+              ['python', []],
+          ]
+        : [
+              ['python3', []],
+              ['python', []],
+          ];
+    for (const [cmd, args] of tries) {
+        if (await has(`${cmd} ${args.join(' ')} -V`)) return { cmd, args };
+    }
+    return null;
+}
+
+/** 引号包裹，路径里有空格（Windows 下 Program Files 之类）也不会散 */
+function q(s) {
+    return `"${String(s)}"`;
+}
+
+/** 拼一个 shell 命令串。Windows 用 cmd 语法，POSIX 用 sh 语法。 */
+function sh(...parts) {
+    return parts.filter(Boolean).join(IS_WIN ? ' && ' : ' && ');
+}
 
 // 默认端口。刻意不跟 xhh-TL 的 8766 一致：同一台机器上两个插件各起一份服务时，
 // 端口撞了就会出现「A 插件的部署答了 B 插件的请求」，这种错最难查。
@@ -72,12 +133,13 @@ async function pm2HasProcess() {
     }
 }
 
-async function pipInstall() {
+async function pipInstall(pyPath) {
+    if (!pyPath) throw new Error('找不到 venv 里的 python，装不了依赖');
     const tries = [];
     for (const mirror of PIP_MIRRORS) {
         try {
             const { stderr } = await run(
-                `"${VENV_PY}" -m pip install -q --disable-pip-version-check -i ${mirror} -r "${SERVICE_DIR}/requirements.txt"`,
+                `${q(pyPath)} -m pip install -q --disable-pip-version-check -i ${mirror} -r ${q(`${SERVICE_DIR}/requirements.txt`)}`,
                 900000
             );
             if (/ERROR|error:/.test(stderr || '')) throw new Error(stderr.slice(0, 200));
@@ -87,6 +149,24 @@ async function pipInstall() {
         }
     }
     throw new Error(`所有 pip 源都没装上\n${tries.join('\n')}`);
+}
+
+/**
+ * glibc 太低装不上 bili-ticket-gt-python（它只有 manylinux_2_31 的 wheel）。
+ * 不预检的话，用户看到的是一堆 pip 报错，看不出真正原因是系统太老。
+ */
+async function glibcTooLow() {
+    if (IS_WIN) return null; // Windows 没有 glibc 这回事
+    try {
+        const { stdout } = await run('ldd --version', 15000);
+        const m = String(stdout).match(/(\d+)\.(\d+)/);
+        if (!m) return null;
+        const [major, minor] = [Number(m[1]), Number(m[2])];
+        // 低于 2.31 就装不上那个编译包
+        return major < 2 || (major === 2 && minor < 31) ? `${major}.${minor}` : null;
+    } catch {
+        return null; // 查不到就别拦，让 pip 自己报错
+    }
 }
 
 export class GeetestService extends plugin {
@@ -117,7 +197,8 @@ export class GeetestService extends plugin {
                 `过码服务地址：${addr()}\n未运行或探不到。\n` +
                 '本机装服务：#过码部署（需主人权限）\n' +
                 `${platform}\n` +
-                '装依赖需要 python3 与 venv；服务只监听 127.0.0.1，不对外暴露。',
+                (IS_WIN ? '装依赖需要 Python 与 venv；' : '装依赖需要 python3 与 venv；') +
+                    '服务只监听 127.0.0.1，不对外暴露。',
                 true
             );
         }
@@ -134,7 +215,7 @@ export class GeetestService extends plugin {
             (s.breakerOpen ? `⚡ 熔断中（连续失败 ${s.breakerFail} 次），期间请求会秒回并走兜底，稍后自动恢复\n` : '') +
             (orphan
                 ? `\n⚠️ 服务在跑，但不在本插件的进程表里（pm2 里没有 ${PM2_NAME}）\n` +
-                  `多半是旧版本部署或手工 nohup 留下的。想让本插件接管：\n` +
+                  `多半是旧版本部署或手工起（nohup / start /b）留下的。想让本插件接管：\n` +
                   `· 执行 pm2 delete ${PM2_NAME} 后重发 #过码部署\n` +
                   '· 或直接重启一次机器（过码服务不会自启）\n'
                 : '') +
@@ -176,33 +257,76 @@ export class GeetestService extends plugin {
             return r;
         };
 
-        // 1) 前置检查
-        if (!await has('python3 -V')) return e.reply('找不到 python3，装不了。', true);
-        if (!await has('python3 -c "import venv"')) return e.reply('这个 python3 缺 venv 模块，装不了（Debian/Ubuntu 装 python3-venv）。', true);
+        // 1) 前置检查。python 命令名按平台试 —— Windows 上通常没有 python3
+        const py = await resolvePythonCmd();
+        if (!py) {
+            return e.reply(
+                IS_WIN
+                    ? '找不到 Python，装不了。Windows 上请先装 Python，安装时勾选「Add to PATH」。'
+                    : '找不到 python3，装不了。',
+                true
+            );
+        }
+        const pyBase = `${py.cmd} ${py.args.join(' ')}`.trim();
+        if (!await has(`${pyBase} -c "import venv"`)) {
+            return e.reply(
+                IS_WIN
+                    ? '这个 Python 缺 venv 模块，装不了。重新运行 Python 安装程序并勾选 venv 组件。'
+                    : '这个 python3 缺 venv 模块，装不了（Debian/Ubuntu 装 python3-venv）。',
+                true
+            );
+        }
 
         // 2) 虚拟环境
         await step('创建虚拟环境', async () => {
-            if (await has(`test -x "${VENV_PY}"`)) return '复用已有';
-            await run(`python3 -m venv "${VENV_DIR}"`, 300000);
+            // 已经建好就直接复用。用 fs 探测而不是 test -x —— 后者在 Windows 上不存在。
+            if (venvPython()) return '复用已有';
+            await run(`${pyBase} -m venv ${q(VENV_DIR)}`, 300000);
+            const found = venvPython();
+            if (!found) {
+                throw new Error(
+                    `venv 建好了但找不到解释器（试过 ${VENV_DIR}/bin 与 ${VENV_DIR}/Scripts）`
+                );
+            }
             return '已创建';
         });
 
         // 3) 依赖
+        // 先看 glibc —— bili-ticket-gt-python 只有 manylinux_2_31 的 wheel，
+        // 系统太老时装不上，却会报一堆看不出所以然的 pip 错。提前说清。
+        const libc = await glibcTooLow();
+        if (libc) {
+            return e.reply(
+                `[过码部署] 装不了：系统 glibc ${libc} 太低。\n` +
+                    'bili-ticket-gt-python 只有 manylinux_2_31 及以上的编译包，需要 glibc 2.31 以上。\n' +
+                    'Debian/Ubuntu 可升级系统，或换更新的发行版。\n' +
+                    '暂时仍可手动过码（撞风控时会给验证链接）。',
+                true
+            );
+        }
         await step('安装依赖（首次较慢，bili-ticket-gt-python 是编译包）', async () => {
-            const mirror = await pipInstall();
+            const mirror = await pipInstall(venvPython());
             return `已装（源：${new URL(mirror).host}）`;
         });
 
         // 4) 启动
         const started = await step('启动服务', async () => {
+            const pyPath = venvPython();
+            if (!pyPath) throw new Error('找不到 venv 里的 python，服务起不来');
             if (await has('pm2 -v')) {
                 try { await run(`pm2 delete ${PM2_NAME}`, 30000); } catch { /* 本来就没有，忽略 */ }
-                await run(`pm2 start "${VENV_PY}" --name ${PM2_NAME} -- "${SERVICE_DIR}/server.py"`, 120000);
+                await run(`pm2 start ${q(pyPath)} --name ${PM2_NAME} -- ${q(`${SERVICE_DIR}/server.py`)}`, 120000);
                 try { await run('pm2 save', 60000); } catch { /* save 失败不影响运行 */ }
                 return `pm2 托管（${PM2_NAME}）`;
             }
-            // 没有 pm2 就用 nohup 起，够用；重启后需要重新部署
-            await run(`cd "${SERVICE_DIR}" && nohup "${VENV_PY}" server.py > "${SERVICE_DIR}/server.log" 2>&1 & disown`);
+            // 没有 pm2 就后台起，够用；重启后需要重新部署。
+            // POSIX 用 nohup + disown，Windows 用 start /b —— 那套 shell 语法在 cmd 下不成立。
+            const script = `${SERVICE_DIR}/server.py`;
+            if (IS_WIN) {
+                await run(sh(`cd ${q(SERVICE_DIR)}`, `start "" /b ${q(pyPath)} server.py > ${q(`${SERVICE_DIR}/server.log`)} 2>&1`));
+                return '后台运行（本机没装 pm2，重启后需重新部署）';
+            }
+            await run(sh(`cd ${q(SERVICE_DIR)}`, `nohup ${q(pyPath)} server.py > ${q(`${SERVICE_DIR}/server.log`)} 2>&1 & disown`));
             return 'nohup 后台运行（本机没装 pm2，重启后需重新部署）';
         });
 

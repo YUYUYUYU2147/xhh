@@ -116,7 +116,16 @@ async function ensureCookieToken(e, ck, entry = null) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 12000);
         try {
-            return await mhyFetch(url, { method: 'GET', headers: mhy.getHeaders(e, ck), signal: controller.signal }).then(r => r.json());
+            const resp = await mhyFetch(url, { method: 'GET', headers: mhy.getHeaders(e, ck), signal: controller.signal });
+            const text = await resp.text();
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                // 被风控拦下时米游社回的是 HTML 拦截页，硬解析会抛 SyntaxError
+                const head = String(text || '').trim().slice(0, 80);
+                logger.mark(`[xhh][sign] 返回非 JSON，status=${resp.status} body=${head}`);
+                return { retcode: -1, message: head.startsWith('<') ? '米游社返回拦截页，请稍后重试' : '接口返回异常' };
+            }
         } finally {
             clearTimeout(timer);
         }

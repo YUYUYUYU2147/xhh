@@ -15,6 +15,23 @@ import Runtime from '../../../lib/plugins/runtime.js';
 
 let signing = false;
 let bbsSigning = false;
+// 社区签到的「该跑了」标记。在两个签到都还没开始执行时置上，
+// 避免游戏签到耗时把社区签到那一分钟拖过去（详见 this.task.fnc 处的说明）。
+let bbsPending = false;
+
+/**
+ * 任务每分钟被调一次，这里只在该跑的那一刻置标记。
+ *
+ * 置上之后不因为「已经过了那一分钟」而清除 —— 这正是要修的那个 bug：
+ * 置标记时是准的，消费时可能已经晚了几分钟，那反而说明社区签到确实被漏掉了，
+ * 应该补跑而不是丢弃。
+ */
+function markBbsDue() {
+    const data = yaml.get('./plugins/xhh/config/sign.yaml') || {};
+    if (!data.bbs_zd_sign || !data.bbs_sign || typeof data.bbs_sign !== 'object') return;
+    // 和 isSignTime 同一套判定：小时与分钟都要精确对上
+    if (isSignTime(data, 'bbs_sign_hour', 'bbs_sign_minute', 0, 0)) bbsPending = true;
+}
 
 // 各适配器 e.reply 的返回值结构不一致，尽量把 message_id 抠出来（取不到就别撤，绝不能误撤用户消息）
 function pickMsgId(res) {
@@ -119,6 +136,17 @@ export class Sign extends plugin {
             cron: '0 * * * * *', //每分钟检查一次，实际执行时间由 sign.yaml 的 sign_hour/sign_minute 控制
             name: '[小花火]米游社签到',
             fnc: async () => {
+                // 社区签到靠标记触发，不用等到它自己那一分钟。
+                //
+                // 原来是在 scheduled_bbs_sign 里实时比对 getMinutes()。而这里是顺序
+                // await：游戏签到先跑，跑完才轮到社区签到。两个任务配了同一分钟时，
+                // 游戏签到一旦耗时（被风控时更慢，实测能跑 2 分 38 秒），等轮到社区
+                // 签到时那一分钟早就过了，于是它静默 return，连日志都不打 ——
+                // 表现就是「开关开着、却什么都没发生」，而日志里看不出原因。
+                //
+                // 所以在任务开始、两个签到都还没跑的时候先把标记置上，
+                // 之后无论游戏签到跑多久，社区签到都会消费这个标记执行一次。
+                markBbsDue();
                 await this.scheduled_sign();
                 await this.scheduled_bbs_sign();
             },
@@ -259,8 +287,13 @@ export class Sign extends plugin {
     async scheduled_bbs_sign() {
         const data = yaml.get('./plugins/xhh/config/sign.yaml') || {};
         if (!data.bbs_zd_sign || !data.bbs_sign || typeof data.bbs_sign !== 'object') return false;
-        if (!isSignTime(data, 'bbs_sign_hour', 'bbs_sign_minute', 3, 30)) return false;
+        // 消费任务开始时置下的标记，而不是在这里重新比对当前分钟。
+        // 游戏签到与社区签到配了同一分钟时，游戏签到一耗时就冲掉这一分钟，
+        // 实时比对会静默 return（实测社区签到整轮没跑，且无任何日志）。
+        if (!bbsPending) return false;
+        // 有别的签到在跑就留着标记，下一分钟再来 —— 不能因为这一轮没排上就丢掉。
         if (signing || bbsSigning) return false;
+        bbsPending = false;
         bbsSigning = true;
         try {
             let groups = Object.keys(data.bbs_sign || {}).filter(group =>

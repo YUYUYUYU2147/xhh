@@ -254,7 +254,7 @@ export class bh3_ledger extends plugin {
                         if (!ck && entry?.ck_stoken && entry?.stoken && entry?.stuid) {
                             debugLog('[水晶] refreshing CK for stuid:', entry.stuid);
                             let hdrs = mhy.getHeaders(e, entry.ck_stoken);
-                            let result = await mhy.refresh_cookies(e, hdrs, entry.stoken, entry.stuid);
+                            let result = await mhy.refresh_cookies(e, hdrs, entry.stoken, entry.stuid, { bindGenshinCookie: false });
                             debugLog('[水晶] refresh result:', { hasLtoken: !!result.ltoken, hasCk: !!result.ck });
                             if (result.ltoken && result.ck) {
                                 let nu2 = await NoteUser.create(qq);
@@ -326,7 +326,7 @@ export class bh3_ledger extends plugin {
                         let e2 = stokenData[key];
                         if (!ck && e2?.ck_stoken && e2?.stoken && e2?.stuid) {
                             let hdrs = mhy.getHeaders(e, e2.ck_stoken);
-                            let result = await mhy.refresh_cookies(e, hdrs, e2.stoken, e2.stuid);
+                            let result = await mhy.refresh_cookies(e, hdrs, e2.stoken, e2.stuid, { bindGenshinCookie: false });
                             debugLog('[水晶] step4 refresh result:', { uid: key, hasLtoken: !!result.ltoken, hasCk: !!result.ck });
                             if (result.ltoken && result.ck) {
                                 ck = result.ck;
