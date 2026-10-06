@@ -6,7 +6,7 @@ groups: []
 at_mode: none
 at_users: []
 # 提醒附带图片，支持网络图片URL或本地图片路径，留空不发送图片
-image: ''
+image: 'https://api.yppp.net/api.php'
 # 四游戏体力自动推送
 stamina_push_enable: false
 stamina_push_interval: 5
