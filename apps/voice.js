@@ -84,14 +84,14 @@ export class voice extends plugin {
         }
         //先查原神
         // let gs_id = (await mys.data(name)).id;
-        let background = '../../../../../plugins/xhh/resources/yytable/bg0.png';
+        let background = '../../../plugins/xhh/resources/yytable/bg0.png';
 
         if (name == '空') {
             // gs_id = '505542'
-            background = '../../../../../plugins/xhh/resources/yytable/bg.png';
+            background = '../../../plugins/xhh/resources/yytable/bg.png';
         } else if (name == '荧') {
             // gs_id = '505527'
-            background = '../../../../../plugins/xhh/resources/yytable/bg.png';
+            background = '../../../plugins/xhh/resources/yytable/bg.png';
         }
         // let list
         let img
@@ -137,7 +137,7 @@ export class voice extends plugin {
                 for (let v of list) {
                     table.push(v.title);
                 }
-                background = '../../../../../plugins/xhh/resources/yytable/sr.png';
+                background = '../../../plugins/xhh/resources/yytable/sr.png';
                 img = await this.tu(e, table, name, background);
                 // isSr = true;
             }
@@ -188,7 +188,7 @@ export class voice extends plugin {
             e,
             table,
             name,
-            '../../../../../plugins/xhh/resources/yytable/bg.png',
+            '../../../plugins/xhh/resources/yytable/bg.png',
         );
         if (!img) return false;
         const f = await e.reply(img);

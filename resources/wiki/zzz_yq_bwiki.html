@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/zzz_yq_bwiki.css" />
+</head>
+<body {{sys.scale}}>
+<!-- 邦布卡：Bwiki 邦布词条版式。数据源 parseZzzBwikiBangboo。 -->
+<div class="page" id="container">
+  <!-- 测试服数据标记：右上角 TEST 角标。正式服数据不显示（unreleased 由数据层判定） -->
+  {{if unreleased}}<div class="corner-test">TEST</div>{{/if}}
+  {{if bgFile}}<img class="bg" src="file://{{bgFile}}" alt="" />{{/if}}
+  <div class="topbar"></div>
+
+  <!-- 稀有度决定配色：S 级金 / A 级紫 / B 级蓝（金色是 S 级专用，别的一律不是金色） -->
+  {{if rarity == 'A级'}}<header class="hero rar-a">{{else if rarity == 'B级'}}<header class="hero rar-b">{{else}}<header class="hero rar-s">{{/if}}
+    <div class="hero-ic">
+      {{if icon}}<img src="{{icon}}" alt="" />{{else}}<div class="img-ph">{{name[0]}}</div>{{/if}}
+      <!-- 稀有度 / 属性小图标（Bwiki 页面上的 图标-材料稀有度-S.png、图标-冰属性.png） -->
+      {{if rarityIcon}}<img class="corner c1" src="{{rarityIcon}}" alt="" />{{/if}}
+      {{if dmgIcon}}<img class="corner c2" src="{{dmgIcon}}" alt="" />{{/if}}
+    </div>
+    <div class="hero-txt">
+      <h1>{{name}} {{if rarity}}<span class="rarity">{{rarity}}</span>{{/if}}</h1>
+      <div class="tags">
+        {{if dmgType}}<span class="tag">伤害属性 · {{dmgType}}</span>{{/if}}
+        {{if obtain}}<span class="tag">获取途径 · {{obtain}}</span>{{/if}}
+        {{if version}}<span class="tag">版本 {{version}}</span>{{/if}}
+        {{if camp}}<span class="tag">{{camp}}</span>{{/if}}
+        {{if teams && teams.length}}<span class="tag">搭配组合 · {{teams[0].name}}</span>{{/if}}
+      </div>
+      {{if tags}}<div class="brief">{{tags}}</div>{{/if}}
+      {{if profile}}<div class="brief">{{profile}}</div>{{/if}}
+    </div>
+  </header>
+
+  <!-- 基础属性：Bwiki 给初始攻击力，米游社给五维（生命/攻击/防御/冲击/异常掌控），
+       两边合并成一张表；哪个缺就少一行，不填占位。 -->
+  {{if stats && stats.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">基础属性</div>
+      <table class="tb">
+        <tbody>
+          {{each stats s}}<tr><th>{{s.key}}</th><td>{{s.value}}</td></tr>{{/each}}
+          {{if dmgType}}<tr><th>伤害属性</th><td>{{dmgType}}</td></tr>{{/if}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if panel && panel.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">邦布面板 · 最高等级</div>
+      <table class="tb">
+        <thead>
+          <!-- 只留最高等级一行；数据层已把「突破前 / 突破后」两列折成一列，表头不再分层 -->
+          <tr><th>等级</th><th>生命值</th><th>攻击力</th><th>防御力</th></tr>
+        </thead>
+        <tbody>
+          {{each panel p}}<tr><td>{{p.lv}}</td>{{each p.cells c}}<td>{{c}}</td>{{/each}}</tr>{{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if panelSub && panelSub.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">邦布面板 · 附加（最高等级）</div>
+      <table class="tb">
+        <thead><tr><th>等级</th>{{each panelSubHead h}}<th>{{h}}</th>{{/each}}</tr></thead>
+        <tbody>
+          {{each panelSub p}}<tr><td>{{p.lv}}</td>{{each p.cells c}}<td>{{c}}</td>{{/each}}</tr>{{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+
+  {{each talents s}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">
+        {{if s.icon}}<img class="skill-ic" src="{{s.icon}}" alt="" />{{/if}}{{s.type}}{{if s.name}} · {{s.name}}{{/if}}
+      </div>
+      {{if s.desc}}<div class="cell-d">{{@s.desc}}</div>{{/if}}
+      {{if s.growth && s.growth.length}}
+      <table class="tb">
+        <thead><tr><th>{{if s.growthLv}}{{s.growthLv}} 数值{{else}}技能数值{{/if}}</th></tr></thead>
+        <tbody>
+          {{each s.growth g}}<tr><td>{{@ g.children[0].row[0][0]}}</td></tr>{{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+      {{if s.panel && s.panel.length}}
+      <table class="tb">
+        <thead><tr><th>属性</th><th>LV1</th><th>LV2</th><th>LV3</th><th>LV4</th><th>LV5</th><th>LV6</th><th>LV7</th><th>LV8</th><th>LV9</th><th>LV10</th></tr></thead>
+        <tbody>
+          {{each s.panel r}}<tr><td class="stage">{{r.name}}</td>{{each r.vals v}}<td>{{@v}}</td>{{/each}}</tr>{{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+    </div>
+  </div>
+  {{/each}}
+
+  {{if teams && teams.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">搭配组合</div>
+      <div class="agents">
+        {{each teams t}}<span class="agent"><img src="{{t.icon}}" alt="" />{{t.name}}</span>{{/each}}
+      </div>
+      {{if teamReasons && teamReasons.length}}
+      {{each teamReasons r}}<div class="agent-why"><span class="t">推荐理由</span><span class="who">{{r.names.join(' / ')}}</span>{{r.reason}}</div>{{/each}}
+      {{/if}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{if materialTotal && materialTotal.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">突破材料</div>
+      <!-- 仅显示「总计」一行：逐级各档材料与合计重复，合计已足够表达。
+           逐级数据仍由 parseZzzBwikiBangboo 解析，仅不再渲染。 -->
+      <table class="tb">
+        <tbody>
+          <tr class="total"><td class="stage">总计</td><td>{{each materialTotal it}}<span class="mat">{{if it.img}}<img src="{{it.img}}" alt="" />{{/if}}{{it.name}} × {{it.num}}</span>{{/each}}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="foot">from 小花火</div>
+</div>
+</body>
+</html>

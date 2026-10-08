@@ -207,7 +207,6 @@ export class bh3_note extends plugin {
         ...data,
         sys: { scale: 'style=transform:scale(1)' },
         deviceScaleFactor: 2,
-        ppath: '../../../../../plugins/xhh/resources/',
         tplFile: process.cwd() + '/plugins/xhh/resources/bh3_note/note.html',
         saveId: 'bh3_note',
       });

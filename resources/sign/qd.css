@@ -22,6 +22,8 @@ body {
   font-size: 16px;
   width: 1000px;
   transform-origin: 0 0;
+  /* 截图区域若比内容大，露出的部分不会因透明被写成黑块 */
+  background-color: #ffffff;
 }
 
 .container {
@@ -38,7 +40,9 @@ body {
 
 .tou {
   box-shadow: 0 5px 10px 0 rgb(0 0 0 / 15%);
-  background: rgba(255, 255, 255, 0.2);
+  /* 底色直接给足：原来靠 backdrop-filter 模糊，而服务器渲染环境下该属性
+     有概率把整块渲染成纯黑（本机新版 Chromium 已修复，复现不出来） */
+  background: rgba(255, 255, 255, 0.55);
   border-radius: 15px;
   position: relative;
   font-family: '正';
@@ -48,8 +52,6 @@ body {
   box-shadow:
     2px 2px 4px 0 rgba(51, 51, 52, 0.5),
     inset 3px 3px 10px 0px rgba(255, 255, 255, 0.8);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
 }
 
 .tou img {
@@ -107,8 +109,6 @@ body {
   box-shadow:
     2px 2px 4px 0 rgba(51, 51, 52, 0.5),
     inset 3px 3px 10px 0px rgba(255, 255, 255, 0.8);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
 }
 
 ._box_ .gs {

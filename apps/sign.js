@@ -316,7 +316,7 @@ export class Sign extends plugin {
                 } catch (err) {
                     logger.error(`[社区自动签到] 出图失败，退回文字: ${err.message}`);
                 }
-                await sendBbsAutoResult(group, result, img);
+                await sendBbsAutoResult(group, result, img, data);
                 await sleep(1000);
             }
         } catch (error) {
@@ -454,12 +454,24 @@ async function render(path, data_, cfg = {}) {
         beforeRender({
             data
         }) {
+            /* 样式与本地图标（sign/list.css、xhh_avatar.png、mianju.png 等）全靠 ppath 定位。
+               框架把 HTML 写到 temp/html/小花火/{path}/{saveId}.html，
+               从那张 HTML 回到项目根要上跳「path 段数 + 3」层 —— 与 system/render.js 同一套算法。
+               此处覆盖了 beforeRender，若不自己算 ppath，模板里的 {{ppath}} 会是空串：
+               样式表与本地图片全部 404，页面退化成裸 HTML（头像按原尺寸铺开、图标破图）。 */
+            const depth = path.split('/').filter(Boolean).length + 3;
             return {
+                // 框架注入的上下文（如 ppath）先铺一层，后面再按本插件的规则覆盖
+                ...data,
                 sys: {
-                    scale: `style=transform:scale(${(config().img_quality / 100) * 2.4 || 2.4 * 0.8})`,
+                    /* 与 system/render.js 统一用 zoom。
+                       transform:scale 不改变布局尺寸，框架按内容尺寸截图时，
+                       放大后的内容会溢出而截图高度仍按未缩放的布局算，
+                       成图下半部分被裁掉或露出空白（wiki 那批卡片一直用 zoom）。 */
+                    scale: `style=zoom:${(config().img_quality / 100) * 2.4 || 2.4 * 0.8}`,
                 },
                 ...data_,
-                ppath: '../../../../../plugins/xhh/resources/',
+                ppath: data_.ppath || ('../'.repeat(depth) + 'plugins/xhh/resources/'),
                 tplFile: tplFile,
                 // sign/sign.html 被游戏签到和社区签到共用，saveId 撞了会命中对方的渲染缓存
                 saveId: cfg.saveId || path.split('/')[path.split('/').length - 1],

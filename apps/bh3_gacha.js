@@ -1,11 +1,26 @@
 import { yaml, mhy, api, pluginPriority } from '#xhh';
 import fs from 'fs';
 import path from 'path';
+import YAML from 'yaml';
 import moment from 'moment';
 import NoteUser from '../../genshin/model/mys/NoteUser.js';
 import puppeteer from '../../../lib/puppeteer/puppeteer.js';
 
 const DATA_DIR = './plugins/xhh/data/bh3_gacha';
+const BH3_POOL_HISTORY_PATH = './plugins/xhh/system/default/bh3_gacha_pool_history.yaml';
+// 抽卡记录观测文件：纯派生数据，随时可以从 data/bh3_gacha/*/gacha_logs.json 重建。
+// 与人工整理的 bh3_gacha_pool_history.yaml 完全分开——那份是 85 个版本攒出来的，
+// 绝不能被个人抽卡样本改写；这份只负责「记录抽卡能证明的事实 + 与主库的比对结果」。
+// 放在 data/ 下而不是 system/default/：它由 data/bh3_gacha/ 派生而来，而 data/ 整个
+// 已被 .gitignore 且不受版本控制，每个 bot 的抽卡记录不同，进仓库没有意义。
+const BH3_OBSERVED_PATH = './plugins/xhh/data/bh3_gacha_observed.yaml';
+// 只有这些槽位是真正的抽卡池。实测各槽位性质：
+//   角色补给A/B  角色池（含角色/武器/圣痕/材料）
+//   装备补给A/B  武器池（无角色掉落）
+//   协同补给     协同池（无角色掉落）
+//   家园补给     家园商店买东西，不是卡池 —— 里面的[角色]是兑换来的，算进去全是误报
+//   武器 ≡ 礼包币记录  两者内容逐条完全相同（实测均 106 条），是同一份数据的两个名字
+const GACHA_POOL_SLOT_RE = /^(角色|装备)补给[A-Z]$|^协同补给$/;
 const GET_AUTHKEY_URL = 'https://api-takumi.mihoyo.com/binding/api/genAuthKey';
 const GACHA_MENUS_URL = 'https://public-operation-common.mihoyo.com/common/bh3_self_help_query/UserMenuQuery/GetMenus';
 const GACHA_LOG_URL = 'https://public-operation-common.mihoyo.com/common/bh3_self_help_query/UserGachaQuery/GetUserGacha';
@@ -50,6 +65,7 @@ export class bh3_gacha extends plugin {
         { reg: '^#*(崩三|崩坏3|崩坏三|BH3)?(刷新|更新)抽卡记录$', fnc: 'refreshGacha' },
         { reg: '^#*(崩三|崩坏3|崩坏三|BH3)?全量(刷新|更新)抽卡记录$', fnc: 'fullRefreshGacha' },
         { reg: '^#*(崩三|崩坏3|崩坏三|BH3)?(充值记录|充值查询|充值流水|氪金记录)$', fnc: 'rechargeRecord' },
+        { reg: '^#*(崩三|崩坏3|崩坏三|BH3)?(卡池)?(核对|校验)$', fnc: 'showCrossCheck' },
       ],
     });
   }
@@ -69,6 +85,195 @@ export class bh3_gacha extends plugin {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
   }
+
+  // ── 抽卡记录 × 历史卡池 交叉核对 ──
+  // 历史卡池 bh3_gacha_pool_history.yaml 是人工+社区整理的数据（159 个池里只有 14 个带
+  // start/end 时间窗），纯靠公告解析容易漏 UP、也容易写错名字。而抽卡记录里 [角色] 开头的
+  // 条目就是真实抽到的角色，恰好能反过来验证这份人工数据。
+  // 注意抽卡记录没有星级字段（parseRecord 只留了 time/content），4 星角色和女武神各形态也会
+  // 混在里面，所以这个核对只出「候选」给人看，绝不自动改 yaml。
+
+  /** 汇总所有账号的抽卡记录，按 [类别]名称 归一 */
+  collectAllGachaItems() {
+    const items = new Map();   // name → { name, cat, slots:Set, times:[], count }
+    let files = 0, total = 0;
+    let dirs = [];
+    try { dirs = fs.readdirSync(DATA_DIR); } catch { return { items, files: 0, total: 0 }; }
+    for (const d of dirs) {
+      const file = path.join(DATA_DIR, d, 'gacha_logs.json');
+      if (!fs.existsSync(file)) continue;
+      let g = null;
+      try { g = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { continue; }
+      if (!g?.data) continue;
+      files++;
+      for (const [slot, records] of Object.entries(g.data)) {
+        if (!Array.isArray(records)) continue;
+        // 只认真实卡池槽位，家园商店和重复的「武器/礼包币记录」不算
+        if (!GACHA_POOL_SLOT_RE.test(slot)) continue;
+        for (const r of records) {
+          const raw = String(r?.content || '');
+          const m = raw.match(/^\[(角色|武器|圣痕|材料)\](.+)$/);
+          if (!m) continue;
+          total++;
+          // 「圣仪装·今样角色卡」要还原成「圣仪装·今样」，否则和 yaml 里的 UP 名对不上
+          const name = m[2].replace(/角色卡$/, '').trim();
+          if (!name) continue;
+          let it = items.get(name);
+          if (!it) {
+            it = { name, cat: m[1], slots: new Set(), times: [], count: 0 };
+            items.set(name, it);
+          }
+          it.slots.add(slot);
+          it.count++;
+          if (r?.time) it.times.push(r.time);
+        }
+      }
+    }
+    return { items, files, total };
+  }
+
+  /** 读历史卡池，取出所有记账过的 UP 名，以及带时间窗的版本区间 */
+  loadPoolHistoryNames() {
+    let data = null;
+    try { data = yaml.get(BH3_POOL_HISTORY_PATH); } catch (_) {}
+    if (!data) {
+      try { data = JSON.parse(fs.readFileSync(BH3_POOL_HISTORY_PATH.replace(/\.yaml$/, '.json'), 'utf8')); } catch (_) {}
+    }
+    const ups = new Set();
+    const windows = [];
+    for (const v of data?.pools || []) {
+      for (const q of v.pools || []) {
+        if (q?.s) ups.add(String(q.s).trim());
+        for (const a of q?.a || []) if (a) ups.add(String(a).trim());
+        const st = this.toDate(q?.start), en = this.toDate(q?.end);
+        if (st && en) windows.push({ version: v.version, name: q?.name || '', s: q?.s || '', type: q?.type || '', start: st, end: en });
+      }
+    }
+    return { ups, windows, count: windows.length, total: Object.values(ups).length };
+  }
+
+  toDate(v) {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    const d = new Date(String(v).replace(/-/g, '/'));
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  /**
+   * 核对结果。分三段：
+   *   confirmed  抽到过且 yaml 有记账 —— 证明这份人工数据没错
+   *   missing    抽到过但 yaml 查无此 UP —— 疑似漏记（人工确认是不是 5 星）
+   *   unverified yaml 记了但没人抽到过 —— 可能是拼写错，也可能是冷门/4 星，仅供参考
+   */
+  crossCheckPoolHistory() {
+    const { items, files, total } = this.collectAllGachaItems();
+    const { ups, windows } = this.loadPoolHistoryNames();
+    const chars = [...items.values()].filter(i => i.cat === '角色');
+
+    const confirmed = [], missing = [];
+    for (const c of chars) {
+      const hit = ups.has(c.name);
+      (hit ? confirmed : missing).push(c);
+    }
+    // 漏记候选里，能靠时间窗定位到具体版本的最有价值，排前面
+    for (const m of missing) {
+      const t = m.times.map(x => new Date(String(x).replace(/-/g, '/'))).filter(x => !Number.isNaN(x.getTime()));
+      m.nearest = null;
+      if (t.length && windows.length) {
+        const t0 = Math.max(...t);
+        const w = windows
+          .filter(w => t0 >= w.start && t0 <= w.end)
+          .sort((a, b) => (b.end - b.start) - (a.end - a.start))[0];
+        if (w) m.nearest = `v${w.version}（${w.s || w.name}）`;
+      }
+    }
+    missing.sort((a, b) => (b.nearest ? 1 : 0) - (a.nearest ? 1 : 0));
+
+    const charNames = new Set(chars.map(c => c.name));
+    const unverified = [...ups].filter(n => !charNames.has(n));
+
+    return { files, total, confirmed, missing, unverified, charCount: chars.length };
+  }
+
+  async showCrossCheck(e) {
+    let r;
+    try { r = this.crossCheckPoolHistory(); } catch (err) {
+      logger.warn('[xhh][bh3_gacha] 卡池核对失败:', err?.message || err);
+      return e.reply(`崩三卡池核对失败：${err?.message || err}`);
+    }
+    if (!r.files) return e.reply('还没有任何崩三抽卡记录，先用「#刷新抽卡记录」拉一次再来核对。');
+
+    const lines = [];
+    lines.push(`📋 崩三卡池核对（${r.files} 个账号 / ${r.total} 条记录 / ${r.charCount} 个不同角色）`);
+    lines.push('');
+    lines.push(`✅ 抽到过且 yaml 有记账：${r.confirmed.length} 个`);
+    if (r.confirmed.length) {
+      lines.push('   ' + r.confirmed.map(c => c.name).join('、'));
+    }
+    lines.push('');
+    lines.push(`⚠️ 抽到过但 yaml 查无此 UP：${r.missing.length} 个（疑似漏记，需人工确认是否 5 星）`);
+    if (r.missing.length) {
+      for (const m of r.missing.slice(0, 20)) {
+        const slot = [...m.slots].join('/');
+        const t = m.times.length ? m.times.sort().at(-1) : '?';
+        lines.push(`   · ${m.name}  最近 ${t}  槽位 ${slot}${m.nearest ? `  落在 ${m.nearest}` : ''}`);
+      }
+      if (r.missing.length > 20) lines.push(`   …… 另有 ${r.missing.length - 20} 个`);
+    }
+    lines.push('');
+    lines.push(`❓ yaml 记了但无人抽到过：${r.unverified.length} 个`);
+    lines.push('   （可能是拼写错误，也可能是冷门/4 星 UP，仅供人工扫一眼）');
+    if (r.unverified.length) {
+      lines.push('   ' + r.unverified.slice(0, 40).join('、'));
+      if (r.unverified.length > 40) lines.push(`   …… 另有 ${r.unverified.length - 40} 个`);
+    }
+
+    // 顺带把观测快照刷一份。它是纯派生数据、写在 data/ 下、随时可重建，
+    // 刷新它没有副作用，所以不再单开一条指令。wiki 接口挂了只跳过这步，报告照常。
+    const obsNote = await this.refreshObservation();
+    if (obsNote) {
+      lines.push('');
+      lines.push('──────────');
+      lines.push(...obsNote);
+    }
+    return sendMsg(e, lines.join('\n'));
+  }
+
+  /** 重刷观测快照，返回要附在报告后面的说明行；失败返回空数组（不打扰报告） */
+  async refreshObservation() {
+    let roles = {};
+    try { roles = (await this.getStarMaps()).char || {}; }
+    catch (err) { logger.warn('[xhh][bh3_gacha] 拉取角色稀有度失败:', err?.message || err); }
+    if (!Object.keys(roles).length) return ['（观测快照未更新：崩三 wiki 接口不可用）'];
+
+    const obs = this.buildObservation(roles);
+    if (!obs || !obs.versions.length) return [];
+    let backup = '';
+    if (fs.existsSync(BH3_OBSERVED_PATH)) {
+      backup = BH3_OBSERVED_PATH.replace(/\.yaml$/, '') + '.prev.yaml';
+      try { fs.copyFileSync(BH3_OBSERVED_PATH, backup); } catch (_) {}
+    }
+    try {
+      fs.writeFileSync(BH3_OBSERVED_PATH, YAML.stringify(obs), 'utf-8');
+    } catch (err) {
+      logger.warn('[xhh][bh3_gacha] 观测快照写入失败:', err?.message || err);
+      return [`（观测快照写入失败：${err?.message || err}）`];
+    }
+    const s = obs.stats;
+    const out = [
+      `📝 观测快照已刷新：${BH3_OBSERVED_PATH}`,
+      backup ? `   上一份：${backup}` : '',
+      `   账号 ${s.accounts} / 记录 ${s.records} / 角色 ${s.characters} / ${s.versions} 个版本段`,
+    ];
+    for (const v of obs.versions) {
+      const main = v.observed_main_up.map(m => `${m.name}${m.in_history ? '' : ' ⚠️主库无'}`).join('、');
+      out.push(`   · ${v.version}  S级女武神：${main || '无'}` +
+        (v.not_in_history.length ? `  ｜主库查无：${v.not_in_history.join('、')}` : ''));
+    }
+    out.push('   这份只记抽卡能证明的事实，人工主库 bh3_gacha_pool_history.yaml 未被改动。');
+    return out.filter(x => x !== '');
+  }
+
 
   async getAuth(e) {
     let qq = e.user_id;
@@ -278,7 +483,16 @@ export class bh3_gacha extends plugin {
       const res = await fetch(`${GACHA_LOG_URL}?${params.toString()}`, {
         headers: gachaHeaders(),
       }).then(r => r.json());
-      if (res?.retcode !== 0) logger.mark('[xhh][bh3_gacha] GetUserGacha response:', JSON.stringify(res));
+      if (res?.retcode !== 0) {
+        // 失败必须和「这个池没有记录」区分开。原先只打一行日志就 break，返回空数组后
+        // 调用方按「没有新增」处理——1034 验证码、-100 authkey 失效、1103 限流、网络抖动
+        // 全都表现成一句「没有新增抽卡数据」，看不出问题出在哪。
+        // 抛出去交给调用方单独处理这个池，不影响其余池子。
+        const captcha = [1034, 10035, 10041].includes(Number(res?.retcode));
+        const hint = captcha ? '（米游社要求验证码，authkey 未过期也可能要重新过码）' : '';
+        logger.warn(`[xhh][bh3_gacha] GetUserGacha 失败 type=${gachaType} page=${page} retcode=${res?.retcode}${captcha ? ' 验证码' : ''} message=${res?.message || ''}${hint}`);
+        throw new Error(`GetUserGacha retcode=${res?.retcode}${captcha ? '(验证码)' : ''}${res?.message ? ' ' + res.message : ''}`);
+      }
       const list = res?.data?.list || [];
       if (!list.length) break;
       for (const raw of list) {
@@ -394,6 +608,112 @@ export class bh3_gacha extends plugin {
     return sendMsg(e, lines.join('\n'));
   }
 
+  // ── 观测文件（纯派生，不改人工库）──
+  // 为什么另开一个文件：bh3_gacha_pool_history.yaml 是人工+社区整理 85 个版本攒出来的，
+  // 而抽卡记录只反映「本机这几个账号抽到过什么」，直接改它等于用个人样本覆盖集体数据。
+  // 实测也确实会写错 —— 受控测试里清空「镇×偃月叩晓」的 a 让算法补，算法填了「极地战刃」：
+  // 该池窗口 06-13 10:00 起，而「女武神·重机」实际抽到时间是 06-12 13:39~06-13 00:52，
+  // 全在窗口外，窗口内的「极地战刃」就被当成了答案。所以自动改主库这条路走不通。
+  //
+  // 改成只写观测文件：只记录「抽卡能证明的事实」（谁、什么时候、从哪个槽位抽到哪个角色、
+  // 稀有度多少），再附上与主库的比对结论（已记账为主UP/副UP，还是主库查无此记录）。
+  // 定位池与版本沿用主库的版本时间窗，不做槽位到具体池的猜测——A/B 槽位无法归属。
+  // 这份文件随时可从 data/bh3_gacha/*/gacha_logs.json 重建，删了也不影响任何功能。
+
+  /** 载入完整 yaml 对象（比对要用） */
+  loadPoolHistoryRaw() {
+    let data = null;
+    try { data = yaml.get(BH3_POOL_HISTORY_PATH); } catch (_) {}
+    if (!data) {
+      try { data = JSON.parse(fs.readFileSync(BH3_POOL_HISTORY_PATH.replace(/\.yaml$/, '.json'), 'utf8')); } catch (_) {}
+    }
+    if (!data) return null;
+    // 主库里每个名字记在什么位置：s=主UP / a=副UP
+    const where = new Map();
+    for (const v of data.pools || []) {
+      for (const q of v.pools || []) {
+        if (q?.s && !where.has(String(q.s).trim())) where.set(String(q.s).trim(), { version: v.version, field: 'main_up', pool: q.name || '' });
+        for (const a of q?.a || []) {
+          if (a && !where.has(String(a).trim())) where.set(String(a).trim(), { version: v.version, field: 'sub_up', pool: q.name || '' });
+        }
+      }
+    }
+    return { data, where };
+  }
+
+  /**
+   * 构建观测数据。要 roles = {角色名: rank}（来自 getStarMaps().char）
+   * 不写主库，只产出「版本 → 观测到的角色（含证据）」。
+   */
+  buildObservation(roles = {}) {
+    const raw = this.loadPoolHistoryRaw();
+    if (!raw) return null;
+    const { data, where } = raw;
+    const { items, files, total } = this.collectAllGachaItems();
+
+    // 版本时间窗
+    const vWindows = [];
+    for (const v of data.pools || []) {
+      const st = this.toDate(v.start), en = this.toDate(v.end);
+      vWindows.push({ version: String(v.version), phase: v.phase || '', start: st, end: en });
+    }
+
+    const byVersion = new Map();
+    let noRank = 0;
+    for (const it of items.values()) {
+      if (it.cat !== '角色') continue;
+      const rank = roles[it.name];
+      if (!rank) { noRank++; continue; }
+      const times = it.times.slice().sort();
+      const first = this.toDate(times[0]);
+      const last = this.toDate(times.at(-1));
+      // 归属版本：取第一个覆盖首次抽卡时间的版本窗，覆盖不了就如实标「未归版本」。
+      // 不做「取起点最早的窗口」这种兜底 —— 崩三版本从 4.6(2021) 到 9.1(2026) 都在库里，
+      // 那样兜会把 2026 年的抽卡归到 2021 年的 4.6 去（实测踩过）。
+      let hit = vWindows.find(w => w.start && w.end && first >= w.start && first <= w.end);
+      if (!hit) hit = vWindows.find(w => w.start && w.end && last >= w.start && last <= w.end);
+      const key = hit ? `${hit.version}${hit.phase ? ' ' + hit.phase : ''}` : '未归版本';
+      if (!byVersion.has(key)) byVersion.set(key, []);
+      const rec = where.get(it.name);
+      byVersion.get(key).push({
+        name: it.name,
+        rank,
+        rank_label: rank === 4 ? '初始阶级/S' : rank === 3 ? '初始阶级/A或SP' : '初始阶级/B',
+        tier: rank === 4 ? 'S级女武神' : rank === 3 ? 'A级/SP' : 'B级',
+        count: it.count,
+        slots: [...it.slots].sort(),
+        first: times[0],
+        last: times.at(-1),
+        in_history: !!rec,
+        recorded_as: rec ? (rec.field === 'main_up' ? '主UP(s)' : '副UP(a)') : '',
+        recorded_pool: rec ? rec.pool : '',
+        version_window: hit ? [times[0], hit.end] : []
+      });
+    }
+
+    const versions = [...byVersion.entries()].map(([key, list]) => {
+      list.sort((a, b) => b.rank - a.rank || a.name.localeCompare(b.name, 'zh'));
+      const sRank = list.filter(r => r.rank === 4);
+      const aRank = list.filter(r => r.rank === 3);
+      return {
+        version: key,
+        observed_main_up: sRank.map(r => ({ name: r.name, first: r.first, last: r.last, in_history: r.in_history })),
+        observed_sub_up: aRank.map(r => ({ name: r.name, first: r.first, last: r.last, in_history: r.in_history })),
+        not_in_history: list.filter(r => !r.in_history).map(r => r.name),
+        detail: list
+      };
+    }).sort((a, b) => (a.version > b.version ? 1 : -1));
+
+    return {
+      version: '1.0',
+      updated: new Date().toISOString().slice(0, 10),
+      source: '抽卡记录观测（data/bh3_gacha/*/gacha_logs.json）自动生成',
+      note: '本文件是派生数据，只记录抽卡记录能证明的事实。人工整理的主库是 bh3_gacha_pool_history.yaml，本文件不会、也不应去改它。version 归属沿用主库的版本时间窗；角色补给A/B 槽位无法对应到具体池，故不做池级归属。',
+      stats: { accounts: files, records: total, characters: items.size, no_rank: noRank, versions: versions.length },
+      versions
+    };
+  }
+
   async saveGachaLogs(e, force = false) {
     const auth = await this.getAuth(e);
     if (auth.error) return auth.error;
@@ -408,11 +728,21 @@ export class bh3_gacha extends plugin {
     let totalAdd = 0;
     const deltas = [];
 
+    const failedPools = [];
+
     for (const menu of menus) {
       const gachaType = String(menu.type || '');
       const gachaName = menu.label || `卡池${gachaType}`;
       if (!gachaType) continue;
-      const newRecords = await this.fetchGachaType(uid, authkey, gachaType);
+      let newRecords = [];
+      try {
+        newRecords = await this.fetchGachaType(uid, authkey, gachaType);
+      } catch (err) {
+        // 单个池取失败只跳过这个池，不能让整次同步中断
+        logger.warn(`[xhh][bh3_gacha] 「${gachaName}」取数失败：${err?.message || err}`);
+        failedPools.push(`${gachaName}：${err?.message || err}`);
+        continue;
+      }
       const add = this.mergeInto(history, gachaName, newRecords, force);
       if (add > 0) deltas.push(`${gachaName} 新增 ${add} 条`);
       totalAdd += add;
@@ -428,8 +758,13 @@ export class bh3_gacha extends plugin {
     }
 
     this.saveGacha(uid, { uid, data_time: moment().format('YYYY-MM-DD HH:mm:ss'), data: history });
-    if (!totalAdd) return `🌱UID${uid} 没有新增抽卡数据！`;
-    return [`✅UID${uid} 抽卡记录更新成功，本次新增 ${totalAdd} 条`, ...deltas].join('\n');
+    // 取数失败的池要单独说清楚，不能让「没有新增」把真实原因盖掉
+    const failNote = failedPools.length
+      ? `\n\n⚠️ ${failedPools.length} 个卡池取数失败（已跳过，其余数据已正常入库）：\n` +
+        failedPools.map(f => `· ${f}`).join('\n')
+      : '';
+    if (!totalAdd) return `🌱UID${uid} 没有新增抽卡数据！${failNote}`;
+    return [`✅UID${uid} 抽卡记录更新成功，本次新增 ${totalAdd} 条`, ...deltas].join('\n') + failNote;
   }
 
   // 把接口返回的记录并入本地历史，返回新增条数
@@ -885,7 +1220,6 @@ export class bh3_gacha extends plugin {
         ...player,
         bg: ['bg', 'bg1', 'IMG_20250717_034154'][Math.floor(Math.random() * 3)],
         sys: { scale: 'style=transform:scale(1)' },
-        ppath: '../../../../../plugins/xhh/resources/',
         tplFile: process.cwd() + '/plugins/xhh/resources/bh3_gacha/gacha.html',
         saveId: 'gacha',
       });

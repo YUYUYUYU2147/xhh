@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/relic_bwiki.css" />
+</head>
+<body {{sys.scale}}>
+<!-- 圣遗物(原神) / 遗器(星铁) / 驱动盘(绝区零) 共用模板。
+     字段由 apps/wiki/relic_view.js 归一，三个游戏渲染的是同一套版式：
+     卡面套装图 + 右上角角标 + 散件图 + 二/四件套 + 徽章表 + 推荐角色 + 故事。 -->
+<div class="page" id="container">
+  <!-- 测试服数据标记：右上角 TEST 角标。正式服数据不显示（unreleased 由数据层判定） -->
+  {{if unreleased}}<div class="corner-test">TEST</div>{{/if}}
+  {{if bgFile}}<img class="bg" src="file://{{bgFile}}" alt="" />{{/if}}
+  <div class="topbar"></div>
+
+  <header class="hero">
+    <div class="hero-ic">
+      {{if icon}}<img src="{{icon}}" alt="" />{{else}}<div class="img-ph">{{name[0]}}</div>{{/if}}
+      <!-- cornerIcons 目前恒为空：遗器类道具没有命途/属性自身属性，
+           页面上的命途图/属性图是维基公共装饰（详见 relic_view.js 注释）。 -->
+      {{each cornerIcons c}}<img class="corner" src="{{c.icon}}" alt="" title="{{c.name}}" />{{/each}}
+    </div>
+    <div class="hero-txt">
+      <h1>{{name}}</h1>
+      {{if badges && badges.length}}
+      <div class="tags">
+        {{each badges b}}{{if b.value}}<span class="tag">{{b.label}} {{b.value}}</span>{{/if}}{{/each}}
+      </div>
+      {{/if}}
+    </div>
+  </header>
+
+  {{if pieceIcons && pieceIcons.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">套装与散件</div>
+      <div class="icons">
+        {{each pieceIcons i}}<img class="ic" src="{{i}}" alt="" />{{/each}}
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if set2}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">二件套效果</div><div class="cell-d">{{@set2}}</div></div>
+  </div>
+  {{/if}}
+
+  {{if set4}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">四件套效果</div><div class="cell-d">{{@set4}}</div></div>
+  </div>
+  {{/if}}
+
+  {{each tables t}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">{{t.label}}</div>
+      <!-- 原样输出这张表（art-template 的不转义写法：两个大括号 + @）。
+           注意：模板里**任何位置都不能出现花括号模板语法**，
+           连 HTML 注释里也不行 —— 注释中出现一次就会让整个模板编译失败，
+           表现是所有圣遗物/遗器/驱动盘卡片都出不来、命令静默无反应
+           （渲染异常被上层 catch 掉后回落原卡）。 -->
+      <div class="raw">{{@ t.html }}</div>
+    </div>
+  </div>
+  {{/each}}
+
+  {{if agents && agents.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">推荐角色</div>
+      <div class="agents">
+        {{each agents a}}<span class="agent"><img src="{{a.icon}}" alt="" />{{a.name}}</span>{{/each}}
+        <!-- 推荐理由：官方是一角色一段，逐个对应渲染（原来拼成一整段，看不出哪句说谁）。
+             没有分角色理由时退回 agentReason 整段。 -->
+        {{each agents a}}
+        {{if a.reason}}
+        <div class="agent-why"><span class="t">推荐理由</span><span class="who">{{a.name}}</span>{{a.reason}}</div>
+        {{/if}}
+        {{/each}}
+        {{if !hasAgentReason && agentReason}}<div class="agent-why"><span class="t">推荐理由</span>{{agentReason}}</div>{{/if}}
+      </div>
+    </div>
+  </div>
+  {{else if noRecommend}}
+  <!-- 官方没写推荐角色：显示提示，不回落 Bwiki 主观列表，也不留空白 -->
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">推荐角色</div>
+      <div class="agents">
+        <div class="agent-why"><span class="t">推荐角色</span>官方暂未推荐角色</div>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if story}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">{{storyTitle}}</div><div class="cell-d story">{{@story}}</div></div>
+  </div>
+  {{/if}}
+
+  <div class="foot">from 小花火</div>
+</div>
+</body>
+</html>

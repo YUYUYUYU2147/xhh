@@ -2045,7 +2045,7 @@ async function getBiliTicket(csrf) {
         });
         return logger.mark('[小花火]生成并保存BiliTicket成功！');
     } catch (e) {
-        throw error;
+        throw e;
     }
 }
 

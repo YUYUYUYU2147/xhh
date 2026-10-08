@@ -1,7 +1,13 @@
 *{box-sizing:border-box}
 body{margin:0;min-width:1000px;background:#eef1f6;color:#3b4252;
   font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
-.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc}
+.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc;overflow:hidden}
+/* 随机图背景：铺满整页、压到很低的不透明度，再盖一层由白到浅蓝的渐变，
+   保证上面的文字对比度不变。加载不出来时只是少这张图，底色还在。 */
+.page > img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:.32;filter:saturate(1.05);z-index:0}
+.page > img.bg + .topbar{z-index:2}
+.page > *:not(.bg):not(.corner-test){position:relative;z-index:1}
 .topbar{position:absolute;left:0;top:0;width:100%;height:5px;
   background:linear-gradient(90deg,#d4a017,#c07a2c)}
 
@@ -11,8 +17,20 @@ body{margin:0;min-width:1000px;background:#eef1f6;color:#3b4252;
 .hero-txt h1{margin:0;font-size:28px;font-weight:900;color:#1f2937;letter-spacing:.5px}
 .rarity{font-size:15px;font-weight:800;color:#d4a017;margin-left:8px}
 .tags{margin-top:8px;display:flex;gap:7px;flex-wrap:wrap}
-.tag{font-size:12.5px;padding:3px 10px;border-radius:8px;background:#fff;
+/* 需显式设置 display:flex。.tag-ico 中的 gap 与 flex:0 0 auto 均为 flex 专属属性，
+   缺少本声明即全部失效，img 退化为 inline 基线对齐：16px 元素图标的底部落在 12.5px
+   文字基线上，顶部高出字形约 6px（Edge 实测：带图标签的文字被压低 1px、图标顶到框顶），
+   表现为图标与文字不对齐。 */
+.tag{display:flex;align-items:center;font-size:12.5px;padding:3px 10px;border-radius:8px;background:#fff;
   border:1px solid #e2e7ef;color:#5a6478}
+
+/* 两列排版：整张卡在 zoom 2.4 下单列能有 8000+px，QQ 里按宽度缩放后
+   每个字只剩几像素。分成两列高度直接砍半，宽高比接近 1:1.2，就看得清了。
+   用 column-count 而不是 grid：grid 是「一行一配对」，行高取两块里更高的那个，
+   实测 6399px（被命座/材料总览/攻略三块撑出来的空白吃掉了近 1500px）；
+   多列是顺序往下流，两列高度天然均衡。break-inside:avoid 保证一块不被拦腰截断。 */
+.cols{column-count:2;column-gap:12px}
+.cols > .panel{break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:12px}
 
 .panel{background:#fff;border:1px solid #e9edf3;border-radius:15px;padding:15px 18px 17px;
   margin-bottom:12px;box-shadow:0 3px 10px rgba(31,41,55,.05)}
@@ -27,23 +45,38 @@ table.stats i{font-style:normal;color:#a3adbd;font-weight:400;margin-left:1px}
 
 .skills{display:flex;flex-direction:column;gap:12px}
 .skill-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.skill-head img{width:22px;height:22px;border-radius:5px;object-fit:contain}
+/* 技能图标自带的 alpha 平均只有 133/255（半透明），22px 缩略后几乎看不见，
+   所以垫一层浅底并加淡边框把它衬出来。只改衬底，不动图片本身的透明度。 */
+/* 维基的技能图标是灰白半透明剪影（实测中心区 RGBA 约 [195,195,195]、alpha 106~131，
+   彩色像素为 0），贴在白底卡片上几乎看不见 —— 而同页的命座图标是彩色紫调 alpha 255，
+   所以清楚。同一页面图标风格不统一，只能靠样式补救：
+   垫一层深色底 + 反色，让灰白剪影变成浅色线稿浮在深底上。
+   命座图标不需要处理（本来就是彩色的）。 */
+/* 技能图标：维基的图标本身就是深底彩色美术图，之前那条
+   filter:invert(...) 是给 nanoka 的白色剪影调的，套到彩色图标上会整片翻色，
+   看起来像糊成一团 —— 直接不 invert。 */
+.skill-ico{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;
+  border-radius:8px;background:#2f3446;border:1px solid #262a38}
+.skill-ico img{width:26px;height:26px;border-radius:5px;object-fit:contain}
 .skill-type{font-size:11.5px;padding:2px 8px;border-radius:6px;background:#eef2fa;color:#4a6fa5;font-weight:700}
 .skill-head b{font-size:15px;color:#1f2937}
 .skill-head .lv{margin-left:auto;font-size:12px;color:#8a94a6}
-.skill-desc{margin-top:6px;font-size:13px;line-height:1.75;color:#4a5468;white-space:pre-line}
+.skill-desc{margin-top:6px;font-size:13px;line-height:1.75;color:#4a5468;display:flex;flex-wrap:wrap;gap:3px 18px;align-items:baseline}
+/* 每个数值一个 span，横向排布自动折行；原来每条独占一行，九个数值就把卡片撑得很高。
+   white-space:pre-wrap 是为了兼容长文本（星铁那边技能描述是整段话）。 */
+.skill-desc .sline{white-space:pre-wrap;max-width:100%}
 
 .ranks{display:flex;flex-direction:column;gap:11px}
 .rank-head{display:flex;align-items:center;gap:8px}
-.rank-head img{width:22px;height:22px;border-radius:5px;object-fit:contain}
 .rank-head b{width:20px;height:20px;border-radius:50%;background:#7a6da7;color:#fff;
   font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
 .rank-head span{font-size:14.5px;font-weight:700;color:#1f2937}
 .rank-desc{margin-top:5px;padding-left:28px;font-size:12.5px;line-height:1.7;color:#5a6478}
 
-.story{font-size:13.5px;line-height:1.9;color:#4a5468;white-space:pre-line}
 
-footer{text-align:center;margin-top:12px;color:#a3adbd;font-size:12.5px}
+/* 底部标注：与 wiki/list 的 .logo 同一套观感（居中、粉色、18px） */
+footer{text-align:center;margin-top:14px;font-size:18px;color:#ee8e8e;
+  text-shadow:0.5px 0.5px 1px #2d2c2c;padding-left:20px}
 
 .hint{font-size:12px;font-weight:400;color:#a3adbd;margin-left:8px}
 
@@ -53,6 +86,8 @@ footer{text-align:center;margin-top:12px;color:#a3adbd;font-size:12.5px}
 .c b{font-size:17px;font-weight:800;color:#1f2937;font-variant-numeric:tabular-nums}
 
 .subtitle{margin-top:8px;font-size:13.5px;color:#8a94a6}
+/* 角色简介：只有一句话，单独占一个面板太浪费，排在称号下面 */
+.hero-desc{margin-top:6px;font-size:12.5px;line-height:1.6;color:#6b7280;max-width:640px}
 
 .cons{display:flex;flex-direction:column;gap:11px}
 .con-head{display:flex;align-items:center;gap:8px}
@@ -79,3 +114,86 @@ footer{text-align:center;margin-top:12px;color:#a3adbd;font-size:12.5px}
 .stage-head{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
 .stage-no{font-size:13px;font-weight:800;color:#4a5468}
 .stage-cost{font-size:11.5px;color:#9aa3b2}
+
+/* 角色故事：Bwiki 数据源才有，nanoka 路径不渲染这个区块 */
+
+/* 角色档案 + 天赋：Bwiki 数据源才有，nanoka 路径不渲染 */
+.passive-block{margin-bottom:10px}
+.passive-block:last-child{margin-bottom:0}
+.passive-head{font-size:14px;font-weight:700;color:#8a6d3b;margin-bottom:3px}
+.passive-head .unlock{font-weight:400;font-size:11px;color:#9aa0a6}
+.passive-desc{font-size:13px;line-height:1.6;color:#4a4f57}
+
+/* 天赋材料组数不一致时的提示 */
+.mat-note.warn{color:#c0392b;margin-bottom:6px}
+
+/* 等级升级消耗：1~20级 / 20~40级 … 每段一行 */
+  vertical-align:top;white-space:nowrap;border-bottom:1px solid #eef1f6;font-size:12.5px}
+/* 材料总览：升级/突破/天赋三组合并，每组一行标题 + 一排材料 */
+.matsum{margin-bottom:10px}
+.matsum:last-child{margin-bottom:0}
+.matsum-label{display:inline-block;min-width:34px;padding:2px 9px;border-radius:6px;
+  background:#f2f0f8;color:#5b4b8a;font-size:12px;font-weight:700}
+.matsum .mats{margin-top:6px}
+/* 徽章图标：维基的所属地区/出身地区/稀有度/特殊料理这几项自带图标，24px 够看清 */
+.tag-ico{gap:4px;padding-left:4px}
+.tag-ico img{width:16px;height:16px;object-fit:contain;border-radius:3px;flex:0 0 auto}
+/* 角色详细：单独一栏，放在基础属性上面。body 已是全文，不再截断。 */
+.detail-story{font-size:13.5px;line-height:1.95;color:#4a5468;white-space:pre-line;
+  text-align:justify;letter-spacing:.2px}
+/* 稀有度金星图（维基的五星/四星星图，原图 162x25 的五星金星条）。
+   只给 height、width:auto，金星条才会按原比例横向铺开；写死 width 会拉变形。 */
+/* 稀有度金星条（维基原图 162x25，本身上限就那么大，只能靠放大看）。
+   36px 是清晰度和「不糊」的分界：再往上就是纯插值，边缘会发虚。
+   width:auto 必须留着 —— 写死 width 会把金星条拉变形。 */
+.rarity-icon{height:36px;width:auto;margin-left:14px;vertical-align:-8px}
+
+/* 顶部档案徽章：每项一个徽章，带图标的在文字前显示小图标 */
+.badges{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:10px}
+.badge{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:8px;
+  background:#fff;border:1px solid #e6eaf2;font-size:12px;line-height:1.5;white-space:nowrap}
+.badge .bk{color:#8a94a6;font-size:11.5px}
+.badge .bv{display:flex;align-items:center;gap:4px;color:#3b4557;font-weight:600}
+.badge .bv img{width:16px;height:16px;object-fit:contain;border-radius:3px;flex:0 0 auto}
+/* 命座图标：维基的 40x40 命座星图，是浅色线条稿，直接放在白底面板上
+   几乎看不见 —— 套一层深色底板托住（与技能 .skill-ico、天赋 .passive-box 同一套处理），
+   并从 26px 放大到 30px。 */
+.con-icon{width:30px;height:30px;object-fit:contain;border-radius:5px;flex:0 0 auto}
+/* 天赋图标：维基的 45px 技能图标 */
+/* 天赋图标与技能图标同源（灰白半透明），处理方式相同 */
+.passive-box{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:none;
+  border-radius:8px;background:#2f3446;border:1px solid #262a38}
+/* 天赋图标本身是灰白半透明的小图，直接放白底上几乎看不见 ——
+   套一层深色底板托住（和技能图标 .skill-ico 同一套处理）。
+   invert 那条滤镜已删：现在拿的是维基原图，不是需要反色的剪影。 */
+.passive-box img{width:24px;height:24px;border-radius:4px;object-fit:contain}
+.passive-head{display:flex;align-items:center;gap:6px}
+/* ── 卡池区块 ── */
+.banners{display:flex;flex-direction:column;gap:5px}
+.banner{display:flex;align-items:center;gap:10px;padding:6px 10px;background:#f6f8fc;
+  border:1px solid #e3e8f2;border-radius:9px}
+.banner .bv{flex:0 0 auto;min-width:96px;font-size:12.5px;color:#3a4a63;font-weight:700}
+.banner .bp{font-size:12px;color:#6b7688;font-variant-numeric:tabular-nums}
+/* ── 攻略区块 ── */
+.gs-label{font-size:12.5px;color:#8a6d3b;font-weight:700;margin:12px 0 7px;padding-left:8px;
+  border-left:3px solid #d4c08a}
+.gs-label:first-of-type{margin-top:0}
+.gd-items{display:flex;flex-direction:column;gap:6px}
+.gd-item{display:flex;align-items:center;gap:8px;padding:5px 9px;background:#fbfaf6;
+  border:1px solid #efe9d8;border-radius:9px}
+/* 攻略图标：圣遗物/武器原图是 220×220 的方图，压到 26px 才不会把攻略区
+   撑到近 2000px（毕业武器 + 3 把可选武器各一张，全尺寸就是一大片空白）。 */
+.gd-icon{width:26px;height:26px;object-fit:contain;flex:0 0 auto;border-radius:4px}
+.gd-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gd-txt b{font-size:13px;color:#1f2937;font-weight:700}
+.gd-txt span{font-size:12px;color:#5a6478;line-height:1.55}
+.gd-affix{display:flex;flex-direction:column;gap:3px}
+.gd-arow{display:flex;gap:8px;font-size:12.5px;color:#4a5468;line-height:1.6}
+.gd-slot{flex:0 0 auto;min-width:44px;color:#8a94a6;font-size:12px}
+.gd-skill{font-size:12.5px;line-height:1.7;color:#4a5468}
+.gd-skill b{display:block;color:#1f2937;margin-bottom:3px}
+/* 攻略里的星级（圣遗物/武器的 4星 5星） */
+.gd-star{margin-left:6px;font-style:normal;font-size:11px;font-weight:600;color:#a8823c;
+  background:#f7f1e0;padding:1px 5px;border-radius:5px}
+/* 技能升级里维基原文用颜色标注的技能名 */
+.gd-mk{font-style:normal;font-weight:700;margin:0 1px}

@@ -1,7 +1,13 @@
 *{box-sizing:border-box}
 body{margin:0;min-width:1000px;background:#eef1f6;color:#3b4252;
   font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
-.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc}
+.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc;overflow:hidden}
+/* 随机图背景：铺满整页、压低不透明度，文字区靠 .page 底色与渐变保证对比。
+   与原神角色卡 gs_role_nk 同一套处理；fetchGsBgFile 失败返回空串时 {{if bgFile}} 跳过。 */
+.page > img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:.32;filter:saturate(1.05);z-index:0}
+.page > img.bg + .topbar{z-index:2}
+.page > *:not(.bg):not(.corner-test){position:relative;z-index:1}
 .topbar{position:absolute;left:0;top:0;width:100%;height:5px;
   background:linear-gradient(90deg,#5b8fd6,#7a6da7)}
 
@@ -13,6 +19,7 @@ body{margin:0;min-width:1000px;background:#eef1f6;color:#3b4252;
   background:#e9edf3;border:1px solid #dfe4ec}
 .hero-txt h1{margin:0;font-size:28px;font-weight:900;color:#1f2937;letter-spacing:.5px}
 .rarity{font-size:15px;font-weight:800;color:#d4a017;margin-left:8px}
+.rarity-icon{height:36px;width:auto;margin-left:14px;vertical-align:-8px}
 .tags{margin-top:8px;display:flex;gap:7px;flex-wrap:wrap}
 .tag{font-size:12.5px;padding:3px 10px;border-radius:8px;background:#fff;
   border:1px solid #e2e7ef;color:#5a6478}
@@ -31,6 +38,14 @@ table.stats td{padding:6px 6px;text-align:center;border-bottom:1px solid #f0f3f8
 table.stats tr.hi td{background:#fdf6e3;font-weight:800;color:#8a6a12}
 table.stats i{font-style:normal;color:#a3adbd;font-weight:400;margin-left:1px}
 
+/* 基础属性：与 Bwiki 一致的两列键值对卡片 */
+.base-attrs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.attr{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f6f8fc;border:1px solid #e9edf3;border-radius:10px}
+.attr span{font-size:12.5px;color:#8a94a6;font-weight:600}
+.attr b{font-size:15px;color:#1f2937;font-weight:800;font-variant-numeric:tabular-nums}
+.attr-wide{grid-column:1 / -1}
+.attr-wide b{white-space:normal;text-align:right;max-width:72%;line-height:1.4}
+
 .skills{display:flex;flex-direction:column;gap:12px}
 .skill-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .skill-head img{width:22px;height:22px;border-radius:5px;object-fit:contain}
@@ -48,6 +63,8 @@ table.stats i{font-style:normal;color:#a3adbd;font-weight:400;margin-left:1px}
 .rank-desc{margin-top:5px;padding-left:28px;font-size:12.5px;line-height:1.7;color:#5a6478}
 
 .story{font-size:13.5px;line-height:1.9;color:#4a5468;white-space:pre-line}
+/* 角色故事标题右侧的解锁条件 */
+.unlock{margin-left:10px;font-size:12px;font-weight:400;color:#9aa3b2}
 
 footer{text-align:center;margin-top:12px;color:#a3adbd;font-size:12.5px}
 
@@ -60,12 +77,45 @@ footer{text-align:center;margin-top:12px;color:#a3adbd;font-size:12.5px}
 .mat i{font-style:normal;margin-left:2px;font-weight:800}
 
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{font-size:12.5px;padding:5px 10px;border-radius:8px;background:#f2f4f8;
+.chip{font-size:12.5px;padding:6px 12px;border-radius:8px;background:#f2f4f8;
   border:1px solid #e2e7f0;color:#4a5468}
-.chip-ic{width:18px;height:18px;border-radius:4px;object-fit:cover;
-  margin-right:4px;vertical-align:-4px;flex-shrink:0}
+.chip-ic{width:22px;height:22px;border-radius:5px;object-fit:cover;
+  margin-right:5px;vertical-align:-5px;flex-shrink:0}
 
 /* 部位图标是 64×64 半透明 PNG（alpha 0~255），压在浅色 chip 上会发虚，
    补一层白底并让图标不参与行高对齐 */
 .chip-slot{background:#fff;align-items:center;display:inline-flex}
-.chip-slot .chip-ic{background:#eef1f6;border-radius:4px}
+/* 部位图标是 64×64 半透明 PNG，压浅底发虚；改深底 + 完整显示（contain）并提色 */
+.chip-slot .chip-ic{width:28px;height:28px;background:#33405a;border-radius:6px;
+  object-fit:contain;padding:3px;flex-shrink:0;filter:saturate(1.3) brightness(1.08)}
+/* 顶部档案徽章区：与原神卡 gs_role_nk 同一套观感 */
+.badges{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:10px}
+.badge{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:8px;
+  background:#fff;border:1px solid #e6eaf2;font-size:12px;line-height:1.5;white-space:nowrap}
+.badge .bk{color:#8a94a6;font-size:11.5px}
+.badge .bv{display:flex;align-items:center;gap:4px;color:#1f2937;font-weight:600}
+.badge .bv img{width:15px;height:15px;object-fit:contain;border-radius:3px;flex:0 0 auto}
+
+/* 卡池信息 */
+.banners{display:flex;flex-direction:column;gap:5px}
+.banner{display:flex;align-items:center;gap:10px;padding:6px 10px;background:#f6f8fc;
+  border:1px solid #e3e8f2;border-radius:9px}
+.banner .bv{flex:0 0 auto;min-width:96px;font-size:12.5px;font-weight:700;color:#3a4a63}
+.banner .bp{font-size:12px;color:#6b7688;font-variant-numeric:tabular-nums}
+.hint{font-size:12px;font-weight:400;color:#9aa3b2;margin-left:6px}
+
+/* 光锥 / 遗器推荐（米游社攻略组数据） */
+.lc-list,.rc-list{display:flex;flex-direction:column;gap:7px}
+.lc-item,.rc-item{display:flex;align-items:flex-start;gap:9px;padding:7px 10px;
+  background:#fbfaf6;border:1px solid #efe9d8;border-radius:9px}
+.lc-ic{width:30px;height:30px;object-fit:contain;flex:0 0 auto;border-radius:5px;background:#f2f4f8}
+.lc-txt,.rc-txt{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;min-width:0}
+.lc-txt b,.rc-txt b{font-size:13px;color:#1f2937;font-weight:700}
+.lc-tag{font-size:11.5px;color:#8a6d3b;background:#f7f0dc;border:1px solid #e6d8b0;
+  border-radius:6px;padding:0 6px}
+.lc-score{font-size:12px;color:#d4a017;letter-spacing:1px}
+.rc-sub{font-size:12px;color:#5a6478}
+.rc-main{font-size:11.5px;color:#4a5468;width:100%}
+.rc-sub2{font-size:11.5px;color:#8a94a6;width:100%}
+
+/* 角色故事已挪到「#角色名故事」指令，卡面只留角色详情 —— 4~5 条故事会把图撑到近 9000px */

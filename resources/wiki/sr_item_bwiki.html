@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/sr_item_bwiki.css" />
+</head>
+<body {{sys.scale}}>
+<!-- 星铁光锥/遗器卡：Bwiki 词条版式（与其余三个游戏统一视觉）。
+     数据分两层：列表层（Bwiki 光锥图鉴/遗器图鉴，稳）＋词条层（Bwiki 词条页，可能被风控）。
+     词条层抓不到时只显示列表层字段，不阻断出图。 -->
+<div class="page" id="container">
+  <!-- 测试服数据标记：右上角 TEST 角标。正式服数据不显示（unreleased 由数据层判定） -->
+  {{if unreleased}}<div class="corner-test">TEST</div>{{/if}}
+  {{if bgFile}}<img class="bg" src="file://{{bgFile}}" alt="" />{{/if}}
+  <div class="topbar"></div>
+
+  <header class="hero">
+    <div class="hero-ic">
+      {{if icon}}<img src="{{icon}}" alt="" />{{else}}<div class="img-ph">{{name[0]}}</div>{{/if}}
+    </div>
+    <div class="hero-txt">
+      <h1>{{name}} {{if starIcon}}<img class="star" src="{{starIcon}}" alt="" />{{/if}}</h1>
+      <div class="tags">
+        {{if path}}<span class="tag">{{path}}</span>{{/if}}
+        {{if damage}}<span class="tag">{{damage}}</span>{{/if}}
+        {{if ji}}<span class="tag">{{ji}}</span>{{/if}}
+        {{if version}}<span class="tag">版本 {{version}}</span>{{/if}}
+        {{if obtain}}<span class="tag">获取途径 · {{obtain}}</span>{{/if}}
+        {{if date}}<span class="tag">实装 {{date}}</span>{{/if}}
+      </div>
+      {{if tag}}<div class="brief">TAG · {{tag}}</div>{{/if}}
+    </div>
+  </header>
+
+  <!-- 区块顺序与原神武器卡（gs_item_bwiki）完全一致：
+       简介 → 武器/光锥效果 → 详细面板 → 推荐角色 → 套装与散件 → 二/四件套 → 故事 -->
+
+  <!-- 区块顺序与原神武器卡（gs_item_bwiki）完全一致：
+       简介 → 光锥效果 → 详细面板 → 推荐角色 → 故事。
+       光锥没有套装/散件也没有突破材料，所以不出现那些块。 -->
+
+  {{if intro}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">简介</div><div class="cell-d">{{@intro}}</div></div>
+  </div>
+  {{/if}}
+
+  {{if talentDesc}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">光锥效果{{if talent}} · {{talent}}{{/if}}</div>
+      <div class="cell-d">{{@talentDesc}}</div>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if panel && panel.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">详细面板</div>
+      <table class="tb">
+        <thead><tr><th>等级</th>{{each panelHead p}}<th>{{p}}</th>{{/each}}</tr></thead>
+        <tbody>
+          {{each panel p}}<tr><td>{{p.lv}}</td>{{each p.cells c}}<td>{{c.v}}</td>{{/each}}</tr>{{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- 推荐角色：星铁光锥的官方/Bwiki 词条页都没有这一块，
+       没有就明确写「官方暂未推荐角色」，不留空标题块。 -->
+  {{if agents && agents.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">推荐角色</div>
+      <div class="agents">
+        {{each agents a}}<span class="agent"><img src="{{a.icon}}" alt="" />{{a.name}}</span>{{/each}}
+        {{each agents a}}
+        {{if a.reason}}<div class="agent-why"><span class="t">推荐理由</span><span class="who">{{a.name}}</span>{{a.reason}}</div>{{/if}}
+        {{/each}}
+      </div>
+    </div>
+  </div>
+  {{else}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">推荐角色</div>
+      <div class="agents">
+        <div class="agent-why"><span class="t">推荐角色</span>官方暂未推荐角色</div>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- 突破材料：Bwiki 词条页的「晋阶材料」小节，按材料名累加成总计。
+       旧模板 wiki/gz 一直有这一块（正式服回落到米游社百科时走的就是它），
+       新版此前没有，同一条指令会因数据源不同出两种版式，这里补上对齐。
+       nanoka（测试服）的光锥详情不含材料字段，此时整块不渲染。 -->
+  {{if materialTotal && materialTotal.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">突破材料 · 总计</div>
+      <div class="agents">
+        {{each materialTotal it}}<span class="agent">{{if it.img}}<img src="{{it.img}}" alt="" />{{/if}}{{it.name}} × {{it.num}}</span>{{/each}}
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if origin}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">{{storyTitle || '光锥故事'}}</div><div class="cell-d story">{{@origin}}</div></div>
+  </div>
+  {{/if}}
+
+  <div class="foot">from 小花火</div>
+</div>
+</body>
+</html>

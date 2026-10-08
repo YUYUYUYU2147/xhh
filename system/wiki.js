@@ -740,7 +740,7 @@ export class Wiki extends plugin {
       talents,
       recommend
     };
-    return render('wiki/zzz_role', view, { e, ret: true });
+    return render('wiki/zzz_role_nk', view, { e, ret: true });
   }
 
   async zzz_wq_pictures(e, data) {
@@ -785,7 +785,7 @@ export class Wiki extends plugin {
       recommend: [],
       materials
     };
-    return render('wiki/zzz_role', view, { e, ret: true });
+    return render('wiki/zzz_role_nk', view, { e, ret: true });
   }
 
   async zzz_syw_pictures(e, data) {
@@ -804,7 +804,7 @@ export class Wiki extends plugin {
       ],
       stats: [], strategy: [], skills: [], talents: [], recommend: []
     };
-    return render('wiki/zzz_role', view, { e, ret: true });
+    return render('wiki/zzz_role_nk', view, { e, ret: true });
   }
 
   async zzz_yq_pictures(e, data) {
@@ -830,7 +830,7 @@ export class Wiki extends plugin {
       skills: Object.values(c.skill || {}).slice(0, 5).map(v => ({ name: v.name, desc: this.zzzCleanText(v.desc, 100) })).filter(v => v.name || v.desc),
       talents: [], recommend: []
     };
-    return render('wiki/zzz_role', view, { e, ret: true });
+    return render('wiki/zzz_role_nk', view, { e, ret: true });
   }
 
   async bangboo(e, name) {

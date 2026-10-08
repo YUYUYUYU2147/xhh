@@ -215,7 +215,6 @@ export class bh3_profile extends plugin {
         ...data,
         sys: { scale: 'style=transform:scale(1)' },
         deviceScaleFactor: 2,
-        ppath: '../../../../../plugins/xhh/resources/',
         tplFile: process.cwd() + '/plugins/xhh/resources/bh3_profile/profile.html',
         saveId: 'bh3_profile',
       });

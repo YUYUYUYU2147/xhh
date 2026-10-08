@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/gs_story.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page">
+  <div class="topbar"></div>
+
+  <header class="hero">
+    <img class="avatar" src="{{icon}}" alt="" />
+    <div class="hero-txt">
+      <h1>{{name}}</h1>
+      <div class="subtitle">{{title}}</div>
+      <div class="mat-note">角色故事共 {{stories.length}} 条 · 好感度解锁</div>
+    </div>
+  </header>
+
+  {{each stories s}}
+  <div class="panel">
+    <div class="ptitle">{{s.title}}{{if s.unlock}}<span class="unlock">{{s.unlock}}</span>{{/if}}</div>
+    <div class="story">{{s.body}}</div>
+  </div>
+  {{/each}}
+
+  <footer>{{source}}</footer>
+</div>
+</body>
+</html>

@@ -7,6 +7,12 @@ function getCfg() {
   return yaml.get(_path + 'config.yaml') || {}
 }
 
+/** 图鉴数据模式：official=正式服 / test=测试服（与 config.yaml 的 data_mode 一致） */
+function getDataMode() {
+  const v = String(getCfg().data_mode || 'official').trim()
+  return v === 'test' ? 'test' : 'official'
+}
+
 function getOther() {
   return yaml.get(_path + 'other.yaml') || {}
 }
@@ -130,6 +136,18 @@ export const supportGuoba = () => {
         label: '基本设置',
       },
       {
+        field: 'data_mode',
+        label: '图鉴数据模式',
+        helpMessage: 'official=正式服（列表/查询都不出测试服条目）；test=测试服（只显示测试服条目）。也可用群指令 #切换正式服模式 / #切换测试服模式。改动实时生效',
+        component: 'RadioGroup',
+        componentProps: {
+          options: [
+            { label: '正式服', value: 'official' },
+            { label: '测试服', value: 'test' },
+          ],
+        },
+      },
+      {
         field: 'update',
         label: '凌晨自动更新',
         helpMessage: '凌晨3:30强制更新（会覆盖文件）',
@@ -146,6 +164,18 @@ export const supportGuoba = () => {
         field: 'wiki',
         label: '小花火图鉴启用',
         component: 'Switch',
+      },
+      {
+        field: 'gs_bg',
+        label: '角色图鉴随机背景',
+        helpMessage: '用随机图接口给原神角色图鉴加一层底纹背景（接口失败自动退回纯色）',
+        component: 'Switch',
+      },
+      {
+        field: 'gs_bg_api',
+        label: '随机背景图接口',
+        helpMessage: '返回图片的地址，留空用默认 api.yppp.net/api.php',
+        component: 'Input',
       },
       {
         field: 'bdsb',
@@ -191,6 +221,13 @@ export const supportGuoba = () => {
         field: 'bh3_logs',
         label: '崩坏3历史卡池',
         component: 'Switch',
+      },
+      {
+        field: 'gacha_pool_cron',
+        label: '卡池自动刷新间隔',
+        helpMessage:
+          'cron 表达式，保存后需重启插件生效。默认 0 */30 * * * * 即每 30 分钟一次。间隔太长时，若某一轮撞上米游社风控就要等到下一轮才同步',
+        component: 'Input',
       },
       {
         field: 'all_voice',
@@ -298,7 +335,7 @@ export const supportGuoba = () => {
       {
         field: 'sbai',
         label: '签到失败@提醒',
-        helpMessage: '自动签到结束后@失败用户',
+        helpMessage: '自动签到结束后@失败用户，游戏签到与社区签到都适用',
         component: 'Switch',
       },
       {
@@ -1228,6 +1265,12 @@ export const supportGuoba = () => {
         helpMessage: '输出水晶查询/扫码绑定的详细日志',
         component: 'Switch',
       },
+      {
+        field: 'auto_reload',
+        label: '自举热重载',
+        helpMessage: '改完 apps/ 与 system/ 里的代码自动生效，不用重启（框架的 #重载插件 对 xhh 无效）。新增/删除指令仍需 #重启',
+        component: 'Switch',
+      },
     ],
     getConfigData() {
       const cfg = getCfg()
@@ -1237,9 +1280,13 @@ export const supportGuoba = () => {
       const activityRemind = getActivityRemind()
       const activityGroups = activityRemind.groups || {}
       return {
+        // 数据模式：面板上要能读到当前值，否则单选框显示不出选中的那一项
+        data_mode: getDataMode(),
         update: !!cfg.update,
         img_quality: cfg.img_quality ?? 80,
         wiki: !!cfg.wiki,
+        gs_bg: cfg.gs_bg !== false,
+        gs_bg_api: cfg.gs_bg_api ?? 'https://api.yppp.net/api.php',
         bdsb: !!cfg.bdsb,
         tlp: !!cfg.tlp,
         tlpcs: cfg.tlpcs ?? 3,
@@ -1247,6 +1294,7 @@ export const supportGuoba = () => {
         sr_logs: !!cfg.sr_logs,
         zzz_logs: !!cfg.zzz_logs,
         bh3_logs: !!cfg.bh3_logs,
+        gacha_pool_cron: String(cfg.gacha_pool_cron || '0 */30 * * * *'),
         all_voice: !!cfg.all_voice,
         gs_voice: cfg.gs_voice !== false,
         sr_voice: cfg.sr_voice !== false,
@@ -1308,6 +1356,7 @@ export const supportGuoba = () => {
         Tl: !!cfg.Tl,
         hbxx: !!cfg.hbxx,
         debug: !!cfg.debug,
+        auto_reload: cfg.auto_reload !== false,
         gacha_art_source: cfg.gacha_art_source || 'custom',
         gacha_header_art_source: cfg.gacha_header_art_source || cfg.gacha_art_source || 'custom',
         gacha_up_icon_source: cfg.gacha_up_icon_source || cfg.gacha_art_source || 'custom',
@@ -1409,6 +1458,7 @@ export const supportGuoba = () => {
       const boolMap = {
         update: data.update,
         wiki: data.wiki,
+        gs_bg: data.gs_bg,
         bdsb: data.bdsb,
         tlp: data.tlp,
         gs_logs: data.gs_logs,
@@ -1435,6 +1485,7 @@ export const supportGuoba = () => {
         Tl: data.Tl,
         hbxx: data.hbxx,
         debug: data.debug,
+        auto_reload: data.auto_reload,
         bh3_all_note_enable: data.bh3_all_note_enable,
         forwardMsg: data.forwardMsg,
         bh3: data.bh3,
@@ -1446,6 +1497,12 @@ export const supportGuoba = () => {
         meme_forceSharp: data.meme_forceSharp,
         meme_masterProtectDo: data.meme_masterProtectDo,
         abyss_report_sr_invasion: data.abyss_report_sr_invasion,
+      }
+      /* 数据模式单独处理：只认 official / test 两个值，其它一律当正式服。
+         之前这个字段只在群指令里写盘，锅巴面板改完存不进去 ——
+         schema 有字段、getter 也能读，唯独保存时没写回去。 */
+      if (data.data_mode != null) {
+        yaml.set(_path + 'config.yaml', 'data_mode', String(data.data_mode).trim() === 'test' ? 'test' : 'official')
       }
       for (const [k, v] of Object.entries(boolMap)) {
         const target = ['forwardMsg', 'bh3', 'by', 'xbgd', 'cover'].includes(k) ? 'other.yaml' : 'config.yaml'
@@ -1467,18 +1524,29 @@ export const supportGuoba = () => {
         bili_live_video_time: data.bili_live_video_time,
         bili_live_video_size: data.bili_live_video_size,
         bili_live_qn: data.bili_live_qn,
-        bili_live_dm_perm: data.bili_live_dm_perm,
+        
         bili_live_dm_cd: data.bili_live_dm_cd,
       }
       for (const [k, v] of Object.entries(numMap)) {
         if (v != null) yaml.set(_path + 'config.yaml', k, Number(v))
       }
 
+      // 随机背景接口：留空就回落到默认地址，不要把空串写进配置
+      const gsBgApi = String(data.gs_bg_api || '').trim()
+      if (gsBgApi) yaml.set(_path + 'config.yaml', 'gs_bg_api', gsBgApi)
       if (data.gacha_art_source) yaml.set(_path + 'config.yaml', 'gacha_art_source', data.gacha_art_source === 'official' ? 'official' : 'custom')
       if (data.gacha_header_art_source) yaml.set(_path + 'config.yaml', 'gacha_header_art_source', data.gacha_header_art_source === 'official' ? 'official' : 'custom')
       if (data.gacha_up_icon_source) yaml.set(_path + 'config.yaml', 'gacha_up_icon_source', data.gacha_up_icon_source === 'official' ? 'official' : 'custom')
       const memeBaseUrl = String(data.meme_baseUrl || '').trim()
       if (memeBaseUrl) yaml.set(_path + 'config.yaml', 'meme_baseUrl', memeBaseUrl)
+      // 弹幕权限是字符串选项，之前混在 numMap 里被 Number() 转成了 NaN 写进 yaml
+      if (has(data, 'bili_live_dm_perm')) {
+        yaml.set(_path + 'config.yaml', 'bili_live_dm_perm', ['all', 'admin', 'master'].includes(data.bili_live_dm_perm) ? data.bili_live_dm_perm : 'admin')
+      }
+      // 卡池刷新间隔：schema 里有这个字段，但保存时没写盘 —— 面板改了永远不生效
+      if (has(data, 'gacha_pool_cron')) {
+        yaml.set(_path + 'config.yaml', 'gacha_pool_cron', String(data.gacha_pool_cron || '').trim() || '0 */30 * * * *')
+      }
 
       yaml.set(_path + 'sign.yaml', 'zd_sign', Number(data.zd_sign) ?? 0)
       const signHour = Number.isFinite(Number(data.sign_hour))

@@ -1,0 +1,76 @@
+/* 驱动盘卡（Bwiki 版式），与音擎卡 zzz_wq_bwiki 共用一套视觉 */
+.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc}
+.page > img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.32;filter:saturate(1.05);z-index:0}
+.page > *:not(.bg):not(.corner-test){position:relative;z-index:1}
+.topbar{position:absolute;left:0;top:0;width:100%;height:5px;z-index:2;
+  background:linear-gradient(90deg,#e0a92f,#c9881f 55%,#7a4fa8)}
+
+.hero{display:flex;align-items:center;gap:16px;margin:6px 0 14px}
+.hero-ic{width:104px;height:104px;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#ffe9a8 0%,#ffd166 45%,#e0a83a 100%)}
+/* 左上角图铺满方框：原来 88×88 + contain 会留白、显得框里图很小 */
+.hero-ic img{width:100%;height:100%;object-fit:cover;border-radius:16px}
+.img-ph{font-size:38px;font-weight:900;color:#7a5a12}
+.hero-txt{flex:1;min-width:0}
+.hero-txt h1{margin:0;font-size:26px;font-weight:900;color:#1f2937}
+.rarity{font-size:15px;font-weight:800;color:#d4a017;margin-left:6px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12px;color:#4a5468;background:#eef1f6;border:1px solid #dfe4ec;border-radius:999px;padding:2px 10px}
+.brief{margin-top:8px;font-size:12.5px;line-height:1.7;color:#6b7488}
+
+.row{display:flex;gap:12px;margin-bottom:12px}
+.cell{flex:1;background:#fff;border:1px solid #e9edf3;border-radius:14px;padding:12px 15px}
+.cell-t{font-size:12.5px;color:#8a94a6;margin-bottom:6px}
+.cell-d{font-size:12.5px;line-height:1.85;color:#3c4759;white-space:pre-line}
+/* ── 表格基础样式（与 zzz_wq_bwiki 一致）──
+   ⚠ 这三个模板的 css 最初是从音擎卡复制的，但复制发生在音擎卡补齐 .tb 之前，
+   结果只带上了后面追加的零散规则、缺了 .tb 本体，
+   表格退化成浏览器默认样式（字体/边框/内边距全不一样）。 */
+.tb{width:100%;border-collapse:collapse;font-size:12px;color:#3c4759}
+.tb th{background:#f2f5fa;color:#8a94a6;font-weight:700;padding:5px 6px;border:1px solid #e2e7ef}
+.tb td{padding:4px 6px;border:1px solid #eaeef4;text-align:center}
+.tb tr.total td{background:#fdf6e3;font-weight:700;color:#8a6a12}
+.cell-d .num{color:#4571ec;font-weight:700}
+.story{margin:0 0 6px;font-size:12.5px;line-height:1.85;color:#3c4759}
+.story:last-child{margin-bottom:0}
+
+.foot{margin-top:14px;text-align:center;font-size:12px;color:#ee8e8e;opacity:.9}
+
+/* 邦布面板附加表：第一列表头留空即可，列数由数据决定 */
+.tb td.stage{text-align:left;color:#6b7488}
+
+/* 原神道具卡补充 */
+.stars{font-size:15px;color:#d4a017;margin-left:6px;letter-spacing:1px}
+.cell-note{margin-top:6px;padding-top:6px;border-top:1px dashed #e6eaf0;color:#6b7488}
+
+/* 稀有度星条（Bwiki 一览给的 rarityIcon） */
+.rarity-icon{width:78px;margin-top:6px;opacity:.95}
+
+/* 突破材料条目（.mat 之前在这几个模板里没有样式，
+   材料图标会按原图 220px 渲染，卡面被撑得巨大 —— 补一套与 zzz_wq_bwiki 一致的） */
+.mat{display:inline-flex;align-items:center;gap:5px;margin:2px 10px 2px 0;font-size:12px;color:#3c4759}
+.mat img{width:20px;height:20px;object-fit:contain;border-radius:4px;flex:0 0 auto}
+
+/* 星铁补充：命途星条 + 套装/散件图标 */
+.star{height:16px;margin-left:6px;vertical-align:-2px}
+.icons{display:flex;flex-wrap:wrap;gap:8px}
+.icons .ic{width:44px;height:44px;object-fit:contain;background:#f6f8fc;border:1px solid #e6eaf2;border-radius:8px;padding:3px}
+
+/* 推荐角色：竖排小卡 */
+.agents{display:flex;flex-wrap:wrap;gap:8px 10px}
+.agent{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 3px;background:#ffffffcc;border:1px solid #e6eaf2;border-radius:999px;font-size:12px;line-height:1}
+.agent img{width:22px;height:22px;border-radius:50%;object-fit:cover;background:#eef1f7}
+
+/* 光锥立绘：右上角压一层，宽度自适应且不遮文字 */
+.hero{position:relative}
+.hero-art{position:absolute;top:0;right:0;max-height:110px;max-width:42%;object-fit:contain;
+  object-position:top right;opacity:.9;pointer-events:none;z-index:0}
+.hero-ic,.hero-txt{position:relative;z-index:1}
+/* 故事：台词用斜体（解析期把 <i>「……」</i> 保留下来了） */
+.cell-d.story i{font-style:italic;color:#5b6478}
+.cell-d.story{white-space:normal}   /* 故事按宽度自动折行，不按源里的换行断句 */
+
+/* 测试服数据角标：所有卡面右上角统一一个 TEST 标 */
+.corner-test{position:absolute;top:10px;right:10px;z-index:5;padding:2px 8px;border-radius:6px;
+  background:linear-gradient(180deg,#ffd76a,#e8a33a);color:#5a3d00;font-size:12px;font-weight:800;
+  letter-spacing:1px;box-shadow:0 1px 4px rgba(0,0,0,.18)}

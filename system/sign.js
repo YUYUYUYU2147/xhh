@@ -1454,6 +1454,7 @@ async function BbsSign(e) {
 async function BbsAutoSign(qqs = [], group = 0) {
     const allMsgs = [];
     const allLines = ['米游社社区自动签到'];
+    const failed = [];
     const users = [...new Set((qqs || []).map(v => String(v).trim()).filter(Boolean))];
     for (const qq of users) {
         const e = {
@@ -1467,12 +1468,17 @@ async function BbsAutoSign(qqs = [], group = 0) {
         // 只有逍遥侧数据的人，顺手把 xhh 文件补出来（不需要扫码）
         await mhy.ensureXhhFromXiaoyao(e);
         const { msgs, lines } = await bbsSignForEvent(e, false);
+        // 与游戏自动签到的 sbai_qqs 同一判据：全部版块都成功才算过。
+        // 游戏侧判的是 z_num，这里只有一个通行证，按它的口径取反即可。
+        const body = lines.slice(1);
+        const ok = body.length > 0 && body.every(l => /签到成功|今日已签/.test(l));
+        if (!ok) failed.push(qq);
         allLines.push(`\nQQ ${qq}`);
-        allLines.push(...lines.slice(1));
+        allLines.push(...body);
         allMsgs.push(...msgs.map(m => ({ ...m, title: `QQ ${qq} · ${m.title}` })));
         await jitter(2000, 4000);
     }
-    return { msgs: allMsgs, lines: allLines };
+    return { msgs: allMsgs, lines: allLines, failed };
 }
 
 /** 相邻标题与提示都相同的卡合成一张（同一通行证重复出现时用） */
@@ -1491,12 +1497,18 @@ function collapseMsgs(msgs) {
  * 发社区自动签到结果。img 由调用方渲染好传进来 —— 定时任务里没有 e，
  * 而 #xhh 导出的 render 强依赖 e.runtime，只能走 apps/sign.js 里的本地包装。
  */
-async function sendBbsAutoResult(group, result, img) {
-    const { lines = [] } = result || {};
+async function sendBbsAutoResult(group, result, img, cfg = {}) {
+    const { lines = [], failed = [] } = result || {};
     if (!group) return false;
     const target = Bot.pickGroup(Number(group));
-    if (img) return await target.sendMsg(img);
-    return target.sendMsg(lines.join('\n') || '米游社社区自动签到完成');
+    if (img) await target.sendMsg(img);
+    else await target.sendMsg(lines.join('\n') || '米游社社区自动签到完成');
+    // 与游戏自动签到一致：失败的人艾特一下，便于本人立刻看到并处理。
+    // 游戏侧受 config.sbai 开关控制（apps/sign.js 的 sbai_qqs 分支），这里沿用同一个开关。
+    if (cfg.sbai && failed.length) {
+        await target.sendMsg(failed.map(v => segment.at(v)));
+    }
+    return true;
 }
 
 // 结果汇总：全失败时给出可操作的排查提示，不再 60s 就把消息撤掉

@@ -1,0 +1,199 @@
+/* 绝区零角色详情卡样式
+   基础观感（page/topbar/hero/avatar/panel/ptitle/story/badges/badge/cv/foot）
+   与星铁卡 sr_role_nk.css 保持一致，便于两个游戏对照查看；
+   此处只新增绝区零特有的技能、影画、信赖度三部分。 */
+
+.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc}
+/* 整卡背景图：角色立绘铺满整卡，压到很低的透明度只当氛围。
+   必须放在 .page 内的第一个子元素、position:absolute，且所有正文块
+   给 z-index:1，否则会盖住文字。立绘是竖版，object-fit:cover 会裁掉头，
+   所以用 cover + object-position:top（脸在上半部分）。 */
+.page > img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:.32;filter:saturate(1.05);z-index:0}
+.page > img.bg + .topbar{z-index:2}
+.page-bg{position:absolute;left:0;top:0;width:100%;height:100%;
+  object-fit:cover;object-position:center top;opacity:.32;z-index:0;pointer-events:none}
+/* 半透明白纱：把立绘压成背景，同时保证正文对比度达标 */
+.page-bg-mask{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(247,249,252,.72) 0%,rgba(247,249,252,.86) 45%,rgba(247,249,252,.94) 100%)}
+.page > *:not(.bg):not(.page-bg):not(.page-bg-mask):not(.corner-test){position:relative;z-index:1}
+.topbar{position:absolute;left:0;top:0;width:100%;height:5px;
+  background:linear-gradient(90deg,#e0a92f,#c9881f 55%,#7a4fa8)}
+
+.hero{display:flex;align-items:center;gap:18px;margin:4px 0 16px}
+/* 绝区零用的是方形透明人物卡面（tachie_pc），按 contain 居中显示，
+   不能像原神/星铁那样 object-fit:cover —— 透明底裁切后会切掉人物。 */
+.avatar{width:118px;height:118px;border-radius:18px;object-fit:contain;flex:none;
+  background:linear-gradient(180deg,#ffe9a8 0%,#ffd166 45%,#e0a83a 100%)}
+.hero-txt{flex:1;min-width:0}
+.hero-txt h1{margin:0;font-size:28px;font-weight:900;color:#1f2937;letter-spacing:.5px}
+.rarity{font-size:15px;font-weight:800;color:#d4a017;margin-left:8px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12px;color:#4a5468;background:#eef1f6;border:1px solid #dfe4ec;
+  border-radius:999px;padding:2px 10px;display:inline-flex;align-items:center;gap:4px}
+/* 图标尺寸必须限死：阵营图标来自 Bwiki 原图（可能是上百 px 的大图），
+   不限尺寸会把整个 tag 撑成巨大色块（同 .badge .bv img 那条的老问题）。 */
+.tag-ic{width:14px;height:14px;object-fit:contain;flex:0 0 auto}
+.brief{margin-top:10px;font-size:12.5px;line-height:1.8;color:#6b7488}
+
+.panel{background:#fff;border:1px solid #e9edf3;border-radius:15px;padding:15px 18px 17px;
+  margin-bottom:12px;box-shadow:0 3px 10px rgba(31,41,55,.05)}
+.ptitle{font-size:17px;font-weight:800;margin:0 0 12px;padding-left:10px;
+  border-left:4px solid #e0a92f;color:#1f2937}
+.story{font-size:13.5px;line-height:1.9;color:#4a5468;white-space:pre-line}
+.cv{font-size:13px;line-height:1.9;color:#4a5468;white-space:pre-line}
+
+.badges{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:10px}
+.badge{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:8px;
+  background:#f2f4f8;border:1px solid #e2e7f0}
+.badge .bk{color:#8a94a6;font-size:11.5px}
+.badge .bv{display:flex;align-items:center;gap:4px;color:#1f2937;font-weight:600;font-size:12px}
+/* 徽章图标尺寸必须限死：Bwiki 的「角色稀有度S.png」原图 128px、「图标-冰.png」也不小，
+   缺了这行会按原始尺寸渲染，卡面上会出现一个巨大徽章和两颗大星星。
+   （星铁卡 sr_role_nk.css 一直有这条，复制样式时漏了。） */
+.badge .bv img{width:20px;height:20px;object-fit:contain;border-radius:3px;flex:0 0 auto}
+/* 阵营/稀有度这类徽章图标本身线条很细，15px 在成图里几乎糊成一团，
+   放到 20px 才认得出（同时把徽章行高留够，避免挤到文字）。 */
+.badge .bv{min-height:30px}
+/* 伤害类型（斩击/贯穿/冲击）这类图标是细线条透明 PNG，直接摆白底上会发虚。
+   给一枚浅色圆角底托+轻微加深，20px 下才认得出轮廓。 */
+/* 伤害类型（斩击/贯穿/冲击）图标：**保持 Bwiki 原图**，不做压暗/镀金/垫底。
+   试过三套都失败：CSS filter 压暗→半透明灰影；垫深色底托→阵营与稀有度
+   一起变黑；sharp 加固填金色→和金色底板撞色完全看不见。
+   只把显示尺寸放大一点，让它至少看得出是个图标。 */
+.badge .bv img.ic-faint{width:26px;height:26px}
+
+/* ── 技能 ── */
+.skill{padding:9px 0;border-bottom:1px dashed #e6eaf0}
+.skill:last-child{border-bottom:0;padding-bottom:0}
+.sk-head{display:flex;align-items:center;gap:8px}
+.sk-ic{width:22px;height:22px;object-fit:contain;border-radius:5px;flex:0 0 auto}
+.sk-name{font-size:14px;font-weight:800;color:#1f2937}
+.sk-type{margin-left:auto;font-size:11px;color:#8a94a6;background:#f2f4f8;
+  border-radius:999px;padding:1px 9px}
+.sk-desc{margin-top:4px;font-size:11.5px;line-height:1.6;color:#5b6478;
+  white-space:pre-line;
+  /* 技能区占整页约八成高度（实测洛克茜 3975px / 总 4883px），
+     16 组技能每组还有多个变体，全展开必然超 QQ 的 4MB 限制。
+     这里限高 4 行、超出省略；完整文本仍保留在数据层 levels/desc 字段。 */
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;
+  overflow:hidden}
+.skill{padding:7px 0}
+.lv-list{margin-top:7px;display:flex;flex-direction:column;gap:4px}
+.lv{display:flex;gap:8px;align-items:flex-start}
+.lv-tag{flex:0 0 46px;text-align:center;font-size:11px;font-weight:700;color:#8a5a10;
+  background:#fdf3dd;border:1px solid #f0dfae;border-radius:6px;padding:1px 0}
+.lv-rows{flex:1;min-width:0}
+.lv-row{font-size:12px;line-height:1.75;color:#6b7488;white-space:pre-line}
+.lv-row b{color:#4a5468;font-weight:700;margin-right:4px}
+
+/* ── 影画（对应原神/星铁的「天赋」「命座」位置）── */
+.achi{padding:8px 0;border-bottom:1px dashed #e6eaf0}
+.achi:last-child{border-bottom:0;padding-bottom:0}
+.achi-head{display:flex;align-items:center;gap:8px}
+.achi-lv{flex:0 0 auto;font-size:11px;font-weight:700;color:#fff;background:#a07cd8;
+  border-radius:6px;padding:1px 7px}
+.achi-head b{font-size:13.5px;color:#1f2937}
+.achi-eff{margin-top:4px;font-size:12px;line-height:1.7;color:#5b6478;white-space:pre-line;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ── 信赖度（绝区零特有）── */
+.trust{display:flex;flex-direction:column;gap:8px}
+.trust-item{display:flex;gap:10px;align-items:flex-start}
+.trust-ic{width:34px;height:34px;object-fit:contain;border-radius:8px;flex:0 0 auto;
+  background:#f7f3ff;border:1px solid #e6dcfa}
+.trust-stage{font-size:12.5px;font-weight:700;color:#6b4fa0}
+.trust-text{margin-top:2px;font-size:12px;line-height:1.75;color:#6b7488;white-space:pre-line}
+
+/* 测试服角标统一用 .corner-test（右上角黄标，见文件末尾），与原神/星铁各卡一致。
+   此前这里还有一个 .test-corner（同样是 top:10px;right:10px 的红标），与
+   .corner-test 位置完全重复，导致绝区零角色卡同时出现两个 TEST；已删除。 */
+
+/* 底部注释统一用 #ee8e8e（与原神卡/列表一致） */
+.foot{margin-top:10px;text-align:center;font-size:12px;color:#ee8e8e;opacity:.9}
+
+/* ── 养成材料 ── */
+.mats{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.mat{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:9px;
+  background:#f7f8fb;border:1px solid #e6eaf0}
+.mat-ic{width:34px;height:34px;object-fit:contain;border-radius:7px;flex:0 0 auto;
+  background:#fff;border:1px solid #e2e7f0}
+.mat-txt{min-width:0}
+.mat-name{font-size:12px;color:#1f2937;font-weight:600;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.mat-num{margin-top:1px;font-size:12.5px;font-weight:800;color:#c9881f}
+
+/* ── 卡池信息 ── */
+.gachas{display:flex;flex-direction:column;gap:9px}
+.gacha{padding:9px 11px;border-radius:10px;background:#f7f8fb;border:1px solid #e6eaf0}
+.g-head{display:flex;align-items:center;gap:8px}
+.g-title{font-size:13.5px;font-weight:800;color:#1f2937}
+.g-ver{margin-left:auto;font-size:11px;color:#8a94a6;background:#fff;
+  border:1px solid #e2e7f0;border-radius:999px;padding:1px 9px}
+.g-time{margin-top:3px;font-size:11.5px;color:#8a94a6;font-variant-numeric:tabular-nums}
+.g-row{display:flex;gap:8px;align-items:flex-start;margin-top:5px}
+.g-rank{flex:0 0 auto;font-size:10.5px;font-weight:800;color:#fff;border-radius:5px;padding:1px 6px}
+.g-rank.r5{background:linear-gradient(180deg,#e0a92f,#c9881f)}
+.g-rank.r4{background:linear-gradient(180deg,#9a5fd0,#7a41ad)}
+.g-names{font-size:12.5px;line-height:1.7;color:#4a5468;word-break:break-all}
+
+/* 角色详情内并入的印象段落 */
+.story-sub{margin-top:10px;padding-top:9px;border-top:1px dashed #e6eaf0}
+
+/* ── 技能：左右分栏（与菲林斯卡一致），角色详情仍为通栏 ── */
+/* 用多列瀑布而不是 grid。grid 是按行对齐的：6 组排成 3 行 2 列后，同一行的行高
+   取两列里高的那个，「普攻」(1 个分支) 和「闪避」(4 个分支) 并排时，
+   普攻那列下方就空出一大块；支援技/特殊技、终结技/核心技 同样错配，
+   三行叠起来就是技能区里的一批空白。
+   column-count 改为按顺序紧密堆叠，空档消失；break-inside 保证一组不被拆到两栏。 */
+.sk-cols{column-count:2;column-gap:20px}
+.sk-col{padding:7px 0;border-bottom:1px dashed #e6eaf0;min-width:0;
+  break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
+.sk-col:last-child{border-bottom:0}
+.sk-cnt{margin-left:auto;font-size:10.5px;color:#8a94a6;background:#f2f4f8;border-radius:999px;padding:0 7px}
+.sk-branch{margin-top:5px;padding-left:9px;border-left:2px solid #eef1f6}
+.sk-bname{font-size:12.5px;font-weight:700;color:#1f2937}
+.sk-branch .sk-desc{margin-top:2px;font-size:11.5px;line-height:1.6}
+
+/* ── 攻略（Bwiki）── */
+.gs-note{font-size:11px;line-height:1.7;color:#9a9484;background:#fdfaf2;
+  border-left:3px solid #e0a92f;border-radius:0 6px 6px 0;padding:6px 10px;margin-bottom:10px}
+.gs-block{margin-bottom:10px}
+.gs-block:last-child{margin-bottom:0}
+.gs-label{font-size:13px;font-weight:800;color:#1f2937;margin:0 0 4px;
+  padding-left:8px;border-left:3px solid #c9881f}
+.gs-text{font-size:12px;line-height:1.8;color:#5b6478;white-space:pre-line}
+
+/* ── 驱动盘套装推荐 ── */
+.ds-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0}
+.ds-tag{flex:0 0 auto;font-size:10.5px;font-weight:800;color:#fff;
+  background:linear-gradient(180deg,#e0a92f,#c9881f);border-radius:5px;padding:1px 6px}
+.ds-item{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#4a5468;
+  background:#fff;border:1px solid #e2e7f0;border-radius:999px;padding:2px 9px 2px 3px}
+.ds-item img{width:18px;height:18px;object-fit:contain;border-radius:50%}
+.gs-reason{margin-top:6px;padding-top:6px;border-top:1px dashed #e6eaf0}
+
+/* ── 技能分支：行内流式排版，写满一行自动换行 ──
+   原来每个分支独占一行（名称一行 + 描述数行），16~17 组技能撑得极高；
+   改为名称与描述同属一个行内流，容器按宽度自动折行。 */
+.sk-flow{display:block;margin-top:4px;font-size:11.5px;line-height:1.75;color:#5b6478}
+.sk-flow .sk-bname{display:inline;font-weight:700;color:#1f2937;margin-right:4px}
+/* 流式布局里描述是 inline 的，pre-line 会把文本自带的 \n 变成硬换行，
+   在 .sk-flow 中同样撑出空档，这里统一折叠成空格。 */
+.sk-flow .sk-desc{display:inline;white-space:normal}
+.sk-flow .sk-desc::after{content:" "}
+
+/* ── 基础属性 ── */
+.bs-table{width:100%;border-collapse:collapse;font-size:12px;color:#3c4759}
+.bs-table th{background:#eef1f6;color:#6b7488;font-weight:700;padding:5px 6px;border:1px solid #e2e7ef}
+.bs-table td{padding:4px 6px;border:1px solid #eaeef4;text-align:center}
+.bs-table tbody tr:nth-child(even) td{background:#fafbfd}
+.bs-fixed{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.bs-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#3c4759;
+  background:#f4f6fa;border:1px solid #e5e9f1;border-radius:7px;padding:3px 9px}
+.bs-chip b{color:#8a94a6;font-weight:600}
+
+/* 测试服数据角标：所有卡面右上角统一一个 TEST 标 */
+.corner-test{position:absolute;top:10px;right:10px;z-index:5;padding:2px 8px;border-radius:6px;
+  background:linear-gradient(180deg,#ffd76a,#e8a33a);color:#5a3d00;font-size:12px;font-weight:800;
+  letter-spacing:1px;box-shadow:0 1px 4px rgba(0,0,0,.18)}

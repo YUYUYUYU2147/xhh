@@ -218,8 +218,11 @@ class OfficialGachaPool {
     const ret = new Array(records.length);
     const CONCURRENCY = 2;
     let cursor = 0;
-    // 米游社详情接口有风控（retcode 1034 = 请求过快被拦截）：并发降到 2、请求间加间隔，
-    // 一旦出现风控立即熔断，剩余公告直接用列表摘要兜底，避免连环报错和加重风控。
+    // 详情接口的 retcode 1034 是「验证码」，但这条链路全程不带 Cookie/DS，是纯 IP 级限速，
+    // 所以借账号过码解不开（实测裸请求 / 带 Cookie / 带 DS 三种形态结果一致）。
+    // 实测触发因素是刷新密度：17 次刷新挤在 2.5 小时内会撞 120 次，而定时任务每 30 分钟
+    // 均匀一次长期为 0。这里的并发与间隔是降低密度用的，熔断后剩余公告用列表摘要兜底，
+    // 不连环报错、不加重限制；真正的限速与退避在 apps/gacha_pool.js 那侧统一做。
     let riskControl = false;
     const worker = async () => {
       while (cursor < records.length) {
@@ -263,7 +266,7 @@ class OfficialGachaPool {
             cover
           };
         } catch (err) {
-          // 1034 = 米游社风控：熔断剩余请求，避免连环失败加重限制
+          // 1034 = 米游社要求验证码（IP 级限速）：熔断剩余请求，避免连环失败继续加热
           if (/retcode.?[:=]?\s*"?1034/i.test(String(err?.message || err))) {
             riskControl = true;
             logger.warn(`[xhh][gacha_pool] ${GAME_META[game]?.name || game} 详情接口触发风控(1034)，本次剩余公告用摘要兜底`);

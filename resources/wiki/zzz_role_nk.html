@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/zzz_role_nk.css" />
+</head>
+<body {{sys.scale}}>
+<div class="page" id="container">
+  <!-- 测试服数据标记：右上角 TEST 角标。正式服数据不显示（unreleased 由数据层判定） -->
+  {{if unreleased}}<div class="corner-test">TEST</div>{{/if}}
+  <!-- 整卡背景：角色立绘。bg 由 fetchZzzRoleCard 填（米游社 tachie_pc，
+       取不到就退回 Bwiki 立绘），没有就不渲染这层。 -->
+  {{if bgFile}}<img class="bg" src="file://{{bgFile}}" alt="" />
+  {{else if bg}}<img class="page-bg" src="{{bg}}" alt="" /><div class="page-bg-mask"></div>{{/if}}
+  <div class="topbar"></div>
+
+  <!-- 顶部：方形透明人物卡面 + 名字 + 稀有度 + 属性/特性/阵营 + 徽章 + 一句话简介
+       结构与星铁卡（sr_role_nk）一致，便于两个游戏对照查看 -->
+  <header class="hero">
+    {{if portrait}}<img class="avatar" src="{{portrait}}" alt="" />
+    {{else}}<img class="avatar" src="{{icon}}" alt="" />{{/if}}
+    <div class="hero-txt">
+      <h1>{{name}} <span class="rarity">{{rarity}}</span></h1>
+      <div class="tags">
+        {{if damage}}<span class="tag">{{if damageIcon}}<img class="tag-ic" src="{{ppath}}wiki/imgs/{{damageIcon}}" alt="" />{{/if}}{{damage}}</span>{{/if}}
+        {{if profession}}<span class="tag">{{if professionIcon}}<img class="tag-ic" src="{{ppath}}wiki/imgs/{{professionIcon}}" alt="" />{{/if}}{{profession}}</span>{{/if}}
+        {{if camp}}<span class="tag">{{if campIcon}}<img class="tag-ic" src="{{campIcon}}" alt="" />{{/if}}{{camp}}</span>{{/if}}
+      </div>
+      {{if badges && badges.length}}
+      <div class="badges">
+        {{each badges b}}
+        <div class="badge">
+          <span class="bk">{{b.k}}</span>
+          <span class="bv">{{if b.icon}}{{if b.iconUrl}}<img src="{{b.icon}}" alt=""{{if b.iconFaint}} class="ic-faint"{{/if}} />{{else}}<img src="{{ppath}}wiki/imgs/{{b.icon}}" alt="" />{{/if}}{{/if}}{{b.v}}</span>
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{if desc}}<div class="brief">{{desc}}</div>{{/if}}
+    </div>
+  </header>
+
+  {{if detailStory}}
+  <div class="panel">
+    <div class="ptitle">角色详情</div>
+    <div class="story">{{detailStory}}</div>
+    {{if impression}}<div class="story story-sub">{{impression}}</div>{{/if}}
+  </div>
+  {{/if}}
+
+  <!-- 角色印象与角色详情内容重叠且体量大（洛克茜 859 字），
+       合并进「角色详情」展示，卡面不再单列一栏。 -->
+
+
+  <!-- 基础属性：Bwiki「属性数据」。米游社那边是 JS 滑块、接口不返回数值，
+       所以这张表只能取 Bwiki。成长表已在 bwiki_zzz.js 里裁到**最高等级一行**，下半是固定值。 -->
+  {{if baseStats && (baseStats.growth.length || baseStats.fixed.length)}}
+  <div class="panel">
+    <div class="ptitle">基础属性 · 最高等级</div>
+    {{if baseStats.growth && baseStats.growth.length}}
+    <table class="bs-table">
+      <thead><tr><th>等级</th><th>生命值</th><th>攻击力</th><th>防御力</th></tr></thead>
+      <tbody>
+        {{each baseStats.growth g}}<tr><td>{{g.lv}}</td><td>{{g.hp}}</td><td>{{g.atk}}</td><td>{{g.def}}</td></tr>{{/each}}
+      </tbody>
+    </table>
+    {{/if}}
+    {{if baseStats.fixed && baseStats.fixed.length}}
+    <div class="bs-fixed">
+      {{each baseStats.fixed f}}<span class="bs-chip"><b>{{f.k}}</b>{{f.v}}</span>{{/each}}
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  <!-- 技能：按类型合并为 6 组（普攻 / 闪避 / 支援技 / 特殊技 / 终结技 / 核心技），
+       组内分支纵向排列；整块左右分栏，与菲林斯卡一致。
+       官方把一个技能拆成多条（闪避含闪避/冲刺/冲刺攻击/闪避反击，
+       支援技含快速/招架/支援突击，特殊技含特殊技与强化特殊技，
+       终结技含连携技与终结技），直接平铺会有 16~17 块、卡面高度翻倍。 -->
+  {{if skillGroups && skillGroups.length}}
+  <div class="panel">
+    <div class="ptitle">技能</div>
+    <div class="sk-cols">
+      {{each skillGroups g}}
+      <div class="sk-col">
+        <div class="sk-head">
+          {{if g.icon}}<img class="sk-ic" src="{{g.icon}}" alt="" />{{/if}}
+          <span class="sk-name">{{g.type}}</span>
+          <span class="sk-cnt">{{g.branches.length}}</span>
+        </div>
+        <div class="sk-flow">
+          {{each g.branches b}}
+          <span class="sk-bname">{{b.name}}</span>{{if b.desc}}<span class="sk-desc">{{b.desc}}</span>{{/if}}
+          {{/each}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- 影画：绝区零对应原神/星铁「天赋 / 命座」位置 -->
+  {{if achi && achi.length}}
+  <div class="panel">
+    <div class="ptitle">影画</div>
+    {{each achi a}}
+    <div class="achi">
+      <div class="achi-head">{{if a.level}}<span class="achi-lv">{{a.level}}</span>{{/if}}<b>{{a.name}}</b></div>
+      {{if a.effect}}<div class="achi-eff">{{a.effect}}</div>{{/if}}
+    </div>
+    {{/each}}
+  </div>
+  {{/if}}
+
+  <!-- 养成材料：绝区零的「养成消耗总计」，对应原神/星铁的材料总览 -->
+  {{if materials && materials.length}}
+  <div class="panel">
+    <div class="ptitle">养成材料</div>
+    <div class="mats">
+      {{each materials m}}
+      <div class="mat">
+        {{if m.icon}}<img class="mat-ic" src="{{m.icon}}" alt="" />{{/if}}
+        <div class="mat-txt">
+          <div class="mat-name">{{m.name}}</div>
+          {{if m.num}}<div class="mat-num">×{{m.num}}</div>{{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- 角色故事不进卡面：与原神/星铁卡一致（菲林斯的故事正文 8 条近 9000 字，
+       占了整卡约四成高度、导致图片超限），改为独立指令 #绝区零角色名故事。 -->
+
+
+  <!-- 攻略（Bwiki 角色页）：配装推荐 / 词条推荐 / 音擎推荐
+       页面顶部有免责说明，这里一并带出，避免把编辑者观点当成客观结论 -->
+  {{if guide && (guide.drive || guide.stats || guide.weapon)}}
+  <div class="panel">
+    <div class="ptitle">攻略</div>
+    {{if guide.drive}}
+    <div class="gs-block">
+      <div class="gs-label">配装推荐 · 驱动盘套装</div>
+      <div class="ds-row">
+        <span class="ds-tag">4件套</span>
+        {{each guide.drive.set4 d}}<span class="ds-item">{{if d.icon}}<img src="{{d.icon}}" alt="" />{{/if}}{{d.name}}</span>{{/each}}
+      </div>
+      {{if guide.drive.set2 && guide.drive.set2.length}}
+      <div class="ds-row">
+        <span class="ds-tag">2件套</span>
+        {{each guide.drive.set2 d}}<span class="ds-item">{{if d.icon}}<img src="{{d.icon}}" alt="" />{{/if}}{{d.name}}</span>{{/each}}
+      </div>
+      {{/if}}
+      {{if guide.drive.reason}}<div class="gs-text gs-reason">{{@guide.drive.reason}}</div>{{/if}}
+    </div>
+    {{/if}}
+    {{if guide.stats}}
+    <div class="gs-block">
+      <div class="gs-label">词条推荐</div>
+      {{if guide.stats.main && guide.stats.main.length}}
+      <div class="ds-row"><span class="ds-tag">主词条</span>
+        {{each guide.stats.main s}}<span class="ds-item">{{s.slot}}：{{s.text}}</span>{{/each}}
+      </div>
+      {{/if}}
+      {{if guide.stats.sub}}
+      <div class="ds-row"><span class="ds-tag">副词条</span><span class="ds-item">{{guide.stats.sub}}</span></div>
+      {{/if}}
+      {{if guide.stats.reason}}<div class="gs-text gs-reason">{{guide.stats.reason}}</div>{{/if}}
+    </div>
+    {{/if}}
+    {{if guide.weapon}}
+    <div class="gs-block">
+      <div class="gs-label">音擎推荐</div>
+      {{if guide.weapon.best && guide.weapon.best.length}}
+      <div class="ds-row"><span class="ds-tag">毕业</span>
+        {{each guide.weapon.best w}}<span class="ds-item">{{if w.icon}}<img src="{{w.icon}}" alt="" />{{/if}}{{w.name}}{{if w.rarity}} · {{w.rarity}}{{/if}}</span>{{/each}}
+      </div>
+      {{/if}}
+      {{if guide.weapon.alt && guide.weapon.alt.length}}
+      <div class="ds-row"><span class="ds-tag">可选</span>
+        {{each guide.weapon.alt w}}<span class="ds-item">{{if w.icon}}<img src="{{w.icon}}" alt="" />{{/if}}{{w.name}}{{if w.rarity}} · {{w.rarity}}{{/if}}</span>{{/each}}
+      </div>
+      {{/if}}
+      {{if guide.weapon.reason}}<div class="gs-text gs-reason">{{guide.weapon.reason}}</div>{{/if}}
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  <!-- 卡池信息：数据源与角色详情分开取 ——
+       详情/技能/影画/材料来自米游社百科，卡池来自 Bwiki「往期调频」。
+       该页只给角色名与稀有度，没有 UP 次数统计，故此处不显示次数。
+       S 级与 A 级同列（同时 UP），复刻多期全部列出。 -->
+  {{if gacha && gacha.length}}
+  <div class="panel">
+    <div class="ptitle">卡池信息</div>
+    <div class="gachas">
+      {{each gacha g}}
+      <div class="gacha">
+        <div class="g-head">
+          <span class="g-title">{{g.title}}</span>
+          <span class="g-ver">版本 {{g.version}}</span>
+        </div>
+        <div class="g-time">{{g.time}}</div>
+        {{if g.sRank && g.sRank.length}}
+        <div class="g-row"><span class="g-rank r5">S级</span>
+          <span class="g-names">{{each g.sRank c}}[{{c.name}}{{if c.profession}}（{{c.profession}}·{{c.damage}}）{{/if}}] {{/each}}</span>
+        </div>
+        {{/if}}
+        {{if g.aRank && g.aRank.length}}
+        <div class="g-row"><span class="g-rank r4">A级</span>
+          <span class="g-names">{{each g.aRank c}}[{{c.name}}] {{/each}}</span>
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="foot">from 小花火</div>
+</div>
+</body>
+</html>

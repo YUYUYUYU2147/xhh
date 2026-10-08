@@ -43,6 +43,8 @@ body {
   background: #2b2b31;
   border-radius: 6px;
   padding: 4px 5px;
+  /* TEST 角标要绝对定位到卡片右上角，所以容器得是定位参照。 */
+  position: relative;
   /* 用 grid 而不是 flex：要让徽章独占第二行且名字不被压扁。
      flex 里放一个 flex-basis:100% 的兄弟节点时，浏览器会先把同排其它项
      的假想宽度算成接近 0 才换行，名字被压到 3~8 行（实测 55~129px 高）。 */
@@ -52,6 +54,26 @@ body {
   gap: 4px;
   overflow: hidden;
   min-width: 0;
+}
+
+/* TEST 角标：与 list.css 里那套同一设计，压在卡片右上角。
+   暗色卡片上用亮橙，保持一眼可辨。 */
+.c .ava-test {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  padding: 0 3px;
+  border-radius: 6px 2px 6px 2px;
+  background: linear-gradient(135deg, #ff9a2e, #ff6a00);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35);
+  pointer-events: none;
 }
 
 .c img.rank,

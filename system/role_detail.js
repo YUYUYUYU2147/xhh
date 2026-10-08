@@ -25,6 +25,21 @@ function stripTags(s) {
         .replace(/\\n/g, '\n')
         .replace(/\\r/g, '')
         .replace(/\\t/g, ' ')
+        /* nanoka 的术语链接：<color=#xxx>{LINK#N11360001}递变信标{/LINK}</color>
+           —— 花括号里是指向词条 id 的引用，屏幕上显示的是「递变信标」这几个字。
+           不剥掉就会满屏 {LINK#N11360001} 乱码（实测测试服新角色米提亚的
+           6 条命座 + 4 条天赋全中，19 处）。
+           顺序要紧：必须在 <[^>]+> 那条**之前**处理，否则 {LINK#...} 里没有尖括号、
+           会被后面的逻辑留着；而 LINK 标签里不含尖括号，单独剥是安全的。 */
+        .replace(/\{LINK#[^}]*\}/g, '')
+        .replace(/\{\/LINK\}/g, '')
+        /* 引用型占位符：#{series_ref_skill_desc:UIText_SeriesSkillDescFormat,151129,2}
+           —— 未实装角色的星魂/技能描述里指向「升格强化后文案」的占位，
+           渲染出来就是一串代码（实测阿哈星魂2）。完整形态整块剥掉；
+           个别数据缺头花括号、只剩 #xxx.yyy.zzz,2} 的残缺形态，一并兜底。
+           ⚠ 别动 #N[i]（fillSrDesc 的参数占位，方括号结尾，这两条都匹配不到）。 */
+        .replace(/#\{[^}]*\}/g, '')
+        .replace(/#[a-z0-9_]+(?:\.[a-zA-Z0-9_]+)+,\d*\}/g, '')
         .replace(/<color=[^>]*>/g, '')
         .replace(/<\/color>/g, '')
         .replace(/<unbreak>/g, '')
@@ -120,8 +135,38 @@ const gsRegionCn = v => GS_REGION_CN[v] || String(v || '').replace(/^ASSOC_TYPE_
  */
 const gsItemIcon = id => (id ? `https://static.nanoka.cc/assets/gi/UI_ItemIcon_${id}.webp` : '');
 
+// nanoka 给的图标是文件名（如 Skill_A_03 / 10000120），要拼成静态站路径；
+// Bwiki 给的已经是完整 URL（patchwiki.biligame.com/...），再拼一次就成了
+// https://static.nanoka.cc/assets/gi/https://patchwiki… 这种废串，图片直接加载不出来。
+// 所有可能来自 Bwiki 的图标字段都走这里。
+const gsIconUrl = v => {
+    if (!v) return '';
+    const s = String(v);
+    if (!/^https?:\/\//i.test(s)) return `https://static.nanoka.cc/assets/gi/${s}.webp`;
+    // Bwiki 给的技能/命座/天赋图标是页面渲染时压过的 30px 缩略图
+    // （…/images/ys/thumb/a/b/xxx.png/30px-名称.png），放到 22~26px 的
+    // 图标位上等于二次缩小，糊得看不清。缩略图 URL 里带原图路径，
+    // 直接取出来就是原图，不用再查文件页。
+    // 注意 thumb 段里还带两级哈希目录（/thumb/1/19/xxx.png/30px-…），
+    // 所以中间那段要用「任意多层目录」匹配，不能只写 [^/]+
+    // /thumb/<哈希目录>/<文件名>.png/<宽>px-<编码名>.png → /<哈希目录>/<文件名>.png
+    // 中间那段必须用惰性匹配（*?），否则 [^/]+ 会把 xxx.png/30px- 也吞进去。
+    return s.replace(/\/thumb\/((?:[^/]+\/)*?)([^/]+)\/\d+px-[^/]*$/i, '/$1$2');
+};
+
+// 神之眼（元素）图标：本地图标文件名，和 getWikiIcon 里的映射同源。
+const GS_ELEMENT_ICON = { 水: '水.png', 火: '火.png', 冰: '冰.png', 雷: '雷.png', 风: '风.png', 岩: '岩.png', 草: '草.png' };
+
+// 稀有度金星图。维基有现成的五星/四星星图，Bwiki 数据源会带 rarityIcon；
+// nanoka 没有这个键就退回空串，模板照旧显示文字星级。
+const GS_RARITY_ICON = {
+    5: 'https://patchwiki.biligame.com/images/ys/f/ff/0dlkmof43y8aam8fphgixaejy571iqc.png',
+    4: 'https://patchwiki.biligame.com/images/ys/2/2a/ssqzx9cint7m3yudjwviabu4nkd8s9o.png',
+};
+
 // 角色升级材料（角色经验素材）。所有角色通用，id/名字取自 zh/item.json 的
 // type === '角色经验素材'，共 3 档，图标同样实测 200。
+const GS_MORA_ICON = 'https://patchwiki.biligame.com/images/ys/thumb/3/34/60ggyaeh31ait5jbwj9dqjsypgd0jle.png/30px-%E6%91%A9%E6%8B%89.png';
 const GS_EXP_MATS = [
     { id: 104001, name: '流浪者的经验' },
     { id: 104002, name: '冒险家的经验' },
@@ -210,21 +255,100 @@ function gsRoleView(detail, id) {
     // 结果显示成「涤净青金碎屑×1 / 断片×3 / 块×3」—— 那是各档的最小值，
     // 不是真实用量。真实用量是 碎屑×1 → 断片×3 → 断片×6 → 块×3 → 块×6 → 块本×6，
     // 必须逐段原样列，不能去重合并。
-    const toMat = m => ({ name: m.name, count: m.count, rank: m.rank, icon: gsItemIcon(m.id) });
+    // icon 优先用数据源自带的 URL：nanoka 给的是道具 id，要拼本地路径；
+    // Bwiki 直接给了 patchwiki 图链，拼接反而会拼错。
+    const toMat = m => ({ name: m.name, count: m.count, rank: m.rank, icon: m.icon || gsItemIcon(m.id) });
     const ascensionStages = (mats.ascensions || []).map((step, i) => ({
         no: i + 1,
         cost: step.cost,
         mats: (step.mats || []).map(toMat),
     }));
-    // 天赋：talents 是 [[{mats,cost}, ...], [...]]，外层是天赋槽位，摊平成阶段
-    const talentStages = [];
-    for (const group of mats.talents || []) {
-        for (const step of (Array.isArray(group) ? group : [group])) {
+    // 天赋：talents 是三维的 —— 外层数组是【技能】（实测菲林斯 3 个有倍率的技能），
+    // 每个技能内层才是该技能的 9 个升级等级。
+    // 原写法两层循环全摊平并连续编号，菲林斯就成了 3×9=27 阶。数字本身是错的：
+    // 第 10 阶往后是重复的垃圾（三个技能的升级材料完全一致，摊平后看起来像复制粘贴，
+    // 出现「第10阶=摩拉17500+教导×2」这种明显不成梯度的内容）。
+    // 同一个角色所有技能的升级材料是同一套（共用同一个天赋书体系），所以只取第一组。
+    const talentGroups = Array.isArray(mats.talents) ? mats.talents : [];
+    const firstTalentGroup = Array.isArray(talentGroups[0])
+        ? talentGroups[0]
+        : (talentGroups[0] ? [talentGroups[0]] : []);
+    const talentStages = firstTalentGroup
+        .map((step, i) => {
             const list = (step?.mats || []).map(toMat);
-            if (list.length) talentStages.push({ no: talentStages.length + 1, cost: step.cost, mats: list });
-        }
-    }
+            return { no: i + 1, cost: step?.cost, mats: list };
+        })
+        .filter(x => x.mats.length);
+    // 同角色多技能的升级材料是否真的一致——不一致时宁可保留全部组，也别只显示第一组误导人。
+    const talentGroupsDiffer = talentGroups.length > 1 && talentGroups.some(
+        g => JSON.stringify((Array.isArray(g) ? g : [g]).map(s => (s?.mats || []).map(m => `${m.name}x${m.count}`)))
+            !== JSON.stringify(firstTalentGroup.map(s => (s?.mats || []).map(m => `${m.name}x${m.count}`)))
+    );
     const expMats = GS_EXP_MATS.map(m => ({ ...m, icon: gsItemIcon(m.id) }));
+
+    // 数量在两个数据源里有三种写法：'3'、'120000'、'2.4万'。
+    // 求和前统一换成真值，显示时再按量级还原（避免 24000 和 2.4万 两种写法混在一张表里）。
+    const qtyOf = v => {
+        const s = String(v ?? '').replace(/,/g, '').trim();
+        if (!s) return 0;
+        const wan = s.match(/^([\d.]+)\s*万$/);
+        if (wan) return Math.round(parseFloat(wan[1]) * 10000);
+        const n = parseFloat(s);
+        return Number.isFinite(n) ? n : 0;
+    };
+    // 同一材料跨档合并：'最胜紫晶碎屑' 与 '最胜紫晶断片' 是不同材料，不合并。
+    // 摩拉在 nanoka 里不在 mats 内，而是每档的 cost 字段（20000/40000/…），
+    // 所以这里把 cost 一并累加，否则汇总里摩拉永远是空的。
+    const sumMats = stages => {
+        const bag = new Map();
+        for (const st of stages) {
+            if (st?.cost) {
+                const cur = bag.get('摩拉');
+                if (cur) cur.qty += qtyOf(st.cost);
+                else bag.set('摩拉', { name: '摩拉', qty: qtyOf(st.cost), rank: 0, icon: GS_MORA_ICON });
+            }
+            for (const m of (st?.mats || [])) {
+                if (!m?.name) continue;
+                const prev = bag.get(m.name);
+                if (prev) { prev.qty += qtyOf(m.count); continue; }
+                bag.set(m.name, { name: m.name, qty: qtyOf(m.count), rank: m.rank, icon: m.icon || gsItemIcon(m.id) });
+            }
+        }
+        return [...bag.values()].filter(m => m.qty > 0);
+    };
+    // 1652500 不能四舍五入成 165.3万 —— 那是错的数字，差 500 摩拉。
+    // 万位以下保留两位小数，且只在真的能整除时才用短写法。
+    const fmtQty = n => {
+        if (n < 10000) return String(n);
+        const w = n / 10000;
+        if (Number.isInteger(w)) return `${w}万`;
+        const s2 = w.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+        return `${s2}万`;
+    };
+
+
+    // 等级升级消耗（1→90 分段）。这是可选数据：只有 Bwiki 路径会带 materials.levelUp，
+    // nanoka 的 materials 只有 ascensions / talents 两个键，所以这里拿不到，
+    // 模板会退回只列三本通用经验书的旧行为，不回归。
+    const levelUpMats = (mats.levelUp || [])
+        .map(seg => ({
+            lv: seg.lv || (seg.from != null && seg.to != null ? `${seg.from}~${seg.to}级` : ''),
+            from: seg.from ?? null,
+            to: seg.to ?? null,
+            approx: !!seg.approx,
+            mats: (seg.mats || []).map(toMat).filter(m => m.name),
+        }))
+        .filter(seg => seg.lv && seg.mats.length);
+    // 升级材料：Bwiki 有 levelUp（分 7 段），nanoka 只有三本通用经验书没有分段。
+    // 三类材料各自求和。突破/天赋的逐档明细仍保留在 ascensionStages / talentStages，
+    // 模板默认只画总和，要展开的话换字段即可。
+    const ascendSum = sumMats(ascensionStages);
+    const talentSum = sumMats(talentStages);
+    const levelSum = sumMats(levelUpMats);
+    // 技能书（天赋书）：Bwiki 放在 materials.skillUp 里，形态是 [{level, mats}]，
+    // 与 ascensionStages 同构。nanoka 没有这个键，所以那一侧这组是空的。
+    const skillUpStages = (mats.skillUp || []).map(s => ({ no: s.level, mats: (s.mats || []).map(toMat) }));
+    const skillSum = sumMats(skillUpStages);
 
     const skills = (d.skills || []).map((sk, i) => {
         // promote 的键 0/1/2/3 不是「天赋组」而是【等级档】，每档自带一份 param 数组
@@ -236,7 +360,9 @@ function gsRoleView(detail, id) {
         const firstIcon = Object.values(sk.promote || {})[0]?.icon;
         return {
             name: sk.name || `技能${i + 1}`,
-            icon: firstIcon ? `https://static.nanoka.cc/assets/gi/${firstIcon}.webp` : '',
+            // nanoka 给的是文件名（Skill_A_03），要拼成静态站路径；
+            // Bwiki 给的已经是完整 URL，直接拼会得到 https://static.nanoka.cc/assets/gi/https://… 这种废串。
+            icon: gsIconUrl(firstIcon),
             lines: top.lines,
             maxLevel: top.level,
             brackets: groups.map(g => g.level).filter(Boolean),
@@ -250,9 +376,16 @@ function gsRoleView(detail, id) {
         // 之前这里把 UI_AvatarIcon_ 剥掉再拼 .webp，得到的
         // assets/gi/Furina.webp 实测 404 —— 152 个角色无一例外全是坏的，
         // 不是个别角色缺图。列表页（nanokaGsIcon）没剥前缀所以一直正常。
-        icon: d.icon ? `https://static.nanoka.cc/assets/gi/${d.icon}.webp` : '',
+        icon: gsIconUrl(d.icon),
         rarity: gsRarityCn(d.rarity),
+        /* 星级图标按**归一化后的中文稀有度**取键。原来用 /(\d)/ 去原值里找数字：
+           Bwiki 路径 rarity 是 '5' 能取到，nanoka 路径是「五星」取不到数字 → 图标为空
+           （旅行者等走 nanoka 的角色头像上没有金星）。 */
+        rarityIcon: d.rarityIcon || GS_RARITY_ICON[gsRarityCn(d.rarity) === '五星' ? 5 : gsRarityCn(d.rarity) === '四星' ? 4 : 0] || '',
         element: info.vision || '',
+        // 神之眼图标（wiki/imgs/{元素}.png），模板用 {{ppath}} 拼。
+        // 之前只给了元素文字，标签前面没有图标，看起来就像「神之眼没获取到」。
+        elementIcon: GS_ELEMENT_ICON[info.vision] || '',
         constellation: info.constellation || '',
         region: gsRegionCn(info.region),
         title: info.title || '',
@@ -265,13 +398,34 @@ function gsRoleView(detail, id) {
         skills,
         constellations: (d.constellations || []).map((c, i) => ({
             no: i + 1, name: c.name, desc: fillSrDesc(c.desc, c.param_list),
+            icon: c.icon ? gsIconUrl(c.icon) : '',
         })).filter(c => c.name),
         passives: (d.passives || []).map(p => ({
             name: p.name, desc: fillSrDesc(p.desc, p.param_list), unlock: p.unlock,
+            icon: p.icon ? gsIconUrl(p.icon) : '',
         })).filter(p => p.name),
         ascensionStages,
         talentStages,
+        // 多技能材料不一致时（极少见）告知调用方，别让人以为这就是全部
+        talentSkillCount: talentGroups.length,
+        talentGroupsDiffer,
         expMats,
+        levelUpMats,
+        // 三类材料的合并汇总，模板画「材料总览」用。
+        // 模板不能调函数，数量在这里就格式化成字符串。
+        matSummary: [
+            { key: 'level', label: '升级', mats: levelSum },
+            { key: 'ascend', label: '突破', mats: ascendSum },
+            { key: 'talent', label: '天赋', mats: talentSum },
+            { key: 'skill', label: '技能', mats: skillSum },
+        ]
+            .filter(g => g.mats.length)
+            .map(g => ({
+                key: g.key, label: g.label,
+                // 摩拉在 nanoka 里是每档的 cost 字段，已并进 mats 末尾，展示上与其他材料一致
+                mats: g.mats.map(m => ({ ...m, count: fmtQty(m.qty) })),
+                mats: g.mats.map(m => ({ ...m, count: fmtQty(m.qty) })),
+            })),
     };
 }
 
@@ -313,6 +467,18 @@ function srRoleView(detail, id) {
         };
     }).filter(s => s.desc);
 
+    // 基础属性（模板 sr_role_nk 读的是**扁平** hp/atk/def/crit/critDmg/speed，
+    // 此前这里只给了 growth 数组，模板里根本没有 growth 循环，于是这些字段全空、
+    // 「基础属性 · 80级」整块是空值）。这里按最高一档还原 80 级单值。
+    // 键0~6 七档，实测星铁全部如此（含已实装）；末档（键最大）的 base + add×(80-1)
+    // 即该角色 80 级值（丹恒•饮月→ hp1242 / atk699，与游戏内量级一致）。
+    const MAX_LEVEL = 80;
+    const statKeys = Object.keys(stats).filter(k => Number.isFinite(Number(k)))
+        .sort((a, b) => Number(a) - Number(b));
+    const top = statKeys.length ? stats[statKeys[statKeys.length - 1]] : null;
+    const atMax = (b, a) => Math.round((Number(b) || 0) + (Number(a) || 0) * (MAX_LEVEL - 1));
+    const pct = v => (v == null ? '' : `${Math.round(Number(v) * 100)}%`);
+
     // ---- 培养材料 ----
     // 星铁没有「角色突破」这个独立字段（enhanced 是魂影强化、memosprite 是记忆灵媒），
     // 培养材料就是 skill_trees 各节点的 material_list。这里按 item_id 合并求和，
@@ -332,6 +498,9 @@ function srRoleView(detail, id) {
         name: (d.itemMap?.[itemId]?.item_name || '').trim().replace(/^\.{3}$/, '')
             || `道具 ${itemId}`,
         icon: srItemIcon(itemId),
+        // ⚠ icon 已是完整 URL，模板靠 iconUrl 区分「原样输出」与「拼 ppath+wiki/imgs/
+        // 本地文件名」。缺这个标记，模板会把整条 URL 当文件名拼进本地路径 → 必然裂图。
+        iconUrl: true,
         total,
     })).sort((a, b) => b.total - a.total);
 
@@ -365,6 +534,14 @@ function srRoleView(detail, id) {
         camp: info.camp || '',
         spNeed: d.sp_need,
         desc: stripTags(d.desc),
+        // 扁平基础属性：模板 sr_role_nk 读这几个字段（此前只给了 growth 数组，模板无growth 循环 → 空值）
+        hp: top ? atMax(top.hp_base, top.hp_add) : '',
+        atk: top ? atMax(top.attack_base, top.attack_add) : '',
+        def: top ? atMax(top.defence_base, top.defence_add) : '',
+        crit: pct(top?.critical_chance),
+        critDmg: pct(top?.critical_damage),
+        speed: top?.speed_base ?? '',
+        traceBonus: '', // nanoka 侧没有行迹加成字段，留空由模板跳过
         growth,
         skills,
         materials,

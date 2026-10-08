@@ -148,6 +148,11 @@ body {
   margin-top: 3px;
 }
 /* 星级描边：原神五星/绝区零S级=金色，四星/A级=紫色，三星/B级=蓝色 */
+/* 幻化武器的Gacha 图标是 512×1024 竖图，90×90 方框用 cover 只能看到剑身中段一小条。
+   改用 contain 整幅缩放显示（图片变成 45×90 细长一条，但整把武器完整可见，
+   透明区域也能透出下面的星级底色 —— 四星是紫色）。 */
+.box_ img.tall { object-fit: contain; object-position: center; }
+
 .box_ img.r5 {
   border: 2px solid #e8b53a;
   box-shadow:
@@ -207,6 +212,82 @@ body {
 .box_ .img-ph.rank-normal { color: #94a89d; }
 
 .mini-badge { display: inline-flex; width: 100%; min-width: 0; align-items: center; justify-content: center; gap: 1px; max-width: 100%; padding: 1px 0; border-radius: 999px; background: rgba(255,255,255,.68); color: #3f4a42; font-size: 7px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* TEST 角标：Bwiki 一览里查不到、数据只来自 nanoka 的条目 */
+.mini-badge.test { background: rgba(255,138,0,.92); color: #fff; font-weight: 700; letter-spacing: .5px; }
 .mini-badge img { width: 12px; height: 12px; object-fit: contain; flex: 0 0 12px; }
 .mini-badge.icon-only,
 .mini-badge:has(img) { width: 100%; max-width: 100%; padding: 1px; font-size: 0; }
+
+/* 头像容器：为了让稀有度金星条能压在头像顶部，这里必须是 relative。
+   头像本体的 90×90、圆角、描边全部照旧，只是多包了一层。 */
+.box_ .ava {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin: 0 auto;
+}
+/* TEST 角标（测试服标记）：贴在头像右上角。
+   之前它混在名字下方的徽章行里，跟星级/属性徽章挤成一列，看不出是「这条是测试服」。
+   放右上角后一眼可辨，位置与游戏内角色卡一致。
+   ⚠️ 定位用 top:2px / right:2px（收在 .ava 内），**不要用负值外扩**：
+     .ava 的父级 .box_ 没有 z-index，负偏移溢出的部分会被同一行
+     右侧相邻卡片的背景盖掉（实测右上角被切掉一截）。
+   金星条是 top:4px 居中、宽 76px，左右各留 7px，角标贴最右上角不与之重叠。 */
+.box_ .ava-test {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 3;
+  padding: 1px 4px;
+  border-radius: 8px 2px 8px 2px;
+  background: linear-gradient(135deg, #ff9a2e, #ff6a00);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,.9), 0 1px 3px rgba(0,0,0,.3);
+  pointer-events: none;
+}
+
+/* 阵营角标（只有绝区零角色列表挂：Bwiki「角色图鉴」的 Logo-阵营图标-*.png）：
+   贴在头像右上角，与 Bwiki 图鉴页的观感一致。
+   ⚠️ .box_ img 那条通用规则给了 90×90、白描边、圆角与内阴影，
+   角标必须把这几项全部显式复位，否则会被撑成整张脸的尺寸。
+   定位同样收在 .ava 内（top/right 用正值），理由见 .ava-test 注释。
+   TEST 角标只在 test 数据模式出现，而 test 模式下不挂阵营角标（Bwiki 是正式服源），
+   两者不会同时出现。 */
+.box_ img.ava-camp {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+}
+
+/* 稀有度金星条（维基原图是 162x25 的五星条，缩到头像宽度即可）：
+   压在头像上沿居中，盖在描边之上，和游戏内角色卡的观感一致。 */
+.box_ img.ava-stars {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 76px;
+  height: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+}

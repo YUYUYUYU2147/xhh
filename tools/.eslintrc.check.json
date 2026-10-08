@@ -1,0 +1,37 @@
+{
+  "root": true,
+  "parserOptions": {
+    "ecmaVersion": 2024,
+    "sourceType": "module"
+  },
+  "env": {
+    "node": true,
+    "es2024": true
+  },
+  "globals": {
+    "logger": "readonly",
+    "config": "readonly",
+    "mys": "readonly",
+    "yaml": "readonly",
+    "render": "readonly",
+    "reply_recallMsg": "readonly",
+    "plugin": "readonly",
+    "segment": "readonly",
+    "redis": "readonly",
+    "Bot": "readonly",
+    "Config": "readonly",
+    "sender": "readonly",
+    "common": "readonly",
+    "data": "readonly",
+    "fs": "readonly",
+    "path": "readonly",
+    "utils": "readonly",
+    "sys": "readonly",
+    "moment": "readonly",
+    "date": "readonly",
+    "pluginManager": "readonly"
+  },
+  "rules": {
+    "no-undef": "error"
+  }
+}

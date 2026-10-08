@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/zzz_syw_bwiki.css" />
+</head>
+<body {{sys.scale}}>
+<!-- 驱动盘卡：Bwiki 驱动盘词条版式。
+     数据源 Bwiki（parseZzzBwikiDisc）：图标/稀有度/二件套/四件套/描述/获取途径/实装版本/驱动盘故事(1~6号位)。 -->
+<div class="page" id="container">
+  <!-- 测试服数据标记：右上角 TEST 角标。正式服数据不显示（unreleased 由数据层判定） -->
+  {{if unreleased}}<div class="corner-test">TEST</div>{{/if}}
+  {{if bgFile}}<img class="bg" src="file://{{bgFile}}" alt="" />{{/if}}
+  <div class="topbar"></div>
+
+  <header class="hero">
+    <div class="hero-ic">
+      {{if icon}}<img src="{{icon}}" alt="" />{{else}}<div class="img-ph">{{name[0]}}</div>{{/if}}
+    </div>
+    <div class="hero-txt">
+      <h1>{{name}} {{if rarity}}<span class="rarity">{{rarity}}</span>{{/if}}</h1>
+      <div class="tags">
+        {{if obtain}}<span class="tag">获取途径 · {{obtain}}</span>{{/if}}
+        {{if version}}<span class="tag">版本 {{version}}</span>{{/if}}
+        {{if tags}}<span class="tag">TAG · {{tags}}</span>{{/if}}
+      </div>
+      {{if desc}}<div class="brief">{{desc}}</div>{{/if}}
+    </div>
+  </header>
+
+  {{if stories && stories.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">驱动盘故事</div>
+      {{each stories s}}<p class="story">{{@s}}</p>{{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{if set2}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">二件套效果</div>
+      <div class="cell-d">{{@set2}}</div>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if set4}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">四件套效果</div>
+      <div class="cell-d">{{@set4}}</div>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- 驱动盘 1-6 号位：图标 + 主属性（S/A/B 满级数据），来自米游社 driver_disk 组件。 -->
+  {{if parts && parts.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">驱动盘部位</div>
+      <div class="disc-parts">
+        {{each parts p}}
+        <div class="part">
+          <div class="part-hd">
+            {{if p.icon}}<img src="{{p.icon}}" alt="" />{{/if}}
+            <span>{{p.name}}</span>
+          </div>
+          {{if p.attrs && p.attrs.length}}
+          <div class="part-attrs">
+            {{each p.attrs attr}}
+            <div class="attr">
+              <div class="attr-name">{{attr.name}}</div>
+              <div class="attr-vals">
+                <span class="s">S {{attr.s}}</span>
+                <span class="a">A {{attr.a}}</span>
+                <span class="b">B {{attr.b}}</span>
+              </div>
+            </div>
+            {{/each}}
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- 推荐代理人：米游社词条页的「推荐角色 / 推荐理由」（官方原文，逐人带理由）。
+       没有官方数据时不渲染该区块，也不拿 Bwiki 反查的弱信号列表凑数。 -->
+  {{if agents && agents.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">推荐角色</div>
+      <div class="agents">
+        {{each agents a}}<span class="agent"><img src="{{a.icon}}" alt="" />{{a.name}}</span>{{/each}}
+        {{each agents a}}
+        {{if a.reason}}
+        <div class="agent-why"><span class="t">推荐理由</span><span class="who">{{a.name}}</span>{{a.reason}}</div>
+        {{/if}}
+        {{/each}}
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="foot">from 小花火</div>
+</div>
+</body>
+</html>

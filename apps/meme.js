@@ -109,7 +109,8 @@ async function renderImg(e, path, data_, cfg = {}) {
       ...data_,
       sys: { scale: 'style=transform:scale(1)' },
       deviceScaleFactor: cfg.scale || 2,
-      ppath: data_.ppath || '../../../../../plugins/xhh/resources/',
+      // 落盘深度 = path 段数 + 3（temp/html/小花火/{path}/{saveId}.html），同 render.js
+      ppath: data_.ppath || '../'.repeat(path.split('/').filter(Boolean).length + 3) + 'plugins/xhh/resources/',
       tplFile: tplFile,
       saveId: path.split('/')[path.split('/').length - 1],
     });

@@ -125,12 +125,12 @@ function readAll(game, qq) {
             out[k] = v;
             continue;
         }
-        dropped.push(k);
+        dropped.push([k, v]);
     }
     if (!dropped.length) return out;
     // 非法键只保留月份数（"9" → 202609 的月份 9），并到当年同月那条上
     const nowYm = moment().format('YYYYMM');
-    for (const k of dropped) {
+    for (const [k, v] of dropped) {
         const mo = String(k).replace(/\D/g, '').slice(-2);
         if (!/^\d{2}$/.test(mo)) continue;
         const guess = `${nowYm.slice(0, 4)}${mo}`;

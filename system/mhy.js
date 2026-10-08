@@ -49,7 +49,7 @@ class mhy {
   }
 
   async shebei(e, info) {
-    if (info?.device_fp && info?.device_id) return this.bd(e, yaml_url, info.device_id, info.device_fp);
+    if (info?.device_fp && info?.device_id) return this.bd(e, info.device_id, info.device_fp);
     if (!info?.oaid) return logger.error('设备格式错误');
     let ck = this.getUser(e)?.ck;
     if (!ck) return e.reply('请先扫码绑定米游社后，在绑定设备');

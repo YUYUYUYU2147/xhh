@@ -15,6 +15,7 @@
         {{else}}
         <div class="img-ph rank {{s.rankClass}}">{{s.name[0]}}</div>
         {{/if}}
+        {{if s.isTest}}<span class="ava-test">TEST</span>{{/if}}
         <span class="n">{{s.name}}</span>
         {{if s.badges && s.badges.length}}
         <div class="mini-badges">

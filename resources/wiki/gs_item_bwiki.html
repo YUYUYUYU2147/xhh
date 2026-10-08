@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="{{ppath}}wiki/gs_item_bwiki.css" />
+</head>
+<body {{sys.scale}}>
+<!-- 原神武器/圣遗物卡：Bwiki 词条版式（与绝区零那套视觉统一）。
+     数据源 Bwiki parseGsBwikiItem；Bwiki 无此条目时由调用方回落原模板。 -->
+<div class="page" id="container">
+  <!-- 测试服数据标记：右上角 TEST 角标。正式服数据不显示（unreleased 由数据层判定） -->
+  {{if unreleased}}<div class="corner-test">TEST</div>{{/if}}
+  {{if bgFile}}<img class="bg" src="file://{{bgFile}}" alt="" />{{/if}}
+  <div class="topbar"></div>
+
+  <header class="hero">
+    <div class="hero-ic">
+      {{if icon}}<img src="{{icon}}" alt="" />{{else}}<div class="img-ph">{{name[0]}}</div>{{/if}}
+    </div>
+    <div class="hero-txt">
+      <h1>{{name}} {{if stars}}<span class="stars">{{each starList s}}<i>★</i>{{/each}}</span>{{/if}}</h1>
+      <div class="tags">
+        {{if typeName}}<span class="tag">{{typeName}}</span>{{/if}}
+        {{if obtain}}<span class="tag">{{obtain}}</span>{{/if}}
+        {{if version}}<span class="tag">版本 {{version}}</span>{{/if}}
+      </div>
+      {{if rarityIcon}}<img class="rarity-icon" src="{{rarityIcon}}" alt="" />{{/if}}
+      {{if tags}}<div class="brief">TAG · {{tags}}</div>{{/if}}
+    </div>
+  </header>
+
+  {{if pending}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">说明</div><div class="cell-d">该条目为新收录内容，百科详情尚未收录，暂只显示名称、稀有度与类型。</div></div>
+  </div>
+  {{/if}}
+
+  {{if intro}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">简介</div><div class="cell-d">{{intro}}</div></div>
+  </div>
+  {{/if}}
+
+  {{if story}}
+  <div class="row">
+    <div class="cell"><div class="cell-t">故事</div><div class="cell-d">{{story}}</div></div>
+  </div>
+  {{/if}}
+
+  <!-- 武器技能：精炼分档（nanoka/米游社给 1~5 档）写成一行 x1/x2/x3/x4/x5，
+       文字全展开太占版面；只给 1 档又等于藏了 4 档信息。没有分档才退回单条。 -->
+  {{if refinements && refinements.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">{{skillLabel}} · {{refinements[0].name}}</div>
+      <div class="cell-d refine-line">
+        <!-- 官方写法：只写变化的数值（compactRefinements 已压好，如 24%/30%/36%/42%/48%）。
+             万一文案结构不一致退回逐档时，也不加 xN 标签，只按段落排。 -->
+        {{each refinements r}}<p class="refine-p">{{@r.desc}}</p>{{/each}}
+      </div>
+      {{if skillNote}}<div class="cell-d cell-note">技能解析：{{@skillNote}}</div>{{/if}}
+    </div>
+  </div>
+  {{else if skillName}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">{{skillLabel}} · {{skillName}}</div>
+      {{if skillDesc}}<div class="cell-d">{{@skillDesc}}</div>{{/if}}
+      {{if skillNote}}<div class="cell-d cell-note">技能解析：{{@skillNote}}</div>{{/if}}
+    </div>
+  </div>
+  {{/if}}
+
+
+
+  {{if panel && panel.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">详细面板</div>
+      <table class="tb">
+        <thead>
+          <tr><th>等级</th><th>基础攻击力</th><th>{{subName || '副属性'}}</th></tr>
+        </thead>
+        <tbody>
+          {{each panel p}}<tr><td>{{p.lv}}</td>{{each p.cells c}}<td>{{c.v}}</td>{{/each}}</tr>{{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if agents && agents.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">推荐角色</div>
+      <div class="agents">
+        {{each agents a}}<span class="agent"><img src="{{a.icon}}" alt="" />{{a.name}}</span>{{/each}}
+      </div>
+      {{each agents a}}
+      {{if a.reason}}
+      <div class="agent-why"><span class="t">推荐理由</span><span class="who">{{a.name}}</span>{{a.reason}}</div>
+      {{/if}}
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{if !agents.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">推荐角色</div>
+      <div class="agents">
+        <div class="agent-why"><span class="t">推荐角色</span>官方暂未推荐角色</div>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- 突破材料：只出**总计**。官方分级明细（1→20→40…）逐档列出来又长又没人看；
+       万一某套装只解析到分级没解析到总计，就退回分级，信息不丢。 -->
+
+  {{if materialTotal && materialTotal.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">突破材料 · 总计</div>
+      <div class="agents">
+        {{each materialTotal it}}<span class="agent"><img src="{{it.img}}" alt="" />{{it.name}} × {{it.num}}</span>{{/each}}
+      </div>
+    </div>
+  </div>
+  {{else if materials.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">突破材料</div>
+      <table class="tb">
+        <tbody>
+          {{each materials m}}<tr><td class="stage">{{m.stage}}</td><td>{{each m.items it}}<span class="mat">{{if it.img}}<img src="{{it.img}}" alt="" />{{/if}}{{it.name}} × {{it.num}}</span>{{/each}}</td></tr>{{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{/if}}
+
+  {{if gacha && gacha.banners.length}}
+  <div class="row">
+    <div class="cell">
+      <div class="cell-t">卡池信息 <span class="hint">UP {{gacha.upCount}} 次</span></div>
+      <div class="banners">
+        {{each gacha.banners b}}
+        <div class="banner">
+          <span class="bv">{{b.version}}</span>
+          <span class="bp">{{b.period}}</span>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="foot">from 小花火</div>
+</div>
+</body>
+</html>

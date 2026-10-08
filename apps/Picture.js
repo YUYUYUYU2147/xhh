@@ -46,7 +46,7 @@ export class picture extends plugin {
             recallMsg(e, source.message_id);
             await sleep(200);
             recallMsg(e);
-            return true;
+            return true;//测试
         }
         for (let i in imageMessages) {
             let index = Number(i) + 1;

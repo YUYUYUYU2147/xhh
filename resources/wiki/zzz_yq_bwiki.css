@@ -1,0 +1,81 @@
+/* 驱动盘卡（Bwiki 版式），与音擎卡 zzz_wq_bwiki 共用一套视觉 */
+.page{position:relative;width:1000px;padding:24px 28px 20px;background:#f7f9fc}
+.page > img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.32;filter:saturate(1.05);z-index:0}
+.page > *:not(.bg):not(.corner-test){position:relative;z-index:1}
+.topbar{position:absolute;left:0;top:0;width:100%;height:5px;z-index:2;
+  background:linear-gradient(90deg,#e0a92f,#c9881f 55%,#7a4fa8)}
+
+.hero{display:flex;align-items:center;gap:16px;margin:6px 0 14px}
+.hero-ic{width:104px;height:104px;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#ffe9a8 0%,#ffd166 45%,#e0a83a 100%)}
+.hero-ic img{width:88px;height:88px;object-fit:contain}
+.img-ph{font-size:38px;font-weight:900;color:#7a5a12}
+.hero-txt{flex:1;min-width:0}
+.hero-txt h1{margin:0;font-size:26px;font-weight:900;color:#1f2937}
+.rarity{font-size:15px;font-weight:800;color:#d4a017;margin-left:6px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12px;color:#4a5468;background:#eef1f6;border:1px solid #dfe4ec;border-radius:999px;padding:2px 10px}
+.brief{margin-top:8px;font-size:12.5px;line-height:1.7;color:#6b7488}
+
+.row{display:flex;gap:12px;margin-bottom:12px}
+.cell{flex:1;background:#fff;border:1px solid #e9edf3;border-radius:14px;padding:12px 15px}
+.cell-t{font-size:12.5px;color:#8a94a6;margin-bottom:6px}
+.cell-d{font-size:12.5px;line-height:1.85;color:#3c4759;white-space:pre-line}
+/* ── 表格基础样式（与 zzz_wq_bwiki 一致）──
+   ⚠ 这三个模板的 css 最初是从音擎卡复制的，但复制发生在音擎卡补齐 .tb 之前，
+   结果只带上了后面追加的零散规则、缺了 .tb 本体，
+   表格退化成浏览器默认样式（字体/边框/内边距全不一样）。 */
+.tb{width:100%;border-collapse:collapse;font-size:12px;color:#3c4759}
+.tb th{background:#f2f5fa;color:#8a94a6;font-weight:700;padding:5px 6px;border:1px solid #e2e7ef}
+.tb td{padding:4px 6px;border:1px solid #eaeef4;text-align:center}
+.tb tr.total td{background:#fdf6e3;font-weight:700;color:#8a6a12}
+.cell-d .num{color:#4571ec;font-weight:700}
+.story{margin:0 0 6px;font-size:12.5px;line-height:1.85;color:#3c4759}
+.story:last-child{margin-bottom:0}
+
+.foot{margin-top:14px;text-align:center;font-size:12px;color:#ee8e8e;opacity:.9}
+
+/* 邦布面板附加表：第一列表头留空即可，列数由数据决定 */
+.tb td.stage{text-align:left;color:#6b7488}
+
+/* 突破材料条目（.mat 之前在这几个模板里没有样式，
+   材料图标会按原图 220px 渲染，卡面被撑得巨大 —— 补一套与 zzz_wq_bwiki 一致的） */
+.mat{display:inline-flex;align-items:center;gap:5px;margin:2px 10px 2px 0;font-size:12px;color:#3c4759}
+.mat img{width:20px;height:20px;object-fit:contain;border-radius:4px;flex:0 0 auto}
+
+/* 搭配组合（代理人头像行）+ 推荐理由：与遗器卡 relic_bwiki.css 同一套观感 */
+.agents{display:flex;flex-wrap:wrap;gap:8px 10px}
+.agent{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 3px;background:#ffffffcc;
+  border:1px solid #e6eaf2;border-radius:999px;font-size:12px;line-height:1}
+.agent img{width:22px;height:22px;border-radius:50%;object-fit:cover;background:#eef1f7}
+.agent-why{margin-top:8px;padding:8px 10px;background:#ffffffcc;border:1px solid #e6eaf2;
+  border-radius:8px;font-size:12px;line-height:1.7;color:#4b5563}
+.agent-why .t{display:inline-block;margin-right:6px;padding:1px 6px;border-radius:4px;
+  background:#f0f4ff;color:#4571ec;font-size:11px}
+
+/* 稀有度 / 属性角标：卡面右上角，用户指定要显示官方那两个小图标 */
+.hero-ic{position:relative}
+.hero-ic .corner{position:absolute;top:2px;width:22px;height:22px;object-fit:contain;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.18))}
+.hero-ic .corner.c1{right:2px}
+.hero-ic .corner.c2{right:26px}
+
+/* 邦布技能图标（米游社 role_talent 的官方 a/b/c 三个图标） */
+.skill-ic{width:20px;height:20px;object-fit:contain;vertical-align:-4px;margin-right:5px}
+/* 相同推荐理由已按内容归并，这里把适用角色名单标出来 */
+.agent-why .who{color:#4571ec;margin-right:6px}
+
+/* ── 稀有度配色：S 级金 / A 级紫 / B 级蓝 ──
+   原来 .hero-ic 与 .rarity 是写死的金色，A 级邦布也显示金色方框+金色字。
+   配色沿用列表页口径（list.css：S #e0a92f→#c9881f，A #9a5fd0→#7a41ad）。 */
+.hero.rar-a .hero-ic{background:linear-gradient(180deg,#c9a0e8 0%,#9a5fd0 45%,#7a41ad 100%)}
+.hero.rar-a .img-ph{color:#f2e6fb}
+.hero.rar-a .rarity{color:#8a4fc4}
+.hero.rar-b .hero-ic{background:linear-gradient(180deg,#a8cdf0 0%,#6f9fd6 45%,#4b7fb5 100%)}
+.hero.rar-b .img-ph{color:#eaf3fb}
+.hero.rar-b .rarity{color:#4b7fb5}
+
+/* 测试服数据角标：所有卡面右上角统一一个 TEST 标 */
+.corner-test{position:absolute;top:10px;right:10px;z-index:5;padding:2px 8px;border-radius:6px;
+  background:linear-gradient(180deg,#ffd76a,#e8a33a);color:#5a3d00;font-size:12px;font-weight:800;
+  letter-spacing:1px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
