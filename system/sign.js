@@ -1468,11 +1468,12 @@ async function BbsAutoSign(qqs = [], group = 0) {
         // 只有逍遥侧数据的人，顺手把 xhh 文件补出来（不需要扫码）
         await mhy.ensureXhhFromXiaoyao(e);
         const { msgs, lines } = await bbsSignForEvent(e, false);
-        // 与游戏自动签到的 sbai_qqs 同一判据：全部版块都成功才算过。
-        // 游戏侧判的是 z_num，这里只有一个通行证，按它的口径取反即可。
-        const body = lines.slice(1);
-        const ok = body.length > 0 && body.every(l => /签到成功|今日已签/.test(l));
+        // 与卡片显示同一数据源判定：bbsCardItem 的 tip 已把 1008「重复打卡」归为「今日已签」。
+        // 不能用 lines 文本判定 —— body 里混着「\n通行证 ****xxxx」抬头行，不含任何结果关键词，
+        // every 恒为 false，会把签到全成功的账号也判成失败并艾特。
+        const ok = msgs.length > 0 && msgs.every(m => /签到成功|今日已签/.test(m.tip || ''));
         if (!ok) failed.push(qq);
+        const body = lines.slice(1);
         allLines.push(`\nQQ ${qq}`);
         allLines.push(...body);
         allMsgs.push(...msgs.map(m => ({ ...m, title: `QQ ${qq} · ${m.title}` })));
